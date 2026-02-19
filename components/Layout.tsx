@@ -9,12 +9,12 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children, currentView, onNavigate }) => {
   return (
-    <div className="min-h-screen flex flex-col relative w-full overflow-x-hidden">
+    <div className="h-screen flex flex-col relative w-full overflow-hidden bg-paper text-ink selection:bg-ink selection:text-paper">
       {/* Noise Texture Overlay */}
       <div className="fixed inset-0 pointer-events-none z-50 bg-noise opacity-100 mix-blend-multiply"></div>
 
       {/* Navigation */}
-      <header className="w-full px-6 py-6 md:px-12 flex justify-between items-center relative z-40 border-b border-stock/50">
+      <header className="w-full px-6 py-6 md:px-12 flex justify-between items-center relative z-40 border-b border-stock/50 shrink-0">
         <div 
           className="flex items-center gap-2 cursor-pointer group"
           onClick={() => onNavigate(ViewState.FOYER)}
@@ -43,13 +43,13 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onNavigat
         </nav>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-grow flex flex-col relative z-30">
+      {/* Main Content - overflow-hidden to allow views to manage their own scroll areas (e.g. split screen) */}
+      <main className="flex-grow flex flex-col relative z-30 overflow-hidden">
         {children}
       </main>
 
       {/* Footer */}
-      <footer className="w-full py-8 text-center relative z-30 border-t border-stock/50 mt-auto">
+      <footer className="w-full py-8 text-center relative z-30 border-t border-stock/50 shrink-0">
         <p className="font-sans text-[10px] tracking-widest text-pencil uppercase">
           © 2024 Classicist's Sanctuary · Est. MMXXIV
         </p>

@@ -36,16 +36,17 @@ export const ReadingRoom: React.FC<ReadingRoomProps> = ({ onNavigate }) => {
     : "You chose the Machine.";
 
   return (
-    <div className={`flex-grow flex flex-col w-full transition-opacity duration-1000 ${fadeIn ? 'opacity-100' : 'opacity-0'}`}>
+    // Main Container: Scrolls on mobile (overflow-y-auto), fixed on desktop (lg:overflow-hidden)
+    <div className={`flex flex-col w-full h-full transition-opacity duration-1000 overflow-y-auto lg:overflow-hidden no-scrollbar ${fadeIn ? 'opacity-100' : 'opacity-0'}`}>
       
       {/* Header Info */}
-      <div className="w-full text-center py-6 border-b border-stock/30">
+      <div className="w-full text-center py-6 border-b border-stock/30 shrink-0">
         <p className="font-sans text-xs tracking-[0.2em] uppercase text-pencil">Subject</p>
         <p className="font-serif text-2xl italic text-ink mt-1">{duel.topic}</p>
       </div>
 
-      {/* Split Screen */}
-      <div className="flex-grow flex flex-col lg:flex-row relative">
+      {/* Split Screen Container */}
+      <div className="flex-grow flex flex-col lg:flex-row relative min-h-0">
         
         {/* Divider (Desktop) */}
         <div className="hidden lg:block absolute left-1/2 top-0 bottom-0 w-px bg-border-pencil z-10"></div>
@@ -120,7 +121,9 @@ const PoemColumn: React.FC<PoemColumnProps> = ({ poem, label, revealed, isSelect
   const labelText = isHuman ? 'Human' : 'Artificial Intelligence';
 
   return (
-    <div className={`flex-1 flex flex-col p-8 md:p-16 lg:p-20 relative transition-colors duration-700 ${revealed && isSelected ? 'bg-stock/30' : ''}`}>
+    // Desktop: Independent scroll (lg:overflow-y-auto lg:h-full lg:no-scrollbar)
+    // Mobile: Natural flow (relying on parent scroll)
+    <div className={`flex-1 flex flex-col relative transition-colors duration-700 p-8 md:p-16 lg:p-20 lg:overflow-y-auto lg:h-full lg:no-scrollbar ${revealed && isSelected ? 'bg-stock/30' : ''}`}>
       
       {/* Reveal Header */}
       <div className={`text-center mb-12 h-20 flex flex-col justify-end transition-opacity duration-700 ${revealed ? 'opacity-100' : 'opacity-0'}`}>
@@ -135,7 +138,7 @@ const PoemColumn: React.FC<PoemColumnProps> = ({ poem, label, revealed, isSelect
 
       {/* Anonymized Header (Fades out on reveal) */}
       {!revealed && (
-         <div className="absolute top-16 left-0 right-0 text-center">
+         <div className="absolute top-16 left-0 right-0 text-center pointer-events-none">
             <span className="inline-block border-b border-pencil/30 pb-2 px-4 font-serif font-bold text-lg tracking-widest text-pencil/60 uppercase">
               {label}
             </span>
@@ -154,7 +157,7 @@ const PoemColumn: React.FC<PoemColumnProps> = ({ poem, label, revealed, isSelect
 
       {/* Selection Button */}
       {!revealed && (
-        <div className="mt-auto pt-16 flex justify-center sticky bottom-8">
+        <div className="mt-auto pt-16 flex justify-center sticky bottom-8 z-10">
            <Button 
             variant="outline" 
             onClick={onSelect} 
