@@ -4,15 +4,15 @@ This plan covers Phase 2 of the Data Pipeline, focusing on the initial scraper i
 
 ## Phase 1: Scaffolding and Core Utilities
 
-- [ ] Task: Scaffold `packages/scraper` package
-  - [ ] Create directory structure and `package.json`
-  - [ ] Configure `tsconfig.json`
-  - [ ] Install dependencies (`cheerio`, `p-limit`, `@sanctuary/shared`)
-- [ ] Task: Implement Core Scraper Utilities
-  - [ ] Write tests for common HTML parser utility
-  - [ ] Implement `parsers/poem-parser.ts` (HTML -> structured text)
-  - [ ] Implement `utils/rate-limiter.ts`
-  - [ ] Implement `utils/logger.ts`
+- [x] Task: Scaffold `packages/scraper` package
+  - [x] Create directory structure and `package.json`
+  - [x] Configure `tsconfig.json`
+  - [x] Install dependencies (`cheerio`, `p-limit`, `@sanctuary/shared`)
+- [x] Task: Implement Core Scraper Utilities
+  - [x] Write tests for common HTML parser utility
+  - [x] Implement `parsers/poem-parser.ts` (HTML -> structured text)
+  - [x] Implement `utils/rate-limiter.ts`
+  - [x] Implement `utils/logger.ts`
 
 ## Phase 2: Source Implementations
 
