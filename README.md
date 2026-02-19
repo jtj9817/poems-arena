@@ -1,19 +1,68 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Classicist's Sanctuary
 
-# Run and deploy your AI Studio app
+A literary Turing test. Two poems — one by a human master, one by a machine. Can you tell them apart?
 
-This contains everything you need to run your app locally.
+---
 
-View your app in AI Studio: https://ai.studio/apps/drive/1lSt1B6OgQUbyUx1zihxL0Lw6fNWlfkwc
+## Overview
 
-## Run Locally
+Classicist's Sanctuary presents anonymous poem duels and asks readers to identify which was written by a human and which by an AI. After voting, the author identities are revealed alongside community statistics.
 
-**Prerequisites:** Node.js
+## Repository Structure
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+```
+classicist-sanctuary-proto/
+├── apps/
+│   ├── web/          @sanctuary/web   — React 19 + Vite SPA
+│   └── api/          @sanctuary/api   — Bun + Hono REST API
+├── packages/
+│   └── shared/       @sanctuary/shared — Shared TypeScript types
+├── docs/                              — Project documentation
+├── CLAUDE.md                          — Developer reference
+├── docker-compose.yml
+└── pnpm-workspace.yaml
+```
+
+## Getting Started
+
+**Prerequisites:** Node.js 20+, pnpm 9+, Bun 1.3+
+
+```bash
+# Install all workspace dependencies
+pnpm install
+
+# Copy environment variables
+cp .env.example .env
+# Fill in LIBSQL_URL and LIBSQL_AGILIQUILL_TOKEN
+
+# Push schema to database
+pnpm --filter @sanctuary/api db:push
+
+# Seed with initial poem data
+pnpm --filter @sanctuary/api db:seed
+
+# Start both services in parallel
+pnpm dev
+```
+
+| Service    | URL                   |
+| ---------- | --------------------- |
+| Web (Vite) | http://localhost:3000 |
+| API (Hono) | http://localhost:4000 |
+
+## Documentation
+
+See [`docs/`](./docs/README.md) for architecture decisions, domain model, API contracts, and implementation plans.
+
+For a full developer reference (commands, ports, env vars, commit conventions), see [`CLAUDE.md`](./CLAUDE.md).
+
+## Docker
+
+```bash
+docker compose up --build
+```
+
+| Service     | URL                   |
+| ----------- | --------------------- |
+| Web (nginx) | http://localhost:3001 |
+| API         | http://localhost:4000 |
