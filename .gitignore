@@ -7,12 +7,20 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
+
+# Build output
 dist
 dist-ssr
-*.local
 
-# Editor directories and files
+# Environment — never commit secrets
+.env
+.env.*
+!.env.example
+
+# OS / editor artifacts
+*.local
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -22,3 +30,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Drizzle generated migration files (generated locally, not committed)
+apps/api/drizzle/
+
+# Bun native lockfile (pnpm-lock.yaml is used instead)
+bun.lockb
+
+# Claude Code local settings
+.claude/settings.local.json
