@@ -152,6 +152,33 @@ Before marking any task complete, verify:
 - [ ] Documentation updated if needed
 - [ ] No security vulnerabilities introduced
 
+## Mandatory Track Finalization Phases
+
+Every track implementation plan MUST conclude with the following two phases (renumbered as appropriate for the track):
+
+### Phase N: Regression & Quality Gate
+
+**Goal:** Lock in correctness with a regression pass before writing final documentation.
+
+- [ ] Task: Coverage and Regression Verification
+  - [ ] Execute the project's test suite and resolve failures related to this track only.
+  - [ ] Execute `pnpm run lint`.
+  - [ ] Execute `pnpm format:check` (or `pnpm format` to fix).
+
+- [ ] Task: Regression Checklist (Feature Behaviors)
+  - [ ] [Add track-specific verification steps here...]
+
+- [ ] Task: Conductor - User Manual Verification 'Phase N: Regression & Quality Gate' (Protocol in workflow.md)
+
+### Phase N+1: Documentation
+
+**Goal:** Document the shipped feature (backend params, frontend behavior, and operational notes).
+
+- [ ] Task: Documentation Update
+  - [ ] Document new API endpoints, types, and services.
+  - [ ] Document any specific operational requirements or setup steps.
+  - [ ] Update relevant files in `docs/` and READMEs.
+
 ## Development Commands
 
 **AI AGENT INSTRUCTION: This section should be adapted to the project's specific language, framework, and build tools.**
