@@ -1,0 +1,29 @@
+{
+  "name": "@sanctuary/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "build": "echo 'No build step — Bun runs TypeScript natively'",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:seed": "bun run src/db/seed.ts",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@hono/zod-validator": "^0.4.0",
+    "@libsql/client": "^0.14.0",
+    "@sanctuary/shared": "workspace:*",
+    "drizzle-orm": "^0.38.0",
+    "hono": "^4.6.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "drizzle-kit": "^0.30.0",
+    "typescript": "~5.8.2"
+  }
+}
