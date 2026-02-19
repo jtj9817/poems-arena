@@ -1,0 +1,8 @@
+{
+  "track_id": "poem_scraper_20260219",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-02-19T19:45:15Z",
+  "updated_at": "2026-02-19T19:45:15Z",
+  "description": "Implement Poem Scraper Package and Source Parsers"
+}
