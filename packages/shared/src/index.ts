@@ -10,11 +10,22 @@ export interface Poem {
   author: string; // "Emily Dickinson" or "Claude 3 Opus"
   type: AuthorType;
   year?: string;
+  source?: string;
+  sourceUrl?: string;
+  form?: string;
+  prompt?: string;
+  parentPoemId?: string;
+}
+
+export interface Topic {
+  id: string;
+  label: string;
 }
 
 export interface Duel {
   id: string;
   topic: string;
+  topicId?: string;
   poemA: Poem;
   poemB: Poem;
   humanWinRate: number; // Percentage 0-100
