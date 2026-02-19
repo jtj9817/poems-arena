@@ -1,12 +1,51 @@
 # Classicist's Sanctuary
 
-A literary Turing test. Two poems — one by a human master, one by a machine. Can you tell them apart?
+> "Can you distinguish the soul from the synthesis?"
+
+A blind taste test for the literary mind. Two anonymous poems on a shared topic — one by a celebrated human poet, one by an advanced AI — and a single question: which is which?
+
+**For:** Poetry aficionados, literary skeptics, and the intellectually curious who value text over tech.
+**Primary device:** Desktop (tablet secondary).
+**Inspired by:** _The Paris Review_, _Poets.org_, _Lapham's Quarterly_.
 
 ---
 
-## Overview
+## How It Works
 
-Classicist's Sanctuary presents anonymous poem duels and asks readers to identify which was written by a human and which by an AI. After voting, the author identities are revealed alongside community statistics.
+1. Enter **The Reading Room** — two anonymous poems side by side, labelled only "A" and "B".
+2. Read both. Choose the one you believe was written by a human.
+3. **The Verdict** reveals author identities and community statistics (e.g. _"62% of readers were fooled"_).
+4. Browse past duels in **The Anthology**, filtered by theme.
+
+---
+
+## Screens
+
+| Screen               | Description                                                          |
+| -------------------- | -------------------------------------------------------------------- |
+| **The Foyer**        | Minimalist landing with today's featured duel entry point            |
+| **The Reading Room** | Distraction-free split-screen comparison — no author metadata        |
+| **The Verdict**      | Post-vote reveal: author identities, win rates, average reading time |
+| **The Anthology**    | Grid archive of past duels, filterable by topic                      |
+| **The Colophon**     | Project philosophy and AI generation methodology                     |
+
+---
+
+## Design
+
+**Digital Letterpress.** A quiet, contemplative environment mimicking high-quality print stock — warm alabaster backgrounds, deep ink-like text, generous negative space. No bright blues, no gradients, no tech signifiers.
+
+| Token        | Value     | Role                        |
+| ------------ | --------- | --------------------------- |
+| Ink          | `#2C2925` | Body text, primary actions  |
+| Paper        | `#F4F1EA` | Main background             |
+| Stock        | `#EBE7DE` | Cards, surfaces             |
+| Seal Red     | `#9E3E36` | Human reveal, active states |
+| Binding Blue | `#3A5A6D` | AI reveal                   |
+
+**Type:** Piazzolla (headings) · EB Garamond (body) · Libre Franklin (UI labels only)
+
+---
 
 ## Repository Structure
 
