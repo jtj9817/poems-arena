@@ -5,16 +5,66 @@
 ```
 classicist-sanctuary-proto/
 ├── apps/
-│   ├── api/          @sanctuary/api   — Bun + Hono REST API (port 4000)
-│   └── web/          @sanctuary/web   — React 19 + Vite SPA (port 3000 dev / 3001 Docker)
+│   ├── api/                    @sanctuary/api — Bun + Hono REST API (port 4000)
+│   │   ├── src/
+│   │   │   ├── index.ts        # App entry point, CORS, routing
+│   │   │   ├── routes/
+│   │   │   │   ├── duels.ts    # /duels endpoints
+│   │   │   │   └── votes.ts    # /votes endpoint
+│   │   │   └── db/
+│   │   │       ├── client.ts   # Drizzle + LibSQL client
+│   │   │       ├── schema.ts   # Database tables (poems, duels, votes)
+│   │   │       └── seed.ts     # Database seed script
+│   │   ├── drizzle.config.ts   # Drizzle Kit configuration
+│   │   ├── Dockerfile          # Multi-stage Bun build
+│   │   ├── package.json
+│   │   └── tsconfig.json
+│   │
+│   └── web/                    @sanctuary/web — React 19 + Vite SPA (port 3000)
+│       ├── pages/
+│       │   ├── Foyer.tsx       # Landing view
+│       │   ├── ReadingRoom.tsx # Active duel voting view
+│       │   ├── Anthology.tsx   # Archive of past duels
+│       │   └── Colophon.tsx    # About/credits page
+│       ├── components/
+│       │   ├── Layout.tsx      # Shell wrapper
+│       │   └── Button.tsx      # Reusable UI
+│       ├── lib/
+│       │   └── api.ts          # API client utilities
+│       ├── App.tsx             # Router + view state
+│       ├── index.tsx           # React entry point
+│       ├── index.html          # HTML template
+│       ├── metadata.json       # Build metadata
+│       ├── vite.config.ts      # Vite + proxy config
+│       ├── Dockerfile          # Multi-stage nginx build
+│       ├── package.json
+│       └── tsconfig.json
+│
 ├── packages/
-│   └── shared/       @sanctuary/shared — TypeScript types shared by api and web
-├── pnpm-workspace.yaml
-├── package.json      — Root: scripts, devDependencies (ESLint, Prettier, lint-staged)
-├── eslint.config.js
-├── .prettierrc
-├── docker-compose.yml
-└── .env              — Turso credentials (never commit)
+│   └── shared/                 @sanctuary/shared — TypeScript types
+│       └── src/
+│           └── index.ts        # Shared types (Poem, Duel, Vote, AuthorType)
+│
+├── docs/                       # Project documentation
+│   ├── README.md
+│   ├── architecture/
+│   ├── backend/
+│   ├── domain/
+│   ├── frontend/
+│   ├── plans/
+│   ├── tickets/
+│   └── archived-plans/
+│
+├── package.json                # Root: workspace scripts, devDependencies
+├── pnpm-workspace.yaml         # PNPM workspace configuration
+├── pnpm-lock.yaml              # Lockfile
+├── docker-compose.yml          # Local container orchestration
+├── eslint.config.js            # ESLint v9 flat config
+├── .prettierrc                 # Prettier formatting rules
+├── .prettierignore             # Prettier ignore patterns
+├── .gitignore                  # Git ignore patterns
+├── .env                        # Turso credentials (never commit)
+└── CLAUDE.md                   # This file
 ```
 
 ## Running Locally
@@ -37,6 +87,12 @@ always calls `/api/v1/...` regardless of environment.
 ## Database — Drizzle + Turso (LibSQL)
 
 Schema lives at `apps/api/src/db/schema.ts`. Tables: `poems`, `duels`, `votes`.
+
+```typescript
+// poems: id, title, content, author, type ('HUMAN' | 'AI'), year
+// duels: id, topic, poemAId, poemBId, createdAt
+// votes: id, duelId, selectedPoemId, isHuman, votedAt
+```
 
 ```bash
 # Push schema changes directly to Turso (no migration file, good for dev)
@@ -91,6 +147,113 @@ All routes are prefixed `/api/v1/`.
 | GET    | `/duels/:id`       | Single duel (anonymous)                  |
 | POST   | `/votes`           | Cast a vote `{ duelId, selectedPoemId }` |
 | GET    | `/duels/:id/stats` | Full stats + author reveal after voting  |
+
+### Response Examples
+
+**GET /duels** (paginated archive):
+
+```json
+[
+  {
+    "id": "duel-123",
+    "topic": "The Moon",
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "humanWinRate": 67,
+    "avgReadingTime": "3m 30s"
+  }
+]
+```
+
+**GET /duels/today** and **GET /duels/:id** (anonymous, no author info):
+
+```json
+{
+  "id": "duel-123",
+  "topic": "The Moon",
+  "poemA": { "id": "p1", "title": "Silver Light", "content": "..." },
+  "poemB": { "id": "p2", "title": "Lunar Glow", "content": "..." }
+}
+```
+
+**POST /votes**:
+
+```json
+// Request
+{ "duelId": "duel-123", "selectedPoemId": "p1" }
+
+// Response
+{ "success": true, "isHuman": true }
+```
+
+**GET /duels/:id/stats** (after voting, full reveal):
+
+```json
+{
+  "humanWinRate": 67,
+  "avgReadingTime": "3m 30s",
+  "duel": {
+    "id": "duel-123",
+    "topic": "The Moon",
+    "poemA": {
+      "id": "p1",
+      "title": "...",
+      "content": "...",
+      "author": "Emily Dickinson",
+      "type": "HUMAN",
+      "year": "1890"
+    },
+    "poemB": {
+      "id": "p2",
+      "title": "...",
+      "content": "...",
+      "author": "Claude 3 Opus",
+      "type": "AI"
+    }
+  }
+}
+```
+
+## Shared Types (@sanctuary/shared)
+
+Located in `packages/shared/src/index.ts`:
+
+```typescript
+export enum AuthorType {
+  HUMAN = 'HUMAN',
+  AI = 'AI',
+}
+
+export interface Poem {
+  id: string;
+  title: string;
+  content: string;
+  author: string; // "Emily Dickinson" or "Claude 3 Opus"
+  type: AuthorType;
+  year?: string;
+}
+
+export interface Duel {
+  id: string;
+  topic: string;
+  poemA: Poem;
+  poemB: Poem;
+  humanWinRate: number;
+  avgReadingTime: string;
+}
+
+export enum ViewState {
+  FOYER = 'FOYER',
+  READING_ROOM = 'READING_ROOM',
+  ANTHOLOGY = 'ANTHOLOGY',
+  COLOPHON = 'COLOPHON',
+}
+
+export interface DuelResult {
+  duelId: string;
+  selectedPoemId: string;
+  isHuman: boolean;
+}
+```
 
 ## Commit Conventions
 
