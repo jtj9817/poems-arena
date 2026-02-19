@@ -89,6 +89,7 @@ export const ReadingRoom: React.FC<ReadingRoomProps> = ({ onNavigate }) => {
           isSelected={selectedPoemId === duel.poemA.id}
           onSelect={() => handleVote(duel.poemA.id)}
           disabled={revealed}
+          isLeft={true}
         />
 
         {/* Poem B */}
@@ -113,71 +114,85 @@ interface PoemColumnProps {
   isSelected: boolean;
   onSelect: () => void;
   disabled: boolean;
+  isLeft?: boolean;
 }
 
-const PoemColumn: React.FC<PoemColumnProps> = ({ poem, label, revealed, isSelected, onSelect, disabled }) => {
+const PoemColumn: React.FC<PoemColumnProps> = ({ poem, label, revealed, isSelected, onSelect, disabled, isLeft }) => {
   const isHuman = poem.type === AuthorType.HUMAN;
   const authorColor = isHuman ? 'text-seal-red' : 'text-binding-blue';
   const labelText = isHuman ? 'Human' : 'Artificial Intelligence';
 
   return (
-    // Desktop: Independent scroll (lg:overflow-y-auto lg:h-full lg:no-scrollbar)
-    // Mobile: Natural flow (relying on parent scroll)
-    <div className={`flex-1 flex flex-col relative transition-colors duration-700 p-8 md:p-16 lg:p-20 lg:overflow-y-auto lg:h-full lg:no-scrollbar ${revealed && isSelected ? 'bg-stock/30' : ''}`}>
+    // Desktop: Independent scroll with custom styling.
+    // We use `direction: rtl` on the container for the left column to move the scrollbar to the left.
+    <div 
+      className={`
+        flex-1 relative transition-colors duration-700 
+        lg:overflow-y-auto lg:h-full letterpress-scroll
+        ${revealed && isSelected ? 'bg-stock/30' : ''}
+      `}
+      style={{ direction: isLeft ? 'rtl' : 'ltr' }}
+    >
       
-      {/* Reveal Header */}
-      <div className={`text-center mb-12 h-20 flex flex-col justify-end transition-opacity duration-700 ${revealed ? 'opacity-100' : 'opacity-0'}`}>
-        <span className={`font-sans text-[10px] uppercase tracking-[0.2em] font-bold ${authorColor} mb-2 block`}>
-          {labelText}
-        </span>
-        <h3 className={`text-2xl font-serif font-bold italic ${authorColor}`}>
-          {poem.author}
-        </h3>
-        <span className="text-xs font-sans text-pencil mt-1">{poem.year}</span>
-      </div>
+      {/* Inner wrapper to restore LTR direction and handle layout/padding */}
+      <div 
+        className="flex flex-col min-h-full p-8 md:p-16 lg:p-20 relative"
+        style={{ direction: 'ltr' }}
+      >
+        {/* Reveal Header */}
+        <div className={`text-center mb-12 h-20 flex flex-col justify-end transition-opacity duration-700 ${revealed ? 'opacity-100' : 'opacity-0'}`}>
+          <span className={`font-sans text-[10px] uppercase tracking-[0.2em] font-bold ${authorColor} mb-2 block`}>
+            {labelText}
+          </span>
+          <h3 className={`text-2xl font-serif font-bold italic ${authorColor}`}>
+            {poem.author}
+          </h3>
+          <span className="text-xs font-sans text-pencil mt-1">{poem.year}</span>
+        </div>
 
-      {/* Anonymized Header (Fades out on reveal) */}
-      {!revealed && (
-         <div className="absolute top-16 left-0 right-0 text-center pointer-events-none">
-            <span className="inline-block border-b border-pencil/30 pb-2 px-4 font-serif font-bold text-lg tracking-widest text-pencil/60 uppercase">
-              {label}
-            </span>
-         </div>
-      )}
-
-      {/* Poem Content */}
-      <div className={`prose prose-lg mx-auto max-w-md font-body text-xl leading-relaxed whitespace-pre-line text-ink transition-all duration-700 ${revealed ? 'blur-0' : 'blur-0'}`}>
-        {revealed ? (
-          <div className="mb-6 text-center md:text-left">
-            <p className="font-serif font-bold italic text-2xl mb-6">{poem.title}</p>
+        {/* Anonymized Header (Fades out on reveal) */}
+        {!revealed && (
+          <div className="absolute top-16 left-0 right-0 text-center pointer-events-none">
+              <span className="inline-block border-b border-pencil/30 pb-2 px-4 font-serif font-bold text-lg tracking-widest text-pencil/60 uppercase">
+                {label}
+              </span>
           </div>
-        ) : null}
-        {poem.content}
+        )}
+
+        {/* Poem Content */}
+        <div className={`prose prose-lg mx-auto max-w-md font-body text-xl leading-relaxed whitespace-pre-line text-ink transition-all duration-700 ${revealed ? 'blur-0' : 'blur-0'}`}>
+          {revealed ? (
+            <div className="mb-6 text-center md:text-left">
+              <p className="font-serif font-bold italic text-2xl mb-6">{poem.title}</p>
+            </div>
+          ) : null}
+          {poem.content}
+        </div>
+
+        {/* Selection Button */}
+        {!revealed && (
+          <div className="mt-auto pt-16 flex justify-center sticky bottom-8 z-10">
+            <Button 
+              variant="outline" 
+              onClick={onSelect} 
+              className="bg-paper/90 backdrop-blur-sm shadow-sm"
+            >
+              <span className="material-symbols-outlined text-lg mr-2">edit_note</span>
+              Select This Work
+            </Button>
+          </div>
+        )}
+
+        {/* Result Badge */}
+        {revealed && isSelected && (
+          <div className="absolute top-6 right-6">
+            <div className="flex items-center gap-2 text-ink/60 bg-stock px-3 py-1.5 rounded border border-border-pencil">
+                <span className="material-symbols-outlined text-sm">check</span>
+                <span className="text-xs font-sans font-medium uppercase tracking-wide">Your Choice</span>
+            </div>
+          </div>
+        )}
       </div>
-
-      {/* Selection Button */}
-      {!revealed && (
-        <div className="mt-auto pt-16 flex justify-center sticky bottom-8 z-10">
-           <Button 
-            variant="outline" 
-            onClick={onSelect} 
-            className="bg-paper/90 backdrop-blur-sm shadow-sm"
-          >
-            <span className="material-symbols-outlined text-lg mr-2">edit_note</span>
-            Select This Work
-          </Button>
-        </div>
-      )}
-
-      {/* Result Badge */}
-      {revealed && isSelected && (
-        <div className="absolute top-6 right-6">
-           <div className="flex items-center gap-2 text-ink/60 bg-stock px-3 py-1.5 rounded border border-border-pencil">
-              <span className="material-symbols-outlined text-sm">check</span>
-              <span className="text-xs font-sans font-medium uppercase tracking-wide">Your Choice</span>
-           </div>
-        </div>
-      )}
     </div>
   );
 };
