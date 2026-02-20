@@ -16,3 +16,7 @@ The automated tests have passed. For manual verification, please follow these st
 - Live integration tests run against network sources when connectivity is available.
 - In offline environments, live tests stay deterministic and only validate the isolation harness.
 - API DB config in `NODE_ENV=test` requires `LIBSQL_TEST_URL` and never falls back to development DB URL.
+
+## Automation Script
+
+Run `conductor/tracks/poem_scraper_20260219/run-manual-verification-phase-2.sh` to execute all manual verification steps in sequence with automated assertions.
