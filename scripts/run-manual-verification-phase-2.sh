@@ -4,6 +4,14 @@ set -euo pipefail
 ROOT_DIR="$(git rev-parse --show-toplevel)"
 cd "$ROOT_DIR"
 
+LOG_DIR="${PHASE2_LOG_DIR:-$ROOT_DIR/logs}"
+TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
+LOG_FILE="${PHASE2_LOG_FILE:-$LOG_DIR/manual-verification-phase-2-$TIMESTAMP.log}"
+mkdir -p "$(dirname "$LOG_FILE")"
+
+exec > >(tee -a "$LOG_FILE") 2>&1
+echo "[phase2] Logging output to: $LOG_FILE"
+
 echo "[phase2] Step 1/6: scraper regression tests"
 CI=true pnpm --filter @sanctuary/scraper test
 
