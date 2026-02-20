@@ -1,0 +1,16 @@
+{
+  "name": "@sanctuary/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "npx playwright test",
+    "test:cdp": "npx playwright test --project=cdp",
+    "test:api": "npx playwright test --project=api",
+    "test:ui": "npx playwright test --project=ui"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.0",
+    "@types/node": "^22.0.0"
+  }
+}
