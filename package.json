@@ -7,8 +7,10 @@
     "dev": "concurrently \"pnpm --filter @sanctuary/api dev\" \"pnpm --filter @sanctuary/web dev\"",
     "build": "pnpm --filter @sanctuary/shared build && pnpm --filter @sanctuary/web build && pnpm --filter @sanctuary/api build",
     "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test": "pnpm -r --if-present test"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
