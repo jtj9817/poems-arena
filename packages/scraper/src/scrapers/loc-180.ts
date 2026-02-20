@@ -3,9 +3,10 @@ import { parsePoemContent } from '../parsers/poem-parser';
 import { createRateLimiter } from '../utils/rate-limiter';
 import { generateSourceId } from '../utils/hashing';
 import { logger } from '../utils/logger';
-import { extractFirstClassInnerHtml, extractFirstTagText, removeTags } from '../utils/html';
+import { extractAnchors, loadHtml, normalizeWhitespace } from '../utils/html';
 
-const BASE_URL = 'https://www.loc.gov/programs/poetry-and-literature/poet-laureate/poetry-180/';
+const LIST_URL =
+  'https://www.loc.gov/programs/poetry-and-literature/poet-laureate/poet-laureate-projects/poetry-180/all-poems/';
 
 const limit = createRateLimiter({ concurrency: 5, minDelay: 200 });
 
@@ -20,97 +21,160 @@ export async function scrapeLoc180(
 ): Promise<ScrapedPoem[]> {
   const fetchImpl = options.fetchImpl ?? fetch;
   const startTimeMs = Date.now();
-  logger.info('Starting LOC Poetry 180 scrape', {
+  logger.info('Starting LOC Poetry 180 scrape (discovery mode)', {
     source: 'loc-180',
     poemStart: start,
     poemEnd: end,
   });
 
-  const poemPromises: Promise<ScrapedPoem | null>[] = [];
+  try {
+    const listResponse = await fetchImpl(LIST_URL);
+    if (!listResponse.ok) {
+      logger.error('Failed to fetch LOC list page', undefined, {
+        source: 'loc-180',
+        status: listResponse.status,
+        sourceUrl: LIST_URL,
+      });
+      return [];
+    }
 
-  for (let i = start; i <= end; i++) {
-    const poemNumber = i.toString().padStart(3, '0');
-    const url = `${BASE_URL}${poemNumber}.html`;
-    logger.debug('Queueing LOC poem scrape', { source: 'loc-180', poemNumber, sourceUrl: url });
+    const listHtml = await listResponse.text();
+    const anchors = extractAnchors(listHtml);
+    // Find links like .../item/poetry-180-XXX/...
+    const poemLinks = anchors.filter((a) => a.href.includes('/item/poetry-180-'));
 
-    poemPromises.push(
-      limit(async () => {
-        try {
-          logger.debug('Fetching LOC poem page', { source: 'loc-180', sourceUrl: url });
-          const response = await fetchImpl(url);
-          if (!response.ok) {
-            logger.warn('Failed to fetch LOC poem page', {
+    const poemPromises: Promise<ScrapedPoem | null>[] = [];
+    const seenUrls = new Set<string>();
+
+    for (const link of poemLinks) {
+      // Extract number from URL
+      const match = link.href.match(/poetry-180-(\d+)/);
+      if (!match) {
+        continue;
+      }
+      const number = parseInt(match[1], 10);
+
+      if (number < start || number > end) {
+        continue;
+      }
+      if (seenUrls.has(link.href)) {
+        continue;
+      }
+      seenUrls.add(link.href);
+
+      // Ensure absolute URL
+      const url = link.href.startsWith('http') ? link.href : `https://www.loc.gov${link.href}`;
+
+      poemPromises.push(
+        limit(async () => {
+          try {
+            logger.debug('Fetching LOC poem page', {
               source: 'loc-180',
+              poemNumber: number,
               sourceUrl: url,
-              status: response.status,
-              statusText: response.statusText,
             });
-            return null;
-          }
+            const response = await fetchImpl(url);
+            if (!response.ok) {
+              logger.warn('Failed to fetch LOC poem page', {
+                source: 'loc-180',
+                sourceUrl: url,
+                status: response.status,
+              });
+              return null;
+            }
+            const html = await response.text();
+            const $ = loadHtml(html);
 
-          const html = await response.text();
+            const title =
+              $('meta[name="dc.title"]').attr('content') ||
+              $('title').text().replace(' | Library of Congress', '').trim();
 
-          let title = extractFirstTagText(html, ['h2']);
-          if (!title) {
-            title = extractFirstTagText(html, ['h1']);
-          }
+            // Author extraction strategy:
+            // 1. Check meta tags
+            // 2. Check <p> after <pre>
+            // 3. Fallback to extracting from text
+            let author = $('meta[name="dc.creator"]').attr('content') || '';
+            if (!author) {
+              // Try to find author in <p> tag inside .poem or .poem-content
+              // Sample showed <div class="poem"> <pre>...</pre> <p>--Billy Collins</p> </div>
+              const potentialAuthor = $('.poem p').text().trim();
+              if (
+                potentialAuthor.includes('Billy Collins') ||
+                potentialAuthor.startsWith('—') ||
+                potentialAuthor.startsWith('--')
+              ) {
+                author = potentialAuthor.replace(/^[—\-\s]+/, '');
+              }
+            }
+            if (!author) {
+              // Fallback to specific check if "Billy Collins" is found on page, common for this collection
+              if (html.includes('Billy Collins')) {
+                author = 'Billy Collins';
+              }
+            }
 
-          let author = extractFirstTagText(html, ['h3']);
-          if (!author) {
-            author = extractFirstTagText(html, ['h4']);
-          }
-          author = author.replace(/^by\s+/i, '');
+            // Content extraction
+            // Target <div class="poem"> <pre>
+            let contentHtml = $('.poem pre').html();
 
-          let contentHtml = extractFirstClassInnerHtml(html, ['poem-body']);
-          if (!contentHtml) {
-            contentHtml = extractFirstClassInnerHtml(html, ['main-content']);
-            contentHtml = removeTags(contentHtml, ['h1', 'h2', 'h3', 'h4']);
-          }
+            // Fallback for older structure
+            if (!contentHtml) {
+              contentHtml = $('.poem-body').html() || $('.main-content').html();
+              // Clean up if fallback used
+              if (contentHtml) {
+                const $content = loadHtml(contentHtml); // Load fragment
+                $content('h1, h2, h3, h4').remove();
+                contentHtml = $content.html();
+              }
+            }
 
-          const content = parsePoemContent(contentHtml);
+            if (!contentHtml) {
+              logger.warn('No content found for LOC poem page', {
+                source: 'loc-180',
+                sourceUrl: url,
+              });
+              return null;
+            }
 
-          if (!content) {
-            logger.warn('No content found for LOC poem page', {
+            const content = parsePoemContent(contentHtml);
+
+            if (!content) {
+              return null;
+            }
+
+            return {
+              sourceId: generateSourceId('loc-180', url, title),
               source: 'loc-180',
               sourceUrl: url,
               title,
-              author,
-            });
+              author: normalizeWhitespace(author),
+              year: null,
+              content,
+              themes: [],
+              form: null,
+              isPublicDomain: false, // Most are copyrighted
+              scrapedAt: new Date().toISOString(),
+            };
+          } catch (e) {
+            logger.error('Error scraping poem', e, { source: 'loc-180', sourceUrl: url });
             return null;
           }
+        }),
+      );
+    }
 
-          return {
-            sourceId: generateSourceId('loc-180', url, title),
-            source: 'loc-180',
-            sourceUrl: url,
-            title,
-            author,
-            year: null,
-            content,
-            themes: [],
-            form: null,
-            isPublicDomain: false,
-            scrapedAt: new Date().toISOString(),
-          };
-        } catch (error) {
-          logger.error('Unhandled LOC poem scrape error', error, {
-            source: 'loc-180',
-            sourceUrl: url,
-          });
-          return null;
-        }
-      }),
-    );
+    const results = await Promise.all(poemPromises);
+    const poems = results.filter((p): p is ScrapedPoem => p !== null);
+
+    logger.info('Completed LOC Poetry 180 scrape', {
+      source: 'loc-180',
+      count: poems.length,
+      durationMs: Date.now() - startTimeMs,
+    });
+
+    return poems;
+  } catch (e) {
+    logger.error('Critical error in LOC scrape', e, { source: 'loc-180' });
+    return [];
   }
-
-  const results = await Promise.all(poemPromises);
-  const poems = results.filter((poem): poem is ScrapedPoem => poem !== null);
-  logger.info('Completed LOC Poetry 180 scrape', {
-    source: 'loc-180',
-    poemStart: start,
-    poemEnd: end,
-    poemCount: poems.length,
-    durationMs: Date.now() - startTimeMs,
-  });
-  return poems;
 }

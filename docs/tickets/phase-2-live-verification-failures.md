@@ -16,14 +16,17 @@ This is a scraper implementation issue, not a verification script orchestration 
 ## Evidence
 
 Latest failing verification log:
+
 - `logs/manual-verification-phase-2-20260220-153600.log`
 
 Observed failures in that log:
+
 - `live scraper integration > scrapes at least one poem from LOC Poetry 180...` failed (`Expected > 0, Received 0`)
 - `live scraper integration > scrapes at least one poem from Poets.org...` failed (`Expected > 0, Received 0`)
 - `live scraper integration > stores at least three scraped poems...` failed (`Expected >= 3, Received 1`)
 
 The same log shows:
+
 - Gutenberg live scrape succeeded (`poemCount: 224`)
 - Script executed expected steps in sequence and failed at Step 3 when `pnpm --filter @sanctuary/scraper test:live` failed
 
@@ -69,17 +72,20 @@ The same log shows:
 ### 1) LOC 180 URL strategy is stale or incorrect for current site routing
 
 Current implementation assumes:
+
 - `https://www.loc.gov/.../poetry-180/001.html`
 
 In the failing run, this endpoint returns 404 (`statusText: "Standard 40x"`).
 
 Consequence:
+
 - `scrapeLoc180(1,1)` returns `[]`
 - live test fails on `expect(poems.length).toBeGreaterThan(0)`
 
 ### 2) Poets.org poem body selectors are not matching current live page structure
 
 Current extraction chain relies on class-based containers:
+
 - `field--name-body`
 - `field--name-field-poem-body`
 - `poem-body`
@@ -88,6 +94,7 @@ Current extraction chain relies on class-based containers:
 In the failing run, list extraction finds 20 poem URLs, but detail parsing repeatedly logs `No poem content found...`, resulting in `poemCount: 0`.
 
 Consequence:
+
 - live Poets.org test fails
 - final row-count assertion fails because only Gutenberg row is inserted
 
@@ -96,12 +103,14 @@ Consequence:
 `extractFirstClassInnerHtml` and related helpers use regex patterns that are fragile with deep nesting, varied attribute ordering, and dynamic CMS templates.
 
 Consequence:
+
 - selector drift causes silent content extraction misses
 - parser robustness is significantly lower than required for live source variability
 
 ## Why This Is Not a Script Bug
 
 `scripts/run-manual-verification-phase-2.sh`:
+
 - correctly runs the documented commands
 - correctly exits on first failing command (`set -euo pipefail`)
 - correctly logs command output to timestamped logs

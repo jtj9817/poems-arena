@@ -1,3 +1,5 @@
+import * as cheerio from 'cheerio';
+
 interface HtmlTagMatch {
   attributes: string;
   end: number;
@@ -16,6 +18,8 @@ function escapeRegExp(value: string): string {
 }
 
 export function decodeHtmlEntities(value: string): string {
+  // Use cheerio to decode entities properly if needed, but simple replacement is fine for now
+  // or use a library. For now, keep existing logic or use cheerio.load(value).text()
   return value
     .replace(/&nbsp;/gi, ' ')
     .replace(/&amp;/gi, '&')
@@ -30,13 +34,22 @@ export function decodeHtmlEntities(value: string): string {
 }
 
 export function stripHtml(value: string): string {
-  return decodeHtmlEntities(value.replace(/<[^>]+>/g, ''));
+  return cheerio.load(value).text() || '';
 }
 
 export function normalizeWhitespace(value: string): string {
-  return value.replace(/\r/g, '').replace(/[\t ]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+  return value
+    .replace(/\r/g, '')
+    .replace(/[\t ]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
+/**
+ * Extracts tag matches with their start/end indices in the source string.
+ * This uses regex and is intended for use cases where source position matters (e.g. slicing).
+ * For DOM parsing, use cheerio-based functions.
+ */
 export function extractTagMatches(html: string, tagNames: string[]): HtmlTagMatch[] {
   if (tagNames.length === 0) {
     return [];
@@ -61,19 +74,23 @@ export function extractTagMatches(html: string, tagNames: string[]): HtmlTagMatc
   return matches;
 }
 
+export function loadHtml(html: string): cheerio.CheerioAPI {
+  return cheerio.load(html);
+}
+
 export function extractAnchors(html: string): HtmlAnchor[] {
-  const regex = /<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  const $ = loadHtml(html);
   const anchors: HtmlAnchor[] = [];
-
-  let match = regex.exec(html);
-  while (match) {
-    anchors.push({
-      href: match[1],
-      text: normalizeWhitespace(stripHtml(match[2])),
-    });
-    match = regex.exec(html);
-  }
-
+  $('a').each((_, element) => {
+    const el = $(element);
+    const href = el.attr('href');
+    if (href) {
+      anchors.push({
+        href,
+        text: normalizeWhitespace(el.text()),
+      });
+    }
+  });
   return anchors;
 }
 
@@ -82,42 +99,25 @@ export function extractAnchorsByHrefPrefix(html: string, prefix: string): HtmlAn
 }
 
 export function extractFirstClassInnerHtml(html: string, classNames: string[]): string {
-  for (const className of classNames) {
-    const regex = new RegExp(
-      `<([a-z0-9]+)[^>]*class=["'][^"']*\\b${escapeRegExp(className)}\\b[^"']*["'][^>]*>([\\s\\S]*?)<\\/\\1>`,
-      'i',
-    );
-    const match = regex.exec(html);
-    if (match && match[2]) {
-      return match[2];
-    }
-  }
-
-  return '';
+  const $ = loadHtml(html);
+  const selector = classNames.map((c) => `.${c}`).join(', ');
+  return $(selector).first().html() || '';
 }
 
 export function extractFirstTagText(html: string, tagNames: string[]): string {
-  const matches = extractTagMatches(html, tagNames);
-  const firstMatch = matches[0];
-  if (!firstMatch) {
-    return '';
-  }
-
-  return normalizeWhitespace(stripHtml(firstMatch.innerHtml));
+  const $ = loadHtml(html);
+  const selector = tagNames.join(', ');
+  return normalizeWhitespace($(selector).first().text());
 }
 
-export function extractFirstTagTextByClass(html: string, tagName: string, className: string): string {
-  const regex = new RegExp(
-    `<${escapeRegExp(tagName)}[^>]*class=["'][^"']*\\b${escapeRegExp(className)}\\b[^"']*["'][^>]*>([\\s\\S]*?)<\\/${escapeRegExp(tagName)}>`,
-    'i',
-  );
-
-  const match = regex.exec(html);
-  if (!match || !match[1]) {
-    return '';
-  }
-
-  return normalizeWhitespace(stripHtml(match[1]));
+export function extractFirstTagTextByClass(
+  html: string,
+  tagName: string,
+  className: string,
+): string {
+  const $ = loadHtml(html);
+  const selector = `${tagName}.${className}`;
+  return normalizeWhitespace($(selector).first().text());
 }
 
 export function hasCaseInsensitiveText(htmlOrText: string, phrase: string): boolean {
@@ -125,15 +125,8 @@ export function hasCaseInsensitiveText(htmlOrText: string, phrase: string): bool
 }
 
 export function removeTags(html: string, tagNames: string[]): string {
-  let updatedHtml = html;
-
-  for (const tagName of tagNames) {
-    const tagPattern = escapeRegExp(tagName);
-    updatedHtml = updatedHtml.replace(
-      new RegExp(`<${tagPattern}[^>]*>[\\s\\S]*?<\\/${tagPattern}>`, 'gi'),
-      '',
-    );
-  }
-
-  return updatedHtml;
+  const $ = loadHtml(html);
+  const selector = tagNames.join(', ');
+  $(selector).remove();
+  return $.html();
 }
