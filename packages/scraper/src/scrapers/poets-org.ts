@@ -2,22 +2,12 @@ import * as cheerio from 'cheerio';
 import { ScrapedPoem } from '../types';
 import { parsePoemContent } from '../parsers/poem-parser';
 import { createRateLimiter } from '../utils/rate-limiter';
+import { generateSourceId } from '../utils/hashing';
 
 const BASE_URL = 'https://poets.org';
 const POEMS_LIST_URL = 'https://poets.org/poems';
 
 const limit = createRateLimiter({ concurrency: 5, minDelay: 200 });
-
-function generateSourceId(source: string, url: string, title: string): string {
-  const str = `${source}:${url}:${title}`;
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash = hash & hash; // Convert to 32bit integer
-  }
-  return Math.abs(hash).toString(16);
-}
 
 export async function getPoemUrls(maxPages: number = 1): Promise<string[]> {
   const urls: string[] = [];
@@ -110,9 +100,9 @@ export async function scrapePoetsOrg(maxPages: number = 1): Promise<ScrapedPoem[
           // But we can check for copyright notices.
           const footerText = $('footer').text();
           const bodyText = $('body').text();
+          // Refined check: Removed the body-wide !includes('Copyright') check because footers almost always contain copyright.
           const isPublicDomain = footerText.includes('Public Domain') ||
-                                 bodyText.includes('Public Domain') ||
-                                 !bodyText.includes('Copyright');
+                                 bodyText.includes('Public Domain');
 
           return {
             sourceId: generateSourceId('poets.org', url, title),
