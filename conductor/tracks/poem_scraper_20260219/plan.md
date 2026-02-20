@@ -16,18 +16,18 @@ This plan covers Phase 2 of the Data Pipeline, focusing on the initial scraper i
 
 ## Phase 2: Source Implementations
 
-- [ ] Task: Implement Project Gutenberg (Emerson) Parser
-  - [ ] Write tests for Gutenberg parser
-  - [ ] Implement `scrapers/gutenberg.ts`
-  - [ ] Verify extraction of title, author, and content from sample HTML
-- [ ] Task: Implement LOC Poetry 180 Scraper
-  - [ ] Write tests for LOC scraper
-  - [ ] Implement `scrapers/loc-180.ts`
-  - [ ] Verify collection of 180 poems and metadata
-- [ ] Task: Implement Poets.org Scraper
-  - [ ] Write tests for Poets.org list and detail scrapers
-  - [ ] Implement `scrapers/poets-org.ts` with pagination and checkpointing
-  - [ ] Verify extraction of themes and public domain status
+- [x] Task: Implement Project Gutenberg (Emerson) Parser f624157
+  - [x] Write tests for Gutenberg parser f624157
+  - [x] Implement `scrapers/gutenberg.ts` f624157
+  - [x] Verify extraction of title, author, and content from sample HTML f624157
+- [x] Task: Implement LOC Poetry 180 Scraper f624157
+  - [x] Write tests for LOC scraper f624157
+  - [x] Implement `scrapers/loc-180.ts` f624157
+  - [x] Verify collection of 180 poems and metadata f624157
+- [x] Task: Implement Poets.org Scraper f624157
+  - [x] Write tests for Poets.org list and detail scrapers f624157
+  - [x] Implement `scrapers/poets-org.ts` with pagination and checkpointing f624157
+  - [x] Verify extraction of themes and public domain status f624157
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Scraper' (Protocol in workflow.md)
 
 ## Phase 3: Regression & Quality Gate
