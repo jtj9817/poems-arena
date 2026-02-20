@@ -45,4 +45,13 @@ describe('scrapeGutenbergEmerson', () => {
     expect(poems[1].title).toBe('THE HUMBLE-BEE');
     expect(poems[1].content).toContain('Burly, dozing humble-bee,');
   });
+
+  test('should return empty array on fetch failure', async () => {
+    global.fetch = mock(() =>
+      Promise.resolve(new Response(null, { status: 404, statusText: 'Not Found' }))
+    );
+
+    const poems = await scrapeGutenbergEmerson('https://example.com/emerson-404');
+    expect(poems).toHaveLength(0);
+  });
 });

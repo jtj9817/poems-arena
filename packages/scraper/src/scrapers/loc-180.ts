@@ -2,21 +2,11 @@ import * as cheerio from 'cheerio';
 import { ScrapedPoem } from '../types';
 import { parsePoemContent } from '../parsers/poem-parser';
 import { createRateLimiter } from '../utils/rate-limiter';
+import { generateSourceId } from '../utils/hashing';
 
 const BASE_URL = 'https://www.loc.gov/programs/poetry-and-literature/poet-laureate/poetry-180/';
 
 const limit = createRateLimiter({ concurrency: 5, minDelay: 200 });
-
-function generateSourceId(source: string, url: string, title: string): string {
-  const str = `${source}:${url}:${title}`;
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash = hash & hash; // Convert to 32bit integer
-  }
-  return Math.abs(hash).toString(16);
-}
 
 export async function scrapeLoc180(start: number = 1, end: number = 180): Promise<ScrapedPoem[]> {
   const poemPromises: Promise<ScrapedPoem | null>[] = [];

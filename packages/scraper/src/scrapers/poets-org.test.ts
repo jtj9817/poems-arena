@@ -69,4 +69,54 @@ describe('scrapePoetsOrg', () => {
     expect(poems[0].content).toContain('Line 1');
     expect(poems[0].themes).toContain('Nature');
   });
+
+  test('should detect public domain correctly', async () => {
+    const publicDomainPoemPage = `
+      <!DOCTYPE html>
+      <html>
+      <body>
+        <h1 class="page-title">Public Domain Poem</h1>
+        <div class="field--name-field-poem-body"><p>Content</p></div>
+        <footer>
+          <p>This work is in the Public Domain.</p>
+        </footer>
+      </body>
+      </html>
+    `;
+
+    global.fetch = mock((url) => {
+      if (url.toString().includes('poems')) {
+          return Promise.resolve(new Response(mockListPage));
+      }
+      return Promise.resolve(new Response(publicDomainPoemPage));
+    });
+
+    const poems = await scrapePoetsOrg(1);
+    expect(poems[0].isPublicDomain).toBe(true);
+  });
+
+  test('should not mark as public domain if not explicitly stated', async () => {
+    const copyrightedPoemPage = `
+      <!DOCTYPE html>
+      <html>
+      <body>
+        <h1 class="page-title">Copyrighted Poem</h1>
+        <div class="field--name-field-poem-body"><p>Content</p></div>
+        <footer>
+          <p>Copyright 2023. All rights reserved.</p>
+        </footer>
+      </body>
+      </html>
+    `;
+
+    global.fetch = mock((url) => {
+      if (url.toString().includes('poems')) {
+          return Promise.resolve(new Response(mockListPage));
+      }
+      return Promise.resolve(new Response(copyrightedPoemPage));
+    });
+
+    const poems = await scrapePoetsOrg(1);
+    expect(poems[0].isPublicDomain).toBe(false);
+  });
 });
