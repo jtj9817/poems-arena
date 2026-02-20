@@ -175,12 +175,12 @@ This plan covers Phase 2 of the Data Pipeline, focusing on the initial scraper i
   - Run `pnpm --filter @sanctuary/e2e test -- --project=ui` (requires API + web servers).
   - Automation script: `scripts/run-manual-verification-phase-3.sh`.
 
-## Phase 4: Documentation
+## Phase 4: Documentation [COMPLETED]
 
 **Goal:** Document the shipped feature (backend params, frontend behavior, and operational notes).
 
-- [ ] Task: Documentation Update
-  - [ ] Document the `packages/scraper` API and usage.
-  - [ ] Document the structure of the scraped poem data in `packages/shared`.
-  - [ ] Document rate limiting and checkpointing strategies used for each source.
-  - [ ] Update `docs/plans/001-data-pipeline-plan.md` to reflect the completed scraper implementation.
+- [x] Task: Documentation Update
+  - [x] Document the `packages/scraper` API and usage.
+  - [x] Document the structure of the scraped poem data in `packages/shared`.
+  - [x] Document rate limiting and checkpointing strategies used for each source.
+  - [x] Update `docs/plans/001-data-pipeline-plan.md` to reflect the completed scraper implementation.

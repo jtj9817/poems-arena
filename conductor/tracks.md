@@ -4,5 +4,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [ ] **Track: Implement Poem Scraper Package and Source Parsers**
+- [x] **Track: Implement Poem Scraper Package and Source Parsers**
       _Link: [./tracks/poem_scraper_20260219/](./tracks/poem_scraper_20260219/)_

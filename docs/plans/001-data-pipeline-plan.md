@@ -1,7 +1,8 @@
 # Plan 001 — Data Pipeline: Scraper → ETL → AI Generation → Database
 
-**Status:** Draft
+**Status:** In Progress (Scraper & E2E Infrastructure Complete)
 **Created:** 2026-02-19
+**Updated:** 2026-02-20
 
 ---
 
@@ -428,23 +429,24 @@ Extend `apps/api/src/routes/duels.ts`:
 
 ## 9. Build Order (Implementation Sequence)
 
-### Phase 1: Schema & Infrastructure
+### Phase 1: Schema & Infrastructure [COMPLETED]
 
 1. Add new Drizzle schema tables (`topics`, `poem_topics`, `scrape_sources`)
 2. Add new columns to `poems` and `duels`
 3. Run `db:push` to apply schema changes
 4. Update `@sanctuary/shared` types to reflect new fields
 
-### Phase 2: Scraper
+### Phase 2: Scraper & Regression Testing [COMPLETED]
 
 5. Scaffold `packages/scraper` package
-6. Implement Gutenberg parser (simplest — single HTML page, public domain)
-7. Implement LOC Poetry 180 scraper (180 poems, simple structure)
-8. Implement Poets.org scraper (largest corpus, paginated table)
-9. Implement Poetry Foundation scraper (Playwright-based, lower priority)
-10. Run scrapers, inspect output in `data/raw/`
+6. Implement Gutenberg parser (Ralph Waldo Emerson)
+7. Implement LOC Poetry 180 scraper (180 contemporary poems)
+8. Implement Poets.org scraper (paginated corpus)
+9. Implement Regression Suite (unit + feature behavior tests)
+10. Scaffold `packages/e2e` for Playwright/CDP live source validation
+11. Deprioritize Poetry Foundation scraper in favor of Poets.org corpus
 
-### Phase 3: ETL
+### Phase 3: ETL [PENDING]
 
 11. Scaffold `packages/etl` package
 12. Implement clean stage
