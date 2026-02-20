@@ -117,4 +117,140 @@ describe('scrapePoetsOrg', () => {
     const poems = await scrapePoetsOrg(1);
     expect(poems[0].isPublicDomain).toBe(false);
   });
+
+  // --- Regression tests (3B) ---
+
+  test('pagination: getPoemUrls(3) fetches pages 0, 1, 2', async () => {
+    const fetchedPages: number[] = [];
+    global.fetch = mock((url) => {
+      const urlStr = url.toString();
+      const pageMatch = urlStr.match(/page=(\d+)/);
+      if (pageMatch) {
+        fetchedPages.push(Number(pageMatch[1]));
+      }
+      return Promise.resolve(new Response(mockListPage));
+    });
+
+    await getPoemUrls(3);
+
+    expect(fetchedPages).toEqual([0, 1, 2]);
+  });
+
+  test('duplicate URL deduplication across pages', async () => {
+    // Both pages return the same poem URL
+    global.fetch = mock(() => Promise.resolve(new Response(mockListPage)));
+
+    const urls = await getPoemUrls(2);
+
+    // Even though 2 pages returned the same link, result should be deduplicated
+    expect(urls).toHaveLength(1);
+  });
+
+  test('public domain detection via theme', async () => {
+    const themePublicDomainPage = `
+      <!DOCTYPE html>
+      <html>
+      <body>
+        <h1 class="page-title">Theme PD Poem</h1>
+        <div class="field--name-field-poem-body"><p>Content</p></div>
+        <a href="/themes/public-domain">Public Domain</a>
+      </body>
+      </html>
+    `;
+
+    global.fetch = mock((url) => {
+      if (url.toString().includes('poems')) {
+        return Promise.resolve(new Response(mockListPage));
+      }
+      return Promise.resolve(new Response(themePublicDomainPage));
+    });
+
+    const poems = await scrapePoetsOrg(1);
+    expect(poems[0].isPublicDomain).toBe(true);
+  });
+
+  test('theme extraction from /themes/ anchors', async () => {
+    global.fetch = mock((url) => {
+      if (url.toString().includes('poems')) {
+        return Promise.resolve(new Response(mockListPage));
+      }
+      return Promise.resolve(new Response(mockPoemPage));
+    });
+
+    const poems = await scrapePoetsOrg(1);
+    expect(poems[0].themes).toContain('Nature');
+  });
+
+  test('form extraction from /forms/ anchors', async () => {
+    const poemWithForm = `
+      <!DOCTYPE html>
+      <html>
+      <body>
+        <h1 class="page-title">Sonnet</h1>
+        <div class="field--name-field-poem-body"><p>Content</p></div>
+        <a href="/forms/sonnet">Sonnet</a>
+      </body>
+      </html>
+    `;
+
+    global.fetch = mock((url) => {
+      if (url.toString().includes('poems')) {
+        return Promise.resolve(new Response(mockListPage));
+      }
+      return Promise.resolve(new Response(poemWithForm));
+    });
+
+    const poems = await scrapePoetsOrg(1);
+    expect(poems[0].form).toBe('Sonnet');
+  });
+
+  test('content body fallback chain (multiple class selectors)', async () => {
+    // Uses field--body instead of field--name-field-poem-body
+    const fallbackContentPage = `
+      <!DOCTYPE html>
+      <html>
+      <body>
+        <h1 class="page-title">Fallback Poem</h1>
+        <div class="field--body"><p>Fallback content</p></div>
+      </body>
+      </html>
+    `;
+
+    global.fetch = mock((url) => {
+      if (url.toString().includes('poems')) {
+        return Promise.resolve(new Response(mockListPage));
+      }
+      return Promise.resolve(new Response(fallbackContentPage));
+    });
+
+    const poems = await scrapePoetsOrg(1);
+    expect(poems).toHaveLength(1);
+    expect(poems[0].content).toContain('Fallback content');
+  });
+
+  test('graceful 404 on detail page', async () => {
+    global.fetch = mock((url) => {
+      if (url.toString().includes('poems')) {
+        return Promise.resolve(new Response(mockListPage));
+      }
+      return Promise.resolve(new Response('Not Found', { status: 404 }));
+    });
+
+    const poems = await scrapePoetsOrg(1);
+    expect(poems).toHaveLength(0);
+  });
+
+  test('all poems have source poets.org', async () => {
+    global.fetch = mock((url) => {
+      if (url.toString().includes('poems')) {
+        return Promise.resolve(new Response(mockListPage));
+      }
+      return Promise.resolve(new Response(mockPoemPage));
+    });
+
+    const poems = await scrapePoetsOrg(1);
+    for (const poem of poems) {
+      expect(poem.source).toBe('poets.org');
+    }
+  });
 });

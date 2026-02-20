@@ -55,4 +55,90 @@ describe('scrapeGutenbergEmerson', () => {
     const poems = await scrapeGutenbergEmerson('https://example.com/emerson-404');
     expect(poems).toHaveLength(0);
   });
+
+  // --- Regression tests (3B) ---
+
+  test('excludes CONTENTS, NOTES, PREFACE, APPENDIX headings', async () => {
+    const htmlWithExcluded = `
+      <html><body>
+        <h2>CONTENTS</h2><p>Table of contents...</p>
+        <h2>PREFACE</h2><p>Preface text...</p>
+        <h2>ACTUAL POEM</h2><p>Real poem content here.</p>
+        <h2>NOTES</h2><p>Notes text...</p>
+        <h2>APPENDIX</h2><p>Appendix text...</p>
+      </body></html>`;
+    const fetchMock = mock(() => Promise.resolve(new Response(htmlWithExcluded)));
+
+    const poems = await scrapeGutenbergEmerson('https://example.com/test', {
+      fetchImpl: fetchMock as unknown as typeof fetch,
+    });
+
+    expect(poems).toHaveLength(1);
+    expect(poems[0].title).toBe('ACTUAL POEM');
+  });
+
+  test('skips empty content between headings', async () => {
+    const htmlWithEmpty = `
+      <html><body>
+        <h2>EMPTY POEM</h2>
+        <h2>REAL POEM</h2>
+        <p>Real content here.</p>
+      </body></html>`;
+    const fetchMock = mock(() => Promise.resolve(new Response(htmlWithEmpty)));
+
+    const poems = await scrapeGutenbergEmerson('https://example.com/test', {
+      fetchImpl: fetchMock as unknown as typeof fetch,
+    });
+
+    expect(poems).toHaveLength(1);
+    expect(poems[0].title).toBe('REAL POEM');
+  });
+
+  test('all poems have correct source, author, and isPublicDomain', async () => {
+    const fetchMock = mock(() => Promise.resolve(new Response(mockHtml)));
+
+    const poems = await scrapeGutenbergEmerson('https://example.com/emerson', {
+      fetchImpl: fetchMock as unknown as typeof fetch,
+    });
+
+    for (const poem of poems) {
+      expect(poem.source).toBe('gutenberg');
+      expect(poem.author).toBe('Ralph Waldo Emerson');
+      expect(poem.isPublicDomain).toBe(true);
+    }
+  });
+
+  test('sourceId is deterministic — same HTML produces identical IDs', async () => {
+    const fetchMock = mock(() => Promise.resolve(new Response(mockHtml)));
+
+    const poems1 = await scrapeGutenbergEmerson('https://example.com/emerson', {
+      fetchImpl: fetchMock as unknown as typeof fetch,
+    });
+    const poems2 = await scrapeGutenbergEmerson('https://example.com/emerson', {
+      fetchImpl: fetchMock as unknown as typeof fetch,
+    });
+
+    expect(poems1.map((p) => p.sourceId)).toEqual(poems2.map((p) => p.sourceId));
+  });
+
+  test('network exception (fetch throws) returns [], does not throw', async () => {
+    const fetchMock = mock(() => Promise.reject(new Error('Network failure')));
+
+    const poems = await scrapeGutenbergEmerson('https://example.com/fail', {
+      fetchImpl: fetchMock as unknown as typeof fetch,
+    });
+
+    expect(poems).toEqual([]);
+  });
+
+  test('custom fetchImpl option is respected', async () => {
+    const fetchMock = mock(() => Promise.resolve(new Response(mockHtml)));
+
+    await scrapeGutenbergEmerson('https://example.com/custom', {
+      fetchImpl: fetchMock as unknown as typeof fetch,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe('https://example.com/custom');
+  });
 });
