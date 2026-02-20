@@ -1,0 +1,139 @@
+interface HtmlTagMatch {
+  attributes: string;
+  end: number;
+  innerHtml: string;
+  start: number;
+  tagName: string;
+}
+
+interface HtmlAnchor {
+  href: string;
+  text: string;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export function decodeHtmlEntities(value: string): string {
+  return value
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&#(\d+);/g, (_, numericCode: string) => {
+      const codePoint = Number.parseInt(numericCode, 10);
+      return Number.isNaN(codePoint) ? '' : String.fromCodePoint(codePoint);
+    });
+}
+
+export function stripHtml(value: string): string {
+  return decodeHtmlEntities(value.replace(/<[^>]+>/g, ''));
+}
+
+export function normalizeWhitespace(value: string): string {
+  return value.replace(/\r/g, '').replace(/[\t ]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+export function extractTagMatches(html: string, tagNames: string[]): HtmlTagMatch[] {
+  if (tagNames.length === 0) {
+    return [];
+  }
+
+  const tagPattern = tagNames.map((tagName) => escapeRegExp(tagName)).join('|');
+  const regex = new RegExp(`<(${tagPattern})([^>]*)>([\\s\\S]*?)<\\/\\1>`, 'gi');
+  const matches: HtmlTagMatch[] = [];
+
+  let match = regex.exec(html);
+  while (match) {
+    matches.push({
+      attributes: match[2] || '',
+      end: regex.lastIndex,
+      innerHtml: match[3] || '',
+      start: match.index,
+      tagName: match[1].toLowerCase(),
+    });
+    match = regex.exec(html);
+  }
+
+  return matches;
+}
+
+export function extractAnchors(html: string): HtmlAnchor[] {
+  const regex = /<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  const anchors: HtmlAnchor[] = [];
+
+  let match = regex.exec(html);
+  while (match) {
+    anchors.push({
+      href: match[1],
+      text: normalizeWhitespace(stripHtml(match[2])),
+    });
+    match = regex.exec(html);
+  }
+
+  return anchors;
+}
+
+export function extractAnchorsByHrefPrefix(html: string, prefix: string): HtmlAnchor[] {
+  return extractAnchors(html).filter((anchor) => anchor.href.startsWith(prefix));
+}
+
+export function extractFirstClassInnerHtml(html: string, classNames: string[]): string {
+  for (const className of classNames) {
+    const regex = new RegExp(
+      `<([a-z0-9]+)[^>]*class=["'][^"']*\\b${escapeRegExp(className)}\\b[^"']*["'][^>]*>([\\s\\S]*?)<\\/\\1>`,
+      'i',
+    );
+    const match = regex.exec(html);
+    if (match && match[2]) {
+      return match[2];
+    }
+  }
+
+  return '';
+}
+
+export function extractFirstTagText(html: string, tagNames: string[]): string {
+  const matches = extractTagMatches(html, tagNames);
+  const firstMatch = matches[0];
+  if (!firstMatch) {
+    return '';
+  }
+
+  return normalizeWhitespace(stripHtml(firstMatch.innerHtml));
+}
+
+export function extractFirstTagTextByClass(html: string, tagName: string, className: string): string {
+  const regex = new RegExp(
+    `<${escapeRegExp(tagName)}[^>]*class=["'][^"']*\\b${escapeRegExp(className)}\\b[^"']*["'][^>]*>([\\s\\S]*?)<\\/${escapeRegExp(tagName)}>`,
+    'i',
+  );
+
+  const match = regex.exec(html);
+  if (!match || !match[1]) {
+    return '';
+  }
+
+  return normalizeWhitespace(stripHtml(match[1]));
+}
+
+export function hasCaseInsensitiveText(htmlOrText: string, phrase: string): boolean {
+  return stripHtml(htmlOrText).toLowerCase().includes(phrase.toLowerCase());
+}
+
+export function removeTags(html: string, tagNames: string[]): string {
+  let updatedHtml = html;
+
+  for (const tagName of tagNames) {
+    const tagPattern = escapeRegExp(tagName);
+    updatedHtml = updatedHtml.replace(
+      new RegExp(`<${tagPattern}[^>]*>[\\s\\S]*?<\\/${tagPattern}>`, 'gi'),
+      '',
+    );
+  }
+
+  return updatedHtml;
+}

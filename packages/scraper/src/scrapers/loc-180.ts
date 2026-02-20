@@ -1,86 +1,116 @@
-import * as cheerio from 'cheerio';
 import { ScrapedPoem } from '../types';
 import { parsePoemContent } from '../parsers/poem-parser';
 import { createRateLimiter } from '../utils/rate-limiter';
 import { generateSourceId } from '../utils/hashing';
+import { logger } from '../utils/logger';
+import { extractFirstClassInnerHtml, extractFirstTagText, removeTags } from '../utils/html';
 
 const BASE_URL = 'https://www.loc.gov/programs/poetry-and-literature/poet-laureate/poetry-180/';
 
 const limit = createRateLimiter({ concurrency: 5, minDelay: 200 });
 
-export async function scrapeLoc180(start: number = 1, end: number = 180): Promise<ScrapedPoem[]> {
+export interface Loc180ScraperOptions {
+  fetchImpl?: typeof fetch;
+}
+
+export async function scrapeLoc180(
+  start: number = 1,
+  end: number = 180,
+  options: Loc180ScraperOptions = {},
+): Promise<ScrapedPoem[]> {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const startTimeMs = Date.now();
+  logger.info('Starting LOC Poetry 180 scrape', {
+    source: 'loc-180',
+    poemStart: start,
+    poemEnd: end,
+  });
+
   const poemPromises: Promise<ScrapedPoem | null>[] = [];
 
   for (let i = start; i <= end; i++) {
     const poemNumber = i.toString().padStart(3, '0');
     const url = `${BASE_URL}${poemNumber}.html`;
+    logger.debug('Queueing LOC poem scrape', { source: 'loc-180', poemNumber, sourceUrl: url });
 
     poemPromises.push(
       limit(async () => {
         try {
-          const response = await fetch(url);
+          logger.debug('Fetching LOC poem page', { source: 'loc-180', sourceUrl: url });
+          const response = await fetchImpl(url);
           if (!response.ok) {
-            console.error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
+            logger.warn('Failed to fetch LOC poem page', {
+              source: 'loc-180',
+              sourceUrl: url,
+              status: response.status,
+              statusText: response.statusText,
+            });
             return null;
           }
+
           const html = await response.text();
-          const $ = cheerio.load(html);
 
-          // Extract title. Often followed by "Poem 001: Title"
-          let title = $('h2').first().text().trim();
+          let title = extractFirstTagText(html, ['h2']);
+          if (!title) {
+            title = extractFirstTagText(html, ['h1']);
+          }
 
-          // Extract author. Usually "by Author"
-          let author = $('h3').first().text().trim();
+          let author = extractFirstTagText(html, ['h3']);
+          if (!author) {
+            author = extractFirstTagText(html, ['h4']);
+          }
           author = author.replace(/^by\s+/i, '');
 
-          // Extract content
-          // The structure is variable, but often there is a poem-body class or main-content
-          let contentHtml = $('.poem-body').html() || '';
-
-          // If poem-body is not found, try to fallback to a reasonable container
+          let contentHtml = extractFirstClassInnerHtml(html, ['poem-body']);
           if (!contentHtml) {
-             const mainContent = $('.main-content');
-             if (mainContent.length) {
-                 // Clone to avoid modifying the original
-                 const contentClone = mainContent.clone();
-                 // Remove headers which are title/author
-                 contentClone.find('h1, h2, h3').remove();
-                 contentHtml = contentClone.html() || '';
-             }
+            contentHtml = extractFirstClassInnerHtml(html, ['main-content']);
+            contentHtml = removeTags(contentHtml, ['h1', 'h2', 'h3', 'h4']);
           }
 
           const content = parsePoemContent(contentHtml);
 
           if (!content) {
-             console.warn(`No content found for ${url}`);
-             // If we can't find content, it's better to skip than return empty
-             // But we might want to return what we have?
-             // For now, return null to be safe
-             return null;
+            logger.warn('No content found for LOC poem page', {
+              source: 'loc-180',
+              sourceUrl: url,
+              title,
+              author,
+            });
+            return null;
           }
 
           return {
             sourceId: generateSourceId('loc-180', url, title),
             source: 'loc-180',
             sourceUrl: url,
-            title: title,
-            author: author,
+            title,
+            author,
             year: null,
-            content: content,
+            content,
             themes: [],
             form: null,
-            isPublicDomain: false, // Most are contemporary
+            isPublicDomain: false,
             scrapedAt: new Date().toISOString(),
           };
-
         } catch (error) {
-          console.error(`Error scraping ${url}:`, error);
+          logger.error('Unhandled LOC poem scrape error', error, {
+            source: 'loc-180',
+            sourceUrl: url,
+          });
           return null;
         }
-      })
+      }),
     );
   }
 
   const results = await Promise.all(poemPromises);
-  return results.filter((p): p is ScrapedPoem => p !== null);
+  const poems = results.filter((poem): poem is ScrapedPoem => poem !== null);
+  logger.info('Completed LOC Poetry 180 scrape', {
+    source: 'loc-180',
+    poemStart: start,
+    poemEnd: end,
+    poemCount: poems.length,
+    durationMs: Date.now() - startTimeMs,
+  });
+  return poems;
 }

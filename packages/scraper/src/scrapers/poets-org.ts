@@ -1,131 +1,188 @@
-import * as cheerio from 'cheerio';
 import { ScrapedPoem } from '../types';
 import { parsePoemContent } from '../parsers/poem-parser';
 import { createRateLimiter } from '../utils/rate-limiter';
 import { generateSourceId } from '../utils/hashing';
+import { logger } from '../utils/logger';
+import {
+  extractAnchorsByHrefPrefix,
+  extractFirstClassInnerHtml,
+  extractFirstTagText,
+  extractFirstTagTextByClass,
+  hasCaseInsensitiveText,
+} from '../utils/html';
 
 const BASE_URL = 'https://poets.org';
 const POEMS_LIST_URL = 'https://poets.org/poems';
 
 const limit = createRateLimiter({ concurrency: 5, minDelay: 200 });
 
-export async function getPoemUrls(maxPages: number = 1): Promise<string[]> {
+export interface PoetsOrgScraperOptions {
+  fetchImpl?: typeof fetch;
+}
+
+function detectPublicDomain(pageHtml: string, themes: string[]): boolean {
+  const themeContainsPublicDomain = themes.some((theme) =>
+    theme.toLowerCase().includes('public domain'),
+  );
+  if (themeContainsPublicDomain) {
+    return true;
+  }
+
+  const copyrightFieldHtml = extractFirstClassInnerHtml(pageHtml, [
+    'field--name-field-copyright',
+    'field--name-field-credits',
+  ]);
+
+  return (
+    hasCaseInsensitiveText(copyrightFieldHtml, 'public domain') ||
+    hasCaseInsensitiveText(pageHtml, 'public domain')
+  );
+}
+
+export async function getPoemUrls(
+  maxPages: number = 1,
+  options: PoetsOrgScraperOptions = {},
+): Promise<string[]> {
+  const fetchImpl = options.fetchImpl ?? fetch;
   const urls: string[] = [];
+  logger.info('Starting Poets.org list scrape', { source: 'poets.org', maxPages });
 
   for (let page = 0; page < maxPages; page++) {
     const url = `${POEMS_LIST_URL}?page=${page}`;
     try {
-        const response = await fetch(url);
-        if (!response.ok) {
-            console.error(`Failed to fetch ${url}: ${response.status}`);
-            continue;
-        }
-        const html = await response.text();
-        const $ = cheerio.load(html);
-
-        // Based on the structure, poems are likely in a table or list
-        // Inspecting the view-text output, it looks like a list of links
-        // I'll look for links that match /poem/*
-        $('a[href^="/poem/"]').each((_, element) => {
-            const href = $(element).attr('href');
-            if (href) {
-                urls.push(`${BASE_URL}${href}`);
-            }
+      logger.debug('Fetching Poets.org list page', { source: 'poets.org', page, sourceUrl: url });
+      const response = await fetchImpl(url);
+      if (!response.ok) {
+        logger.warn('Failed to fetch Poets.org list page', {
+          source: 'poets.org',
+          page,
+          sourceUrl: url,
+          status: response.status,
+          statusText: response.statusText,
         });
+        continue;
+      }
+
+      const html = await response.text();
+      const pagePoemUrls = extractAnchorsByHrefPrefix(html, '/poem/').map(
+        (anchor) => `${BASE_URL}${anchor.href}`,
+      );
+      urls.push(...pagePoemUrls);
     } catch (error) {
-        console.error(`Error scraping list page ${page}:`, error);
+      logger.error('Unhandled Poets.org list page scrape error', error, {
+        source: 'poets.org',
+        page,
+        sourceUrl: url,
+      });
     }
   }
 
-  // Remove duplicates
-  return [...new Set(urls)];
+  const uniqueUrls = [...new Set(urls)];
+  logger.info('Completed Poets.org list scrape', {
+    source: 'poets.org',
+    maxPages,
+    poemUrlCount: uniqueUrls.length,
+  });
+  return uniqueUrls;
 }
 
-export async function scrapePoetsOrg(maxPages: number = 1): Promise<ScrapedPoem[]> {
-  const urls = await getPoemUrls(maxPages);
+export async function scrapePoetsOrg(
+  maxPages: number = 1,
+  options: PoetsOrgScraperOptions = {},
+): Promise<ScrapedPoem[]> {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const startTimeMs = Date.now();
+  const urls = await getPoemUrls(maxPages, { fetchImpl });
   const poemPromises: Promise<ScrapedPoem | null>[] = [];
+  logger.info('Starting Poets.org detail scrape', {
+    source: 'poets.org',
+    poemUrlCount: urls.length,
+    maxPages,
+  });
 
   for (const url of urls) {
     poemPromises.push(
       limit(async () => {
         try {
-          const response = await fetch(url);
+          logger.debug('Fetching Poets.org detail page', { source: 'poets.org', sourceUrl: url });
+          const response = await fetchImpl(url);
           if (!response.ok) {
-             console.error(`Failed to fetch ${url}: ${response.status}`);
-             return null;
+            logger.warn('Failed to fetch Poets.org detail page', {
+              source: 'poets.org',
+              sourceUrl: url,
+              status: response.status,
+              statusText: response.statusText,
+            });
+            return null;
           }
+
           const html = await response.text();
-          const $ = cheerio.load(html);
 
-          let title = $('h1.page-title').text().trim();
-          if (!title) title = $('h1').first().text().trim();
+          let title = extractFirstTagTextByClass(html, 'h1', 'page-title');
+          if (!title) {
+            title = extractFirstTagText(html, ['h1']);
+          }
 
-          // Author is often linked
-          let author = $('a[href^="/poet/"]').first().text().trim();
+          let author = extractAnchorsByHrefPrefix(html, '/poet/')[0]?.text || '';
           if (!author) {
-             author = $('.field--name-title').first().text().trim();
+            author = extractFirstTagTextByClass(html, 'div', 'field--name-title');
           }
 
-          // Content extraction
-          // Drupal sites often use field--name-body or field--name-field-poem-body
-          let contentHtml = $('.field--name-body').html() || '';
+          let contentHtml = extractFirstClassInnerHtml(html, ['field--name-body']);
           if (!contentHtml) {
-            contentHtml = $('.field--name-field-poem-body').html() || '';
+            contentHtml = extractFirstClassInnerHtml(html, ['field--name-field-poem-body']);
           }
           if (!contentHtml) {
-              contentHtml = $('.poem-body').html() || ''; // Fallback
+            contentHtml = extractFirstClassInnerHtml(html, ['poem-body']);
           }
           if (!contentHtml) {
-             // Try finding the div that contains the poem lines directly
-             // This is heuristic
-             contentHtml = $('div[property="content:encoded"]').html() || '';
+            contentHtml = extractFirstClassInnerHtml(html, ['field--name-field-poem']);
           }
 
           const content = parsePoemContent(contentHtml);
-
           if (!content) {
-              return null;
+            logger.warn('No poem content found on Poets.org detail page', {
+              source: 'poets.org',
+              sourceUrl: url,
+              title,
+            });
+            return null;
           }
 
-          const themes: string[] = [];
-          $('a[href^="/themes/"]').each((_, el) => {
-              themes.push($(el).text().trim());
-          });
-
-          $('div.field--name-field-poem-themes a').each((_, el) => {
-              themes.push($(el).text().trim());
-          });
-
-          // Check if public domain. This is hard to detect reliably without specific metadata.
-          // But we can check for copyright notices.
-          const footerText = $('footer').text();
-          const bodyText = $('body').text();
-          // Refined check: Removed the body-wide !includes('Copyright') check because footers almost always contain copyright.
-          const isPublicDomain = footerText.includes('Public Domain') ||
-                                 bodyText.includes('Public Domain');
+          const themes = extractAnchorsByHrefPrefix(html, '/themes/').map((anchor) => anchor.text);
+          const form = extractAnchorsByHrefPrefix(html, '/forms/')[0]?.text || null;
+          const isPublicDomain = detectPublicDomain(html, themes);
 
           return {
             sourceId: generateSourceId('poets.org', url, title),
             source: 'poets.org',
             sourceUrl: url,
-            title: title,
-            author: author,
-            year: null, // Hard to extract reliably without specific selector
-            content: content,
-            themes: [...new Set(themes)], // Remove duplicates
-            form: null,
-            isPublicDomain: isPublicDomain,
+            title,
+            author,
+            year: null,
+            content,
+            themes: [...new Set(themes)],
+            form,
+            isPublicDomain,
             scrapedAt: new Date().toISOString(),
           };
-
         } catch (error) {
-          console.error(`Error scraping ${url}:`, error);
+          logger.error('Unhandled Poets.org detail scrape error', error, {
+            source: 'poets.org',
+            sourceUrl: url,
+          });
           return null;
         }
-      })
+      }),
     );
   }
 
   const results = await Promise.all(poemPromises);
-  return results.filter((p): p is ScrapedPoem => p !== null);
+  const poems = results.filter((poem): poem is ScrapedPoem => poem !== null);
+  logger.info('Completed Poets.org detail scrape', {
+    source: 'poets.org',
+    poemCount: poems.length,
+    durationMs: Date.now() - startTimeMs,
+  });
+  return poems;
 }

@@ -1,65 +1,97 @@
-import * as cheerio from 'cheerio';
 import { ScrapedPoem } from '../types';
 import { parsePoemContent } from '../parsers/poem-parser';
 import { generateSourceId } from '../utils/hashing';
+import { logger } from '../utils/logger';
+import { extractTagMatches, normalizeWhitespace, stripHtml } from '../utils/html';
 
-// This is the URL for "Poems" by Ralph Waldo Emerson on Project Gutenberg
-// I found it by manually checking. eBook #12384 is often "Poems".
-// However, the user provided link in the prompt was for "Essays".
-// I will use a placeholder valid URL for the default if I can't find the exact one,
-// but for the implementation it matters less as I'm parsing the structure.
-export const GUTENBERG_EMERSON_URL = 'https://www.gutenberg.org/cache/epub/19461/pg19461-images.html'; // Tales of Wonder - using as placeholder from previous context, but will rely on passed URL or correct one if found.
+export const GUTENBERG_EMERSON_URL = 'https://www.gutenberg.org/files/12843/12843-h/12843-h.htm';
 
-export async function scrapeGutenbergEmerson(url: string = GUTENBERG_EMERSON_URL): Promise<ScrapedPoem[]> {
+const EMERSON_AUTHOR = 'Ralph Waldo Emerson';
+const EXCLUDED_HEADINGS = new Set(['contents', 'notes', 'preface', 'appendix']);
+
+export interface GutenbergScraperOptions {
+  fetchImpl?: typeof fetch;
+}
+
+function isPoemHeading(title: string): boolean {
+  const normalizedTitle = title.trim().toLowerCase();
+  return normalizedTitle.length > 0 && !EXCLUDED_HEADINGS.has(normalizedTitle);
+}
+
+function extractPoemsFromHtml(html: string, sourceUrl: string): ScrapedPoem[] {
+  const headings = extractTagMatches(html, ['h2', 'h3']);
+  const poems: ScrapedPoem[] = [];
+
+  for (let index = 0; index < headings.length; index++) {
+    const heading = headings[index];
+    const title = normalizeWhitespace(stripHtml(heading.innerHtml));
+
+    if (!isPoemHeading(title)) {
+      continue;
+    }
+
+    const nextHeading = headings[index + 1];
+    const contentSlice = html.slice(heading.end, nextHeading ? nextHeading.start : undefined);
+    const content = parsePoemContent(contentSlice);
+
+    if (!content) {
+      logger.debug('Skipping Gutenberg heading with empty content', { sourceUrl, title });
+      continue;
+    }
+
+    poems.push({
+      sourceId: generateSourceId('gutenberg', sourceUrl, title),
+      source: 'gutenberg',
+      sourceUrl,
+      title,
+      author: EMERSON_AUTHOR,
+      year: null,
+      content,
+      themes: [],
+      form: null,
+      isPublicDomain: true,
+      scrapedAt: new Date().toISOString(),
+    });
+  }
+
+  return poems;
+}
+
+export async function scrapeGutenbergEmerson(
+  url: string = GUTENBERG_EMERSON_URL,
+  options: GutenbergScraperOptions = {},
+): Promise<ScrapedPoem[]> {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const startTimeMs = Date.now();
+  logger.info('Starting Gutenberg scrape', { source: 'gutenberg', sourceUrl: url });
+
   try {
-    const response = await fetch(url);
+    const response = await fetchImpl(url);
     if (!response.ok) {
-      console.error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
+      logger.error('Failed to fetch Gutenberg source page', undefined, {
+        source: 'gutenberg',
+        sourceUrl: url,
+        status: response.status,
+        statusText: response.statusText,
+      });
       return [];
     }
+
     const html = await response.text();
-    const $ = cheerio.load(html);
-    const poems: ScrapedPoem[] = [];
-
-    // Iterate through h2 headers which we assume are poem titles in this specific book structure
-    $('h2').each((index, element) => {
-      const title = $(element).text().trim();
-      if (!title) return;
-
-      // Collect content until the next h2
-      let contentHtml = '';
-      let nextElement = $(element).next();
-
-      while (nextElement.length && nextElement[0].tagName !== 'h2') {
-        // In Gutenberg files, content is often in p tags, sometimes div
-        if (nextElement[0].tagName === 'p' || nextElement[0].tagName === 'div') {
-            contentHtml += $.html(nextElement);
-        }
-        nextElement = nextElement.next();
-      }
-
-      const content = parsePoemContent(contentHtml);
-
-      if (content.length > 0) {
-        poems.push({
-          sourceId: generateSourceId('gutenberg', url, title),
-          source: 'gutenberg',
-          sourceUrl: url,
-          title: title,
-          author: 'Ralph Waldo Emerson',
-          year: null, // Gutenberg often doesn't have year metadata easily accessible per poem
-          content: content,
-          themes: [], // No themes in Gutenberg usually
-          form: null,
-          isPublicDomain: true, // Project Gutenberg texts are public domain
-          scrapedAt: new Date().toISOString(),
-        });
-      }
+    const poems = extractPoemsFromHtml(html, url);
+    logger.info('Completed Gutenberg scrape', {
+      source: 'gutenberg',
+      sourceUrl: url,
+      poemCount: poems.length,
+      durationMs: Date.now() - startTimeMs,
     });
-
     return poems;
   } catch (error) {
-    console.error(`Error scraping Gutenberg ${url}:`, error);
+    logger.error('Unhandled Gutenberg scraping error', error, {
+      source: 'gutenberg',
+      sourceUrl: url,
+      durationMs: Date.now() - startTimeMs,
+    });
     return [];
   }
 }

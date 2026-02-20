@@ -1,27 +1,16 @@
-import * as cheerio from 'cheerio';
+import { extractTagMatches, normalizeWhitespace, stripHtml } from '../utils/html';
 
 export function parsePoemContent(html: string): string {
-  const $ = cheerio.load(html);
+  const normalizedHtml = html.replace(/<br\s*\/?>/gi, '\n');
+  const stanzaMatches = extractTagMatches(normalizedHtml, ['p', 'div']);
 
-  // Replace <br> tags with newline characters
-  $('br').replaceWith('\n');
+  const stanzas = stanzaMatches
+    .map((match) => normalizeWhitespace(stripHtml(match.innerHtml).replace(/\r/g, '')))
+    .filter((text) => text.length > 0);
 
-  const stanzas: string[] = [];
+  if (stanzas.length > 0) {
+    return stanzas.join('\n\n');
+  }
 
-  // Iterate over immediate children of body to avoid duplication
-  $('body')
-    .children()
-    .each((_, element) => {
-      // Only consider block elements that likely contain text
-      // We check for p and div tags
-      const tagName = element.tagName.toLowerCase();
-      if (tagName === 'p' || tagName === 'div') {
-        const text = $(element).text().trim();
-        if (text.length > 0) {
-          stanzas.push(text);
-        }
-      }
-    });
-
-  return stanzas.join('\n\n');
+  return normalizeWhitespace(stripHtml(normalizedHtml));
 }

@@ -28,7 +28,7 @@ This plan covers Phase 2 of the Data Pipeline, focusing on the initial scraper i
   - [x] Write tests for Poets.org list and detail scrapers f624157
   - [x] Implement `scrapers/poets-org.ts` with pagination and checkpointing f624157
   - [x] Verify extraction of themes and public domain status f624157
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Scraper' (Protocol in workflow.md)
+- [~] Task: Conductor - User Manual Verification 'Phase 2: Scraper' (Protocol in workflow.md)
 
 ## Phase 3: Regression & Quality Gate
 

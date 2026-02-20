@@ -1,5 +1,5 @@
-import { expect, test, describe, spyOn, mock } from 'bun:test';
-import { scrapeGutenbergEmerson } from './gutenberg';
+import { describe, expect, mock, test } from 'bun:test';
+import { GUTENBERG_EMERSON_URL, scrapeGutenbergEmerson } from './gutenberg';
 
 const mockHtml = `
 <!DOCTYPE html>
@@ -26,11 +26,12 @@ const mockHtml = `
 `;
 
 describe('scrapeGutenbergEmerson', () => {
+  test('uses the documented Poems by Emerson Gutenberg URL', () => {
+    expect(GUTENBERG_EMERSON_URL).toBe('https://www.gutenberg.org/files/12843/12843-h/12843-h.htm');
+  });
+
   test('should extract poems correctly', async () => {
-    // Mock the global fetch function
-    global.fetch = mock(() =>
-      Promise.resolve(new Response(mockHtml))
-    );
+    global.fetch = mock(() => Promise.resolve(new Response(mockHtml)));
 
     const poems = await scrapeGutenbergEmerson('https://example.com/emerson');
 
@@ -48,7 +49,7 @@ describe('scrapeGutenbergEmerson', () => {
 
   test('should return empty array on fetch failure', async () => {
     global.fetch = mock(() =>
-      Promise.resolve(new Response(null, { status: 404, statusText: 'Not Found' }))
+      Promise.resolve(new Response(null, { status: 404, statusText: 'Not Found' })),
     );
 
     const poems = await scrapeGutenbergEmerson('https://example.com/emerson-404');
