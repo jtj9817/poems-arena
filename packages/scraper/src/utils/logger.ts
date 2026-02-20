@@ -19,14 +19,22 @@ export function resolveLogLevel(env: Record<string, string | undefined> = proces
   }
 
   const configuredLevel = env.SCRAPER_LOG_LEVEL?.toLowerCase();
-  if (configuredLevel === 'debug' || configuredLevel === 'info' || configuredLevel === 'warn' || configuredLevel === 'error') {
+  if (
+    configuredLevel === 'debug' ||
+    configuredLevel === 'info' ||
+    configuredLevel === 'warn' ||
+    configuredLevel === 'error'
+  ) {
     return configuredLevel;
   }
 
   return 'info';
 }
 
-function shouldLog(level: LogLevel, env: Record<string, string | undefined> = process.env): boolean {
+function shouldLog(
+  level: LogLevel,
+  env: Record<string, string | undefined> = process.env,
+): boolean {
   const configuredLevel = resolveLogLevel(env);
   return LOG_LEVEL_ORDER[level] >= LOG_LEVEL_ORDER[configuredLevel];
 }

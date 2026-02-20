@@ -1,4 +1,3 @@
-
 export function generateSourceId(source: string, url: string, title: string): string {
   const str = `${source}:${url}:${title}`;
   let hash = 0;

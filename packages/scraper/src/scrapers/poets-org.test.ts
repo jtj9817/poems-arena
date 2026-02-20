@@ -1,4 +1,4 @@
-import { expect, test, describe, spyOn, mock } from 'bun:test';
+import { expect, test, describe, mock } from 'bun:test';
 import { scrapePoetsOrg, getPoemUrls } from './poets-org';
 
 const mockListPage = `
@@ -45,9 +45,7 @@ const mockPoemPage = `
 
 describe('scrapePoetsOrg', () => {
   test('should extract poem URLs from list page', async () => {
-    global.fetch = mock(() =>
-      Promise.resolve(new Response(mockListPage))
-    );
+    global.fetch = mock(() => Promise.resolve(new Response(mockListPage)));
 
     const urls = await getPoemUrls(1);
     expect(urls).toHaveLength(1);
@@ -55,9 +53,9 @@ describe('scrapePoetsOrg', () => {
   });
 
   test('should scrape poem details', async () => {
-     global.fetch = mock((url) => {
+    global.fetch = mock((url) => {
       if (url.toString().includes('poems')) {
-          return Promise.resolve(new Response(mockListPage));
+        return Promise.resolve(new Response(mockListPage));
       }
       return Promise.resolve(new Response(mockPoemPage));
     });
@@ -86,7 +84,7 @@ describe('scrapePoetsOrg', () => {
 
     global.fetch = mock((url) => {
       if (url.toString().includes('poems')) {
-          return Promise.resolve(new Response(mockListPage));
+        return Promise.resolve(new Response(mockListPage));
       }
       return Promise.resolve(new Response(publicDomainPoemPage));
     });
@@ -111,7 +109,7 @@ describe('scrapePoetsOrg', () => {
 
     global.fetch = mock((url) => {
       if (url.toString().includes('poems')) {
-          return Promise.resolve(new Response(mockListPage));
+        return Promise.resolve(new Response(mockListPage));
       }
       return Promise.resolve(new Response(copyrightedPoemPage));
     });

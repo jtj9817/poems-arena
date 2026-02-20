@@ -128,16 +128,13 @@ export async function scrapePoetsOrg(
             author = extractFirstTagTextByClass(html, 'div', 'field--name-title');
           }
 
-          let contentHtml = extractFirstClassInnerHtml(html, ['field--name-body']);
-          if (!contentHtml) {
-            contentHtml = extractFirstClassInnerHtml(html, ['field--name-field-poem-body']);
-          }
-          if (!contentHtml) {
-            contentHtml = extractFirstClassInnerHtml(html, ['poem-body']);
-          }
-          if (!contentHtml) {
-            contentHtml = extractFirstClassInnerHtml(html, ['field--name-field-poem']);
-          }
+          const contentHtml = extractFirstClassInnerHtml(html, [
+            'field--name-body',
+            'field--body',
+            'field--name-field-poem-body',
+            'poem-body',
+            'field--name-field-poem',
+          ]);
 
           const content = parsePoemContent(contentHtml);
           if (!content) {
