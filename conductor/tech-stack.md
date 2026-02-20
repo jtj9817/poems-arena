@@ -24,6 +24,17 @@ Classicist's Sanctuary is built as a TypeScript-first monorepo using pnpm worksp
 
 - **Purpose:** Centralized TypeScript types and constants used by both frontend and backend.
 
+## Scraper (@sanctuary/scraper)
+
+- **Runtime:** Bun
+- **Libraries:** Cheerio, p-limit
+- **Purpose:** Specialized poetry scraping and parsing for multiple sources (Gutenberg, LOC, Poets.org).
+
+## E2E Testing (@sanctuary/e2e)
+
+- **Framework:** Playwright
+- **Coverage:** CDP-based live source validation, REST API integration, and full-stack UI tests.
+
 ## Infrastructure & Tooling
 
 - **Package Manager:** pnpm 9+
