@@ -28,7 +28,7 @@ This plan covers Phase 2 of the Data Pipeline, focusing on the initial scraper i
   - [x] Write tests for Poets.org list and detail scrapers f624157
   - [x] Implement `scrapers/poets-org.ts` with pagination and checkpointing f624157
   - [x] Verify extraction of themes and public domain status f624157
-- [~] Task: Conductor - User Manual Verification 'Phase 2: Scraper' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Scraper' (Protocol in workflow.md)
   - Manual verification summary:
   - Run `CI=true pnpm --filter @sanctuary/scraper test`.
   - Run `CI=true pnpm --filter @sanctuary/api test -- src/db/config.test.ts`.

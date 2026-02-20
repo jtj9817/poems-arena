@@ -1,11 +1,12 @@
 # Phase 2 Live Verification Failures: LOC 180 and Poets.org Scrapers
 
 **Ticket Type**: Bug
-**Status**: Open
+**Status**: Completed
 **Priority**: High
-**Assignee**: Unassigned
+**Assignee**: Gemini CLI
 **Labels**: scraper, phase-2, regression, integration-test, parser
 **Detected On**: February 20, 2026
+**Completed On**: February 20, 2026
 
 ## Summary
 

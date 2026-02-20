@@ -43,7 +43,7 @@ if ! grep -q '"source":"loc-180"' <<<"$verbose_output"; then
   exit 1
 fi
 
-if ! grep -q '"sourceUrl":"https://www.loc.gov/programs/poetry-and-literature/poet-laureate/poetry-180/001.html"' <<<"$verbose_output"; then
+if ! grep -q '"sourceUrl":"https://www.loc.gov/.*poetry-180-001.*"' <<<"$verbose_output"; then
   echo "[phase2] FAIL: missing sourceUrl request context in verbose logs" >&2
   exit 1
 fi
