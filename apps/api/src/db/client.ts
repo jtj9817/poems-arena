@@ -1,9 +1,4 @@
-import { createClient } from '@libsql/client';
-import { drizzle } from 'drizzle-orm/libsql';
-import * as schema from './schema';
-import { resolveDbConfig } from './config';
+import { createDb, resolveDbConfig } from '@sanctuary/db';
 
 const config = resolveDbConfig();
-const libsql = createClient(config);
-
-export const db = drizzle(libsql, { schema });
+export const db = createDb(config);

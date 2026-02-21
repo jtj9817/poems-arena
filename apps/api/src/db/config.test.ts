@@ -1,37 +1,20 @@
+// Verifies that the re-export chain from apps/api → @sanctuary/db is intact.
+// The full resolveDbConfig test suite lives in packages/db/src/config.test.ts.
 import { describe, expect, test } from 'bun:test';
 import { resolveDbConfig } from './config';
 
-describe('resolveDbConfig', () => {
-  test('uses dedicated test database url when NODE_ENV is test', () => {
+describe('resolveDbConfig (via @sanctuary/db re-export)', () => {
+  test('resolves production config from LIBSQL_URL', () => {
     const config = resolveDbConfig({
-      NODE_ENV: 'test',
-      LIBSQL_URL: 'libsql://dev-db.example.com',
-      LIBSQL_TEST_URL: 'libsql://test-db.example.com',
-      LIBSQL_AGILIQUILL_TOKEN: 'dev-token',
-      LIBSQL_TEST_AGILIQUILL_TOKEN: 'test-token',
+      LIBSQL_URL: 'libsql://prod.example.com',
+      LIBSQL_AGILIQUILL_TOKEN: 'token',
     });
 
-    expect(config.url).toBe('libsql://test-db.example.com');
-    expect(config.authToken).toBe('test-token');
+    expect(config.url).toBe('libsql://prod.example.com');
+    expect(config.authToken).toBe('token');
   });
 
-  test('throws in test mode when LIBSQL_TEST_URL is missing', () => {
-    expect(() =>
-      resolveDbConfig({
-        NODE_ENV: 'test',
-        LIBSQL_URL: 'libsql://dev-db.example.com',
-      }),
-    ).toThrow('LIBSQL_TEST_URL environment variable is required when NODE_ENV=test');
-  });
-
-  test('uses development database url outside test mode', () => {
-    const config = resolveDbConfig({
-      NODE_ENV: 'development',
-      LIBSQL_URL: 'libsql://dev-db.example.com',
-      LIBSQL_AGILIQUILL_TOKEN: 'dev-token',
-    });
-
-    expect(config.url).toBe('libsql://dev-db.example.com');
-    expect(config.authToken).toBe('dev-token');
+  test('throws when LIBSQL_URL is absent', () => {
+    expect(() => resolveDbConfig({})).toThrow('LIBSQL_URL environment variable is required');
   });
 });
