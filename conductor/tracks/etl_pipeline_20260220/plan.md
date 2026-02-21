@@ -64,7 +64,7 @@ This track implements Phase 3 ("ETL") from `docs/plans/001-data-pipeline-plan.md
 - [x] Task: Tests (`02-dedup.test.ts`)
   - [x] Exact-match grouping and priority resolution.
   - [x] Fuzzy-match grouping for small title variants.
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Stage 2 - Deduplicate' (Protocol in workflow.md)
+- [~] Task: Conductor - User Manual Verification 'Phase 3: Stage 2 - Deduplicate' (Protocol in workflow.md)
 
 ## Phase 4: Stage 3 - Tag (`03-tag.ts`)
 
