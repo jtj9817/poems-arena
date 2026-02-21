@@ -49,7 +49,7 @@ This track implements Phase 3 ("ETL") from `docs/plans/001-data-pipeline-plan.md
   - [x] Minimum-line validation and skip behavior (does not halt the run).
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Extract & Transform Stages' (Protocol in workflow.md) `732c71e`
 
-## Phase 3: Stage 2 - Deduplicate (`02-dedup.ts`)
+## Phase 3: Stage 2 - Deduplicate (`02-dedup.ts`) [checkpoint: 1a95e77]
 
 - [x] Task: Make dedup keys explicit (exact + fuzzy)
   - [x] Define a normalization function for title/author keys (case-folding, punctuation collapse, whitespace collapse, Unicode NFC).
@@ -64,7 +64,7 @@ This track implements Phase 3 ("ETL") from `docs/plans/001-data-pipeline-plan.md
 - [x] Task: Tests (`02-dedup.test.ts`)
   - [x] Exact-match grouping and priority resolution.
   - [x] Fuzzy-match grouping for small title variants.
-- [~] Task: Conductor - User Manual Verification 'Phase 3: Stage 2 - Deduplicate' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Stage 2 - Deduplicate' (Protocol in workflow.md) `1a95e77`
 
 ## Phase 4: Stage 3 - Tag (`03-tag.ts`)
 
