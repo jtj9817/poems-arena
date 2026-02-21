@@ -16,17 +16,17 @@ This track implements Phase 3 ("ETL") from `docs/plans/001-data-pipeline-plan.md
 
 ## Phase 1: Setup & Data Access Layer
 
-- [ ] Task: Scaffold `packages/etl` package
-  - [ ] Create `packages/etl` directory with `package.json` and `tsconfig.json`.
-  - [ ] Install dependencies: `drizzle-orm`, `@libsql/client`, `zod`, `fast-glob`, `dotenv`.
-  - [ ] Add scripts: `test` (bun), `pipeline` (CLI entry), and `typecheck`.
-- [ ] Task: Shared schema access (API + ETL)
+- [x] Task: Scaffold `packages/etl` package — 0e3a618
+  - [x] Create `packages/etl` directory with `package.json` and `tsconfig.json`.
+  - [x] Install dependencies: `drizzle-orm`, `@libsql/client`, `zod`, `fast-glob`, `dotenv`.
+  - [x] Add scripts: `test` (bun), `pipeline` (CLI entry), and `typecheck`.
+- [~] Task: Shared schema access (API + ETL)
   - [ ] Extract Drizzle schema currently in `apps/api/src/db/schema.ts` into a shared package (`packages/shared` or a new `packages/db`) so ETL can depend on it without importing from an app workspace.
   - [ ] Update `apps/api` to import schema from the shared location.
   - [ ] Configure `packages/etl` to import the shared schema and (if needed) a shared `db` client factory.
-- [ ] Task: Environment + configuration
+- [~] Task: Environment + configuration
   - [ ] Document required env vars for ETL: `LIBSQL_URL`, `LIBSQL_AGILIQUILL_TOKEN` (plus any local/dev defaults).
-  - [ ] Add explicit defaults for CLI flags (input/work dirs, stage selection, dry-run).
+  - [x] Add explicit defaults for CLI flags (input/work dirs, stage selection, dry-run).
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Setup & Data Access Layer' (Protocol in workflow.md)
 
 ## Phase 2: Stage 1 - Clean (`01-clean.ts`)
