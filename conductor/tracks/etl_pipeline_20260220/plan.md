@@ -68,20 +68,20 @@ This track implements Phase 3 ("ETL") from `docs/plans/001-data-pipeline-plan.md
 
 ## Phase 4: Stage 3 - Tag (`03-tag.ts`)
 
-- [ ] Task: Canonical topic set and mapping tables
-  - [ ] Implement `CANONICAL_TOPICS` exactly as defined in `docs/plans/001-data-pipeline-plan.md`.
-  - [ ] Add `src/mappings/theme-to-topic.ts` for raw theme -> canonical topic mapping (case-insensitive, source-agnostic).
-  - [ ] Add a keyword fallback map (title/content) for poems without mappable themes.
-- [ ] Task: Topic assignment rules
-  - [ ] Only assign topic IDs from `CANONICAL_TOPICS`.
-  - [ ] Deduplicate topic IDs and cap the assigned list (explicitly choose a maximum, e.g., 3) to avoid noise.
-  - [ ] Log when fallback keyword tagging is used.
-- [ ] Task: IO + logging
-  - [ ] Input: `--work-dir/02-dedup`.
-  - [ ] Output: `--work-dir/03-tag`.
-- [ ] Task: Tests (`03-tag.test.ts`)
-  - [ ] Theme mapping correctness.
-  - [ ] Keyword fallback behavior for untagged poems.
+- [x] Task: Canonical topic set and mapping tables `d1ffd72`
+  - [x] Implement `CANONICAL_TOPICS` exactly as defined in `docs/plans/001-data-pipeline-plan.md`.
+  - [x] Add `src/mappings/theme-to-topic.ts` for raw theme -> canonical topic mapping (case-insensitive, source-agnostic).
+  - [x] Add a keyword fallback map (title/content) for poems without mappable themes.
+- [x] Task: Topic assignment rules `d1ffd72`
+  - [x] Only assign topic IDs from `CANONICAL_TOPICS`.
+  - [x] Deduplicate topic IDs and cap the assigned list (explicitly choose a maximum, e.g., 3) to avoid noise.
+  - [x] Log when fallback keyword tagging is used.
+- [x] Task: IO + logging `d1ffd72`
+  - [x] Input: `--work-dir/02-dedup`.
+  - [x] Output: `--work-dir/03-tag`.
+- [x] Task: Tests (`03-tag.test.ts`) `d1ffd72`
+  - [x] Theme mapping correctness.
+  - [x] Keyword fallback behavior for untagged poems.
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: Stage 3 - Tag' (Protocol in workflow.md)
 
 ## Phase 5: Stage 4 - Load (`04-load.ts`) + CLI Orchestration
