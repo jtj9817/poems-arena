@@ -29,7 +29,7 @@ This track implements Phase 3 ("ETL") from `docs/plans/001-data-pipeline-plan.md
   - [x] Add explicit defaults for CLI flags (input/work dirs, stage selection, dry-run).
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Setup & Data Access Layer' (Protocol in workflow.md)
 
-## Phase 2: Stage 1 - Clean (`01-clean.ts`)
+## Phase 2: Stage 1 - Clean (`01-clean.ts`) [checkpoint: 732c71e]
 
 - [x] Task: Define the stage contract (input/output types) `7d98cb9`
   - [x] Validate input as `ScrapedPoem` (Zod schema) and emit a normalized `CleanPoem`.
@@ -47,7 +47,7 @@ This track implements Phase 3 ("ETL") from `docs/plans/001-data-pipeline-plan.md
 - [x] Task: Tests (`01-clean.test.ts`) `7d98cb9`
   - [x] Whitespace + stanza normalization.
   - [x] Minimum-line validation and skip behavior (does not halt the run).
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Extract & Transform Stages' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Extract & Transform Stages' (Protocol in workflow.md) `732c71e`
 
 ## Phase 3: Stage 2 - Deduplicate (`02-dedup.ts`)
 
