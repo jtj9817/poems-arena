@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import type { ScrapedPoem } from '../types';
 import { writeScrapedPoems } from './writer';
 
@@ -88,5 +88,17 @@ describe('writeScrapedPoems', () => {
     const parsed: ScrapedPoem[] = JSON.parse(readFileSync(filePath, 'utf-8'));
     expect(parsed).toHaveLength(3);
     expect(parsed.map((p) => p.title)).toEqual(['First', 'Second', 'Third']);
+  });
+
+  test('sanitizes source to prevent path traversal', async () => {
+    mkdirSync(TMP_DIR, { recursive: true });
+    // Attempt to write outside the output directory
+    const maliciousSource = '../../etc/passwd';
+    const filePath = await writeScrapedPoems([makeSample()], TMP_DIR, maliciousSource);
+
+    // Should be written inside TMP_DIR, effectively treating "passwd" as the source name
+    expect(filePath.startsWith(resolve(TMP_DIR))).toBe(true);
+    const fileName = basename(filePath);
+    expect(fileName).toMatch(/^passwd-\d{4}-\d{2}-\d{2}T[\d-]+Z\.json$/);
   });
 });
