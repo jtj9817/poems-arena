@@ -9,10 +9,10 @@ This track implements Phase 3 ("ETL") from `docs/plans/001-data-pipeline-plan.md
   - [x] Define supported file formats: `*.json` (array of `ScrapedPoem`) and/or `*.ndjson` (one `ScrapedPoem` per line).
   - [x] Ensure the record schema matches the project contract: `sourceId`, `source`, `sourceUrl`, `title`, `author`, `year`, `content`, `themes`, `form`, `isPublicDomain`, `scrapedAt`.
   - [x] Decide and document the canonical way to generate these raw dumps for ETL runs (CLI/script, output naming, and where checkpoints live).
-- [~] Task: Decide ETL working directory layout and IO conventions
-  - [ ] Default a working directory (suggested): `packages/etl/data/`.
-  - [ ] Define stage outputs (suggested): `01-clean/`, `02-dedup/`, `03-tag/` (inputs to `04-load`).
-  - [ ] Ensure CLI supports `--input-dir` and `--work-dir` overrides (local, CI, and ad-hoc runs).
+- [x] Task: Decide ETL working directory layout and IO conventions `9620a14`
+  - [x] Default a working directory (suggested): `packages/etl/data/`.
+  - [x] Define stage outputs (suggested): `01-clean/`, `02-dedup/`, `03-tag/` (inputs to `04-load`).
+  - [x] Ensure CLI supports `--input-dir` and `--work-dir` overrides (local, CI, and ad-hoc runs).
 
 ## Phase 1: Setup & Data Access Layer
 
