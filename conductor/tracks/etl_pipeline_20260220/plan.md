@@ -4,7 +4,7 @@ This track implements Phase 3 ("ETL") from `docs/plans/001-data-pipeline-plan.md
 
 ## Phase 0: Inputs, Contracts, and Defaults
 
-- [ ] Task: Confirm scraper output contract (input to ETL)
+- [~] Task: Confirm scraper output contract (input to ETL)
   - [ ] Define a default input location: `packages/scraper/data/raw/`.
   - [ ] Define supported file formats: `*.json` (array of `ScrapedPoem`) and/or `*.ndjson` (one `ScrapedPoem` per line).
   - [ ] Ensure the record schema matches the project contract: `sourceId`, `source`, `sourceUrl`, `title`, `author`, `year`, `content`, `themes`, `form`, `isPublicDomain`, `scrapedAt`.

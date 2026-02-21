@@ -42,3 +42,23 @@ bun.lockb
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Scraper data output (raw dumps, gitkeep preserved)
+packages/scraper/data/*
+!packages/scraper/data/.gitkeep
+!packages/scraper/data/raw/
+packages/scraper/data/raw/*
+!packages/scraper/data/raw/.gitkeep
+
+# ETL working data (stage outputs, gitkeep preserved)
+packages/etl/data/*
+!packages/etl/data/.gitkeep
+!packages/etl/data/01-clean/
+packages/etl/data/01-clean/*
+!packages/etl/data/01-clean/.gitkeep
+!packages/etl/data/02-dedup/
+packages/etl/data/02-dedup/*
+!packages/etl/data/02-dedup/.gitkeep
+!packages/etl/data/03-tag/
+packages/etl/data/03-tag/*
+!packages/etl/data/03-tag/.gitkeep
