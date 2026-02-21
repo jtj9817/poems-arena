@@ -14,7 +14,7 @@ This track implements Phase 3 ("ETL") from `docs/plans/001-data-pipeline-plan.md
   - [x] Define stage outputs (suggested): `01-clean/`, `02-dedup/`, `03-tag/` (inputs to `04-load`).
   - [x] Ensure CLI supports `--input-dir` and `--work-dir` overrides (local, CI, and ad-hoc runs).
 
-## Phase 1: Setup & Data Access Layer
+## Phase 1: Setup & Data Access Layer [checkpoint: 42970fc]
 
 - [x] Task: Scaffold `packages/etl` package — 0e3a618
   - [x] Create `packages/etl` directory with `package.json` and `tsconfig.json`.
@@ -27,7 +27,7 @@ This track implements Phase 3 ("ETL") from `docs/plans/001-data-pipeline-plan.md
 - [x] Task: Environment + configuration — f442fc5
   - [x] Document required env vars for ETL: `LIBSQL_URL`, `LIBSQL_AGILIQUILL_TOKEN` (plus any local/dev defaults).
   - [x] Add explicit defaults for CLI flags (input/work dirs, stage selection, dry-run).
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Setup & Data Access Layer' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Setup & Data Access Layer' (Protocol in workflow.md)
 
 ## Phase 2: Stage 1 - Clean (`01-clean.ts`)
 
