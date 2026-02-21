@@ -66,7 +66,7 @@ This track implements Phase 3 ("ETL") from `docs/plans/001-data-pipeline-plan.md
   - [x] Fuzzy-match grouping for small title variants.
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Stage 2 - Deduplicate' (Protocol in workflow.md) `1a95e77`
 
-## Phase 4: Stage 3 - Tag (`03-tag.ts`)
+## Phase 4: Stage 3 - Tag (`03-tag.ts`) [checkpoint: 3eb4e59]
 
 - [x] Task: Canonical topic set and mapping tables `d1ffd72`
   - [x] Implement `CANONICAL_TOPICS` exactly as defined in `docs/plans/001-data-pipeline-plan.md`.
@@ -82,7 +82,7 @@ This track implements Phase 3 ("ETL") from `docs/plans/001-data-pipeline-plan.md
 - [x] Task: Tests (`03-tag.test.ts`) `d1ffd72`
   - [x] Theme mapping correctness.
   - [x] Keyword fallback behavior for untagged poems.
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Stage 3 - Tag' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Stage 3 - Tag' (Protocol in workflow.md) `3eb4e59`
 
 ## Phase 5: Stage 4 - Load (`04-load.ts`) + CLI Orchestration
 
