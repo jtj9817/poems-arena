@@ -31,22 +31,22 @@ This track implements Phase 3 ("ETL") from `docs/plans/001-data-pipeline-plan.md
 
 ## Phase 2: Stage 1 - Clean (`01-clean.ts`)
 
-- [ ] Task: Define the stage contract (input/output types)
-  - [ ] Validate input as `ScrapedPoem` (Zod schema) and emit a normalized `CleanPoem`.
-  - [ ] Decide how to represent/retain provenance fields needed later (`sourceId`, `sourceUrl`, `isPublicDomain`, `scrapedAt`).
-- [ ] Task: Implement normalization + validation rules (aligned with Plan 001)
-  - [ ] Unicode normalize (NFC).
-  - [ ] Strip residual markup/entities (defensive, even if scraper already produced plain text).
-  - [ ] Whitespace normalization: single spaces within lines, `\\n` between lines, `\\n\\n` between stanzas.
-  - [ ] Trim title/content/author.
-  - [ ] Validate: reject poems with missing title/content or fewer than 4 non-empty lines; log and skip.
-- [ ] Task: Implement file discovery and output writing
-  - [ ] Input: read all matching files from `--input-dir` (default: `packages/scraper/data/raw`).
-  - [ ] Output: write normalized poems to `--work-dir/01-clean` in a consistent format (JSON or NDJSON).
-  - [ ] Emit stage summary: counts for read, valid, skipped, and output.
-- [ ] Task: Tests (`01-clean.test.ts`)
-  - [ ] Whitespace + stanza normalization.
-  - [ ] Minimum-line validation and skip behavior (does not halt the run).
+- [~] Task: Define the stage contract (input/output types)
+  - [~] Validate input as `ScrapedPoem` (Zod schema) and emit a normalized `CleanPoem`.
+  - [~] Decide how to represent/retain provenance fields needed later (`sourceId`, `sourceUrl`, `isPublicDomain`, `scrapedAt`).
+- [~] Task: Implement normalization + validation rules (aligned with Plan 001)
+  - [~] Unicode normalize (NFC).
+  - [~] Strip residual markup/entities (defensive, even if scraper already produced plain text).
+  - [~] Whitespace normalization: single spaces within lines, `\\n` between lines, `\\n\\n` between stanzas.
+  - [~] Trim title/content/author.
+  - [~] Validate: reject poems with missing title/content or fewer than 4 non-empty lines; log and skip.
+- [~] Task: Implement file discovery and output writing
+  - [~] Input: read all matching files from `--input-dir` (default: `packages/scraper/data/raw`).
+  - [~] Output: write normalized poems to `--work-dir/01-clean` in a consistent format (JSON or NDJSON).
+  - [~] Emit stage summary: counts for read, valid, skipped, and output.
+- [~] Task: Tests (`01-clean.test.ts`)
+  - [~] Whitespace + stanza normalization.
+  - [~] Minimum-line validation and skip behavior (does not halt the run).
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Extract & Transform Stages' (Protocol in workflow.md)
 
 ## Phase 3: Stage 2 - Deduplicate (`02-dedup.ts`)
