@@ -295,3 +295,44 @@ Below are the **implementation commits** since `adcb459`:
 ---
 
 **Test Results**: Total suite: 128 tests, 0 failures, 0 typecheck errors
+
+---
+
+## Resolution
+
+All findings have been resolved in commit `HEAD`:
+
+### ✅ P1 - Critical: Unsafe Access to `provenances[0]`
+
+- **Status**: RESOLVED
+- **Change**: Added guard clause in `loadPoem()` function in `packages/etl/src/stages/04-load.ts`
+- **Details**: Checks if `poem.provenances` is empty before accessing `[0]`, throws descriptive error with poem title and author
+
+### ✅ P2 - High: Performance Bottleneck: Sequential Transactions
+
+- **Status**: RESOLVED
+- **Change**: Implemented batch processing in `packages/etl/src/stages/04-load.ts`
+- **Details**:
+  - Created new `loadPoemsBatch()` function that processes multiple poems in a single transaction
+  - Modified `runLoadStage()` to accumulate poems in a buffer (default batch size: 500)
+  - Significantly reduces transaction overhead for large datasets like Gutenberg
+
+### ✅ P3 - Medium: ID Generation Collision Risk
+
+- **Status**: RESOLVED
+- **Change**: Updated delimiter in `packages/etl/src/utils/id-gen.ts`
+- **Details**: Changed delimiter from `:` to null character `\0` which cannot exist in valid input strings, preventing collision attacks (e.g., "Foo:" + "Bar" vs "Foo" + ":Bar" no longer collide)
+
+### ✅ P4 - Low: Batch Topic Upsert
+
+- **Status**: RESOLVED
+- **Change**: Wrapped topic upserts in transaction in `packages/etl/src/stages/04-load.ts`
+- **Details**: `upsertTopics()` now wraps all 20 topic inserts in a single transaction for atomicity
+
+### Verification
+
+- All 128 ETL tests pass
+- All 274 total tests pass across all packages
+- Lint check passes
+- Format check passes
+- No changes to API→client data boundaries (changes are entirely internal to ETL)

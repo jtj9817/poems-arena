@@ -25,13 +25,19 @@ function hashToId(input: string): string {
 }
 
 /**
+ * Delimiter for ID generation - uses null character which cannot exist in valid input strings.
+ * This prevents collision attacks where input strings contain the delimiter.
+ */
+const DELIM = '\0';
+
+/**
  * Generate a deterministic poem ID from title and author.
  *
  * The same (title, author) pair — regardless of casing or extraneous whitespace
  * — will always map to the same 12-char hex ID.
  */
 export function generatePoemId(title: string, author: string): string {
-  return hashToId(`poem:${normalize(title)}:${normalize(author)}`);
+  return hashToId(`poem${DELIM}${normalize(title)}${DELIM}${normalize(author)}`);
 }
 
 /**
@@ -41,5 +47,7 @@ export function generatePoemId(title: string, author: string): string {
  * provenance rows can be upserted cleanly.
  */
 export function generateScrapeSourceId(poemId: string, source: string, sourceUrl: string): string {
-  return hashToId(`scrape:${poemId}:${normalize(source)}:${normalize(sourceUrl)}`);
+  return hashToId(
+    `scrape${DELIM}${poemId}${DELIM}${normalize(source)}${DELIM}${normalize(sourceUrl)}`,
+  );
 }
