@@ -1,5 +1,7 @@
 import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
+import { runCleanStage } from './stages/01-clean';
+import { runDedupStage } from './stages/02-dedup';
 
 export type Stage = 'clean' | 'dedup' | 'tag' | 'load' | 'all';
 
@@ -57,5 +59,26 @@ if (import.meta.main) {
   console.log(`  Include non-PD: ${config.includeNonPd}`);
   console.log(`  Limit:          ${config.limit ?? '(none)'}`);
   console.log('─'.repeat(40));
-  console.log('Pipeline stages not yet implemented. Exiting.');
+
+  const runAll = config.stage === 'all';
+
+  if (runAll || config.stage === 'clean') {
+    console.log('\n▶ Running Stage 1: Clean');
+    const summary = await runCleanStage(config);
+    console.log(
+      `✔ Clean complete: read=${summary.read} valid=${summary.valid} skipped=${summary.skipped} written=${summary.written}`,
+    );
+  }
+
+  if (runAll || config.stage === 'dedup') {
+    console.log('\n▶ Running Stage 2: Deduplicate');
+    const summary = await runDedupStage(config);
+    console.log(
+      `✔ Dedup complete: read=${summary.read} groups=${summary.groups} duplicatesDropped=${summary.duplicatesDropped} written=${summary.written}`,
+    );
+  }
+
+  if (config.stage === 'tag' || config.stage === 'load') {
+    console.log('\n▶ Pipeline stages (tag, load) not yet implemented.');
+  }
 }
