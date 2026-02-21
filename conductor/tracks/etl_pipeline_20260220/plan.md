@@ -101,7 +101,7 @@ This track implements Phase 3 ("ETL") from `docs/plans/001-data-pipeline-plan.md
 - [x] Task: Tests (`04-load.test.ts`) `adcb459`
   - [x] Mock DB client and verify the expected upsert/association calls are made.
   - [x] Verify idempotent behavior for a repeated run (no duplicate inserts).
-- [x] Task: Conductor - User Manual Verification 'Phase 3: Load Stage & CLI Orchestration' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Load Stage & CLI Orchestration' (Protocol in workflow.md) `bdb12a4`
 
 ## Phase 6: Regression & Quality Gate
 
