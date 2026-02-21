@@ -10,7 +10,7 @@
     "test:ui": "npx playwright test --project=ui"
   },
   "devDependencies": {
-    "@playwright/test": "^1.50.0",
-    "@types/node": "^22.0.0"
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^22.19.11"
   }
 }
