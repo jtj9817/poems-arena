@@ -10,7 +10,9 @@ test.describe('Anthology page', () => {
       .or(page.getByText('Anthology').first());
     await anthologyLink.click();
 
-    await expect(page.getByText('The Anthology')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('heading', { name: 'The Anthology' })).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
   test('shows duel cards with win rates when duels exist', async ({ page }) => {
@@ -21,7 +23,9 @@ test.describe('Anthology page', () => {
       .or(page.getByText('Anthology').first());
     await anthologyLink.click();
 
-    await expect(page.getByText('The Anthology')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('heading', { name: 'The Anthology' })).toBeVisible({
+      timeout: 10_000,
+    });
 
     // If duels exist, check for win rate text
     const body = await page.textContent('body');

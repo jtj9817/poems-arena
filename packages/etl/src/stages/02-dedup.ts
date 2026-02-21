@@ -240,8 +240,8 @@ export async function runDedupStage(config: CliConfig): Promise<DedupStageSummar
   const dedupedPoems: DedupPoem[] = [];
 
   for (const poems of authorGroups.values()) {
-    // Array of arrays, where each inner array is a group of matched poems
-    const titleGroups: CleanPoem[][] = [];
+    // Array of objects, where each object caches the normalized title key and a group of matched poems
+    const titleGroups: { key: string; poems: CleanPoem[] }[] = [];
 
     for (const poem of poems) {
       const titleKey = normalizeDedupKey(poem.title);
@@ -249,25 +249,24 @@ export async function runDedupStage(config: CliConfig): Promise<DedupStageSummar
 
       // Find a matching title group
       for (const group of titleGroups) {
-        // Compare with the first poem in the group
-        const groupTitleKey = normalizeDedupKey(group[0].title);
-        if (isFuzzyMatch(titleKey, groupTitleKey)) {
-          group.push(poem);
+        // Compare with the cached normalized title key
+        if (isFuzzyMatch(titleKey, group.key)) {
+          group.poems.push(poem);
           matched = true;
           break;
         }
       }
 
       if (!matched) {
-        titleGroups.push([poem]);
+        titleGroups.push({ key: titleKey, poems: [poem] });
       }
     }
 
     // Resolve each title group into a single DedupPoem
     for (const group of titleGroups) {
       summary.groups++;
-      summary.duplicatesDropped += group.length - 1;
-      const resolved = resolveDuplicates(group);
+      summary.duplicatesDropped += group.poems.length - 1;
+      const resolved = resolveDuplicates(group.poems);
       dedupedPoems.push(resolved);
     }
   }

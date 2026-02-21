@@ -25,7 +25,9 @@ test.describe('Cross-view navigation', () => {
       .getByRole('link', { name: /Anthology/i })
       .or(page.getByText('Anthology').first());
     await anthologyLink.click();
-    await expect(page.getByText('The Anthology')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('heading', { name: 'The Anthology' })).toBeVisible({
+      timeout: 10_000,
+    });
 
     // Navigate to Colophon
     const colophonLink = page

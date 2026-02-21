@@ -1,6 +1,6 @@
 # Ticket: Optimize Deduplication Stage Performance
 
-**Status:** Open
+**Status:** Resolved
 **Priority:** Medium
 **Assignee:** Unassigned
 **Labels:** etl, performance, phase-3
