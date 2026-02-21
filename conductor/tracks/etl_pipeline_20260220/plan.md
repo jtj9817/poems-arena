@@ -51,19 +51,19 @@ This track implements Phase 3 ("ETL") from `docs/plans/001-data-pipeline-plan.md
 
 ## Phase 3: Stage 2 - Deduplicate (`02-dedup.ts`)
 
-- [ ] Task: Make dedup keys explicit (exact + fuzzy)
-  - [ ] Define a normalization function for title/author keys (case-folding, punctuation collapse, whitespace collapse, Unicode NFC).
-  - [ ] Implement a fuzzy title match fallback for near-duplicates (as required by Plan 001) and document the exact threshold/rule.
-- [ ] Task: Source priority and merge behavior
-  - [ ] Source priority: `poets.org` > `poetry-foundation` > `loc-180` > `gutenberg`.
-  - [ ] When duplicates exist, choose a single canonical poem text but retain all unique provenance entries for loading into `scrape_sources`.
-- [ ] Task: IO + logging
-  - [ ] Input: `--work-dir/01-clean`.
-  - [ ] Output: `--work-dir/02-dedup`.
-  - [ ] Emit dedup report: number of groups, duplicates dropped, and selected sources.
-- [ ] Task: Tests (`02-dedup.test.ts`)
-  - [ ] Exact-match grouping and priority resolution.
-  - [ ] Fuzzy-match grouping for small title variants.
+- [x] Task: Make dedup keys explicit (exact + fuzzy)
+  - [x] Define a normalization function for title/author keys (case-folding, punctuation collapse, whitespace collapse, Unicode NFC).
+  - [x] Implement a fuzzy title match fallback for near-duplicates (as required by Plan 001) and document the exact threshold/rule.
+- [x] Task: Source priority and merge behavior
+  - [x] Source priority: `poets.org` > `poetry-foundation` > `loc-180` > `gutenberg`.
+  - [x] When duplicates exist, choose a single canonical poem text but retain all unique provenance entries for loading into `scrape_sources`.
+- [x] Task: IO + logging
+  - [x] Input: `--work-dir/01-clean`.
+  - [x] Output: `--work-dir/02-dedup`.
+  - [x] Emit dedup report: number of groups, duplicates dropped, and selected sources.
+- [x] Task: Tests (`02-dedup.test.ts`)
+  - [x] Exact-match grouping and priority resolution.
+  - [x] Fuzzy-match grouping for small title variants.
 
 ## Phase 4: Stage 3 - Tag (`03-tag.ts`)
 
