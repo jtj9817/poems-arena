@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import type { ScrapedPoem } from '../types';
 import { writeScrapedPoems } from './writer';
 
@@ -55,7 +55,7 @@ describe('writeScrapedPoems', () => {
     mkdirSync(TMP_DIR, { recursive: true });
     const filePath = await writeScrapedPoems([makeSample()], TMP_DIR, 'gutenberg');
 
-    const fileName = filePath.split('/').pop()!;
+    const fileName = basename(filePath);
     expect(fileName).toMatch(/^gutenberg-\d{4}-\d{2}-\d{2}T[\d-]+Z\.json$/);
   });
 

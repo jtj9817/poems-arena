@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import type { ScrapedPoem } from '../types';
 
 /**
@@ -15,11 +15,12 @@ export async function writeScrapedPoems(
   outputDir: string,
   source: string,
 ): Promise<string> {
-  mkdirSync(outputDir, { recursive: true });
+  const resolvedOutputDir = resolve(outputDir);
+  mkdirSync(resolvedOutputDir, { recursive: true });
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const fileName = `${source}-${timestamp}.json`;
-  const filePath = join(outputDir, fileName);
+  const filePath = join(resolvedOutputDir, fileName);
 
   writeFileSync(filePath, JSON.stringify(poems, null, 2), 'utf-8');
 

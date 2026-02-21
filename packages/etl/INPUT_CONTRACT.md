@@ -38,7 +38,7 @@ import { writeScrapedPoems } from '@sanctuary/scraper';
 const filePath = await writeScrapedPoems(poems, 'packages/scraper/data/raw', 'gutenberg');
 ```
 
-Output file naming: `{source}-{ISO-timestamp}.json`.
+Output file naming: `{source}-{timestamp}.json`, where `timestamp` is the scraper's ISO 8601 timestamp with `:` and `.` replaced by `-` (for filesystem safety), e.g. `gutenberg-2026-02-20T10-00-00-000Z.json`.
 
 ## Canonical Type Definition
 
