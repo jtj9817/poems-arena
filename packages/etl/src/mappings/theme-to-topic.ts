@@ -408,7 +408,7 @@ const KEYWORD_TOPICS: ReadonlyArray<{
   },
   {
     topic: 'desire',
-    keywords: ['desire', 'crave', 'yearn', 'hunger', 'thirst', 'longing', 'lust', 'hunger'],
+    keywords: ['desire', 'crave', 'yearn', 'hunger', 'thirst', 'longing', 'lust'],
   },
   {
     topic: 'nature',
@@ -612,14 +612,16 @@ export function mapThemesToTopics(themes: string[]): CanonicalTopic[] {
   return Array.from(seen);
 }
 
-/**
- * Returns true when `keyword` appears as a whole word in `text` (case-insensitive).
- */
-function containsWholeWord(text: string, keyword: string): boolean {
-  // Escape regex metacharacters in the keyword before building the pattern.
-  const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(`\\b${escaped}\\b`, 'i').test(text);
-}
+const KEYWORD_MATCHERS: ReadonlyArray<{
+  readonly matcher: RegExp;
+  readonly topic: CanonicalTopic;
+}> = KEYWORD_TOPICS.map(({ keywords, topic }) => ({
+  topic,
+  matcher: new RegExp(
+    `\\b(${keywords.map((k) => k.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')).join('|')})\\b`,
+    'i',
+  ),
+}));
 
 /**
  * Extracts canonical topics from poem title and content using keyword analysis.
@@ -630,12 +632,9 @@ function containsWholeWord(text: string, keyword: string): boolean {
 export function extractTopicsFromKeywords(title: string, content: string): CanonicalTopic[] {
   const text = `${title} ${content}`;
   const seen = new Set<CanonicalTopic>();
-  for (const { keywords, topic } of KEYWORD_TOPICS) {
-    for (const kw of keywords) {
-      if (containsWholeWord(text, kw)) {
-        seen.add(topic);
-        break; // One keyword match per topic is sufficient
-      }
+  for (const { matcher, topic } of KEYWORD_MATCHERS) {
+    if (matcher.test(text)) {
+      seen.add(topic);
     }
   }
   return Array.from(seen);

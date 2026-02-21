@@ -72,70 +72,71 @@ export async function runTagStage(config: CliConfig): Promise<TagStageSummary> {
   });
 
   const summary: TagStageSummary = { read: 0, tagged: 0, fallback: 0, written: 0 };
-  const taggedPoems: TagPoem[] = [];
 
-  outer: for (const filePath of files) {
-    const fileStream = fs.createReadStream(filePath);
-    const rl = readline.createInterface({
-      input: fileStream,
-      crlfDelay: Infinity,
-    });
-
-    for await (const line of rl) {
-      if (config.limit !== undefined && summary.read >= config.limit) {
-        rl.close();
-        break outer;
-      }
-
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-
-      try {
-        const raw = JSON.parse(trimmed);
-        const parsed = DedupPoemSchema.safeParse(raw);
-        if (!parsed.success) {
-          console.warn(`[tag] Skipping invalid DedupPoem in ${basename(filePath)}`);
-          continue;
-        }
-
-        summary.read++;
-        const poem = parsed.data;
-
-        const { topics, usedFallback } = assignTopics(poem.themes, poem.title, poem.content);
-
-        if (usedFallback) {
-          summary.fallback++;
-          console.log(`[tag] Keyword fallback for "${poem.title}" by ${poem.author}`);
-        }
-
-        if (topics.length > 0) {
-          summary.tagged++;
-        }
-
-        taggedPoems.push({ ...poem, topics });
-      } catch {
-        console.warn(`[tag] Skipping malformed JSON line in ${basename(filePath)}`);
-      }
-    }
+  let fileHandle: fs.promises.FileHandle | undefined;
+  if (config.dryRun) {
+    console.log('[tag] Dry-run mode — no files written.');
   }
 
-  // Write results
-  if (!config.dryRun && taggedPoems.length > 0) {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const outFile = join(outputDir, `tag-${timestamp}.ndjson`);
+  try {
+    outer: for (const filePath of files) {
+      const fileStream = fs.createReadStream(filePath);
+      const rl = readline.createInterface({
+        input: fileStream,
+        crlfDelay: Infinity,
+      });
 
-    const fileHandle = await fs.promises.open(outFile, 'w');
-    try {
-      for (const p of taggedPoems) {
-        await fileHandle.write(JSON.stringify(p) + '\n');
-        summary.written++;
+      for await (const line of rl) {
+        if (config.limit !== undefined && summary.read >= config.limit) {
+          rl.close();
+          break outer;
+        }
+
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+
+        try {
+          const raw = JSON.parse(trimmed);
+          const parsed = DedupPoemSchema.safeParse(raw);
+          if (!parsed.success) {
+            console.warn(`[tag] Skipping invalid DedupPoem in ${basename(filePath)}`);
+            continue;
+          }
+
+          summary.read++;
+          const poem = parsed.data;
+
+          const { topics, usedFallback } = assignTopics(poem.themes, poem.title, poem.content);
+
+          if (usedFallback) {
+            summary.fallback++;
+            console.log(`[tag] Keyword fallback for "${poem.title}" by ${poem.author}`);
+          }
+
+          if (topics.length > 0) {
+            summary.tagged++;
+          }
+
+          const tagPoem = { ...poem, topics };
+
+          if (!config.dryRun) {
+            if (!fileHandle) {
+              const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+              const outFile = join(outputDir, `tag-${timestamp}.ndjson`);
+              fileHandle = await fs.promises.open(outFile, 'w');
+            }
+            await fileHandle.write(JSON.stringify(tagPoem) + '\n');
+            summary.written++;
+          }
+        } catch {
+          console.warn(`[tag] Skipping malformed JSON line in ${basename(filePath)}`);
+        }
       }
-    } finally {
+    }
+  } finally {
+    if (fileHandle) {
       await fileHandle.close();
     }
-  } else if (config.dryRun) {
-    console.log('[tag] Dry-run mode — no files written.');
-    summary.written = 0;
   }
 
   return summary;
