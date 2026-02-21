@@ -43,6 +43,10 @@ bun.lockb
 # Claude Code local settings
 .claude/settings.local.json
 
+# Playwright artifacts
+packages/e2e/playwright-report/
+packages/e2e/test-results/
+
 # Scraper data output (raw dumps, gitkeep preserved)
 packages/scraper/data/*
 !packages/scraper/data/.gitkeep

@@ -2,3 +2,5 @@
 **/node_modules
 **/drizzle
 pnpm-lock.yaml
+packages/e2e/playwright-report
+packages/e2e/test-results
