@@ -4,11 +4,11 @@ This track implements Phase 3 ("ETL") from `docs/plans/001-data-pipeline-plan.md
 
 ## Phase 0: Inputs, Contracts, and Defaults
 
-- [~] Task: Confirm scraper output contract (input to ETL)
-  - [ ] Define a default input location: `packages/scraper/data/raw/`.
-  - [ ] Define supported file formats: `*.json` (array of `ScrapedPoem`) and/or `*.ndjson` (one `ScrapedPoem` per line).
-  - [ ] Ensure the record schema matches the project contract: `sourceId`, `source`, `sourceUrl`, `title`, `author`, `year`, `content`, `themes`, `form`, `isPublicDomain`, `scrapedAt`.
-  - [ ] Decide and document the canonical way to generate these raw dumps for ETL runs (CLI/script, output naming, and where checkpoints live).
+- [x] Task: Confirm scraper output contract (input to ETL) `30cfeac`
+  - [x] Define a default input location: `packages/scraper/data/raw/`.
+  - [x] Define supported file formats: `*.json` (array of `ScrapedPoem`) and/or `*.ndjson` (one `ScrapedPoem` per line).
+  - [x] Ensure the record schema matches the project contract: `sourceId`, `source`, `sourceUrl`, `title`, `author`, `year`, `content`, `themes`, `form`, `isPublicDomain`, `scrapedAt`.
+  - [x] Decide and document the canonical way to generate these raw dumps for ETL runs (CLI/script, output naming, and where checkpoints live).
 - [ ] Task: Decide ETL working directory layout and IO conventions
   - [ ] Default a working directory (suggested): `packages/etl/data/`.
   - [ ] Define stage outputs (suggested): `01-clean/`, `02-dedup/`, `03-tag/` (inputs to `04-load`).
