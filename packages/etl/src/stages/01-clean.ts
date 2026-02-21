@@ -9,10 +9,13 @@
  *   Output – NDJSON of CleanPoem written to --work-dir/01-clean/
  */
 
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
+import fs from 'node:fs';
+import readline from 'node:readline';
 import fg from 'fast-glob';
 import { z } from 'zod';
+import he from 'he';
 import type { CliConfig } from '../index';
 
 // ---------------------------------------------------------------------------
@@ -53,28 +56,6 @@ export type ScrapedPoem = z.infer<typeof ScrapedPoemSchema>;
 export type CleanPoem = z.infer<typeof CleanPoemSchema>;
 
 // ---------------------------------------------------------------------------
-// Named HTML entity map (covers the most common poetry-site artefacts)
-// ---------------------------------------------------------------------------
-
-const HTML_ENTITIES: Record<string, string> = {
-  amp: '&',
-  lt: '<',
-  gt: '>',
-  quot: '"',
-  apos: "'",
-  nbsp: ' ',
-  mdash: '\u2014',
-  ndash: '\u2013',
-  ldquo: '\u201C',
-  rdquo: '\u201D',
-  lsquo: '\u2018',
-  rsquo: '\u2019',
-  hellip: '\u2026',
-  copy: '\u00A9',
-  reg: '\u00AE',
-};
-
-// ---------------------------------------------------------------------------
 // Text normalization helpers
 // ---------------------------------------------------------------------------
 
@@ -88,20 +69,11 @@ export function stripHtml(text: string): string {
   // Strip all HTML tags
   let result = text.replace(/<[^>]*>/g, '');
 
-  // Decode named entities (&amp; &lt; …)
-  result = result.replace(/&([a-zA-Z]+);/g, (match, name: string) => {
-    return HTML_ENTITIES[name.toLowerCase()] ?? match;
-  });
+  // Decode all HTML entities (named, decimal, hex)
+  result = he.decode(result);
 
-  // Decode decimal numeric entities (&#8212;)
-  result = result.replace(/&#(\d+);/g, (_match, num: string) => {
-    return String.fromCodePoint(parseInt(num, 10));
-  });
-
-  // Decode hex numeric entities (&#x2014;)
-  result = result.replace(/&#x([0-9a-fA-F]+);/g, (_match, hex: string) => {
-    return String.fromCodePoint(parseInt(hex, 16));
-  });
+  // Convert non-breaking spaces to regular spaces for consistency
+  result = result.replace(/\u00A0/g, ' ');
 
   return result;
 }
@@ -236,55 +208,105 @@ export async function runCleanStage(config: CliConfig): Promise<CleanStageSummar
   });
 
   const summary: CleanStageSummary = { read: 0, valid: 0, skipped: 0, written: 0 };
-  const cleanPoems: CleanPoem[] = [];
 
-  outer: for (const filePath of files) {
-    const raw = await readFile(filePath, 'utf-8');
-    let records: unknown[];
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const outFile = join(outputDir, `clean-${timestamp}.ndjson`);
+  let fileHandle: fs.promises.FileHandle | null = null;
 
-    // Support both JSON array and NDJSON
-    if (filePath.endsWith('.ndjson')) {
-      records = raw
-        .split('\n')
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .map((line) => JSON.parse(line) as unknown);
-    } else {
-      records = JSON.parse(raw) as unknown[];
-      if (!Array.isArray(records)) {
-        console.warn(`[clean] Skipping ${basename(filePath)}: not a JSON array`);
-        continue;
+  try {
+    outer: for (const filePath of files) {
+      if (filePath.endsWith('.ndjson')) {
+        const fileStream = fs.createReadStream(filePath);
+        const rl = readline.createInterface({
+          input: fileStream,
+          crlfDelay: Infinity,
+        });
+
+        for await (const line of rl) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+
+          if (config.limit !== undefined && summary.read >= config.limit) {
+            rl.close();
+            break outer;
+          }
+
+          summary.read++;
+          let record: unknown;
+          try {
+            record = JSON.parse(trimmed);
+          } catch {
+            summary.skipped++;
+            console.warn(`[clean] Skipping malformed JSON line in ${basename(filePath)}`);
+            continue;
+          }
+
+          const cleaned = validateAndClean(record);
+          if (cleaned === null) {
+            summary.skipped++;
+            const hint =
+              typeof record === 'object' && record !== null
+                ? ((record as Record<string, unknown>).sourceUrl ?? '(unknown url)')
+                : '(unparseable record)';
+            console.warn(`[clean] Skipped record from ${basename(filePath)}: ${hint}`);
+          } else {
+            summary.valid++;
+            if (!config.dryRun) {
+              if (!fileHandle) {
+                fileHandle = await fs.promises.open(outFile, 'a');
+              }
+              await fileHandle.write(JSON.stringify(cleaned) + '\n');
+              summary.written++;
+            }
+          }
+        }
+      } else {
+        const raw = await readFile(filePath, 'utf-8');
+        let records: unknown[];
+        try {
+          records = JSON.parse(raw) as unknown[];
+          if (!Array.isArray(records)) {
+            console.warn(`[clean] Skipping ${basename(filePath)}: not a JSON array`);
+            continue;
+          }
+        } catch {
+          console.warn(`[clean] Skipping malformed JSON file ${basename(filePath)}`);
+          continue;
+        }
+
+        for (const record of records) {
+          if (config.limit !== undefined && summary.read >= config.limit) break outer;
+
+          summary.read++;
+          const cleaned = validateAndClean(record);
+
+          if (cleaned === null) {
+            summary.skipped++;
+            const hint =
+              typeof record === 'object' && record !== null
+                ? ((record as Record<string, unknown>).sourceUrl ?? '(unknown url)')
+                : '(unparseable record)';
+            console.warn(`[clean] Skipped record from ${basename(filePath)}: ${hint}`);
+          } else {
+            summary.valid++;
+            if (!config.dryRun) {
+              if (!fileHandle) {
+                fileHandle = await fs.promises.open(outFile, 'a');
+              }
+              await fileHandle.write(JSON.stringify(cleaned) + '\n');
+              summary.written++;
+            }
+          }
+        }
       }
     }
-
-    for (const record of records) {
-      if (config.limit !== undefined && summary.read >= config.limit) break outer;
-
-      summary.read++;
-      const cleaned = validateAndClean(record);
-
-      if (cleaned === null) {
-        summary.skipped++;
-        // Log enough context to identify the problematic record without halting
-        const hint =
-          typeof record === 'object' && record !== null
-            ? ((record as Record<string, unknown>).sourceUrl ?? '(unknown url)')
-            : '(unparseable record)';
-        console.warn(`[clean] Skipped record from ${basename(filePath)}: ${hint}`);
-      } else {
-        summary.valid++;
-        cleanPoems.push(cleaned);
-      }
+  } finally {
+    if (fileHandle) {
+      await fileHandle.close();
     }
   }
 
-  if (!config.dryRun && cleanPoems.length > 0) {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const outFile = join(outputDir, `clean-${timestamp}.ndjson`);
-    const ndjson = cleanPoems.map((p) => JSON.stringify(p)).join('\n');
-    await writeFile(outFile, ndjson, 'utf-8');
-    summary.written = cleanPoems.length;
-  } else if (config.dryRun) {
+  if (config.dryRun) {
     console.log('[clean] Dry-run mode — no files written.');
     summary.written = 0;
   }

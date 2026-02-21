@@ -15,10 +15,12 @@
     "dotenv": "^17.3.1",
     "drizzle-orm": "^0.38.4",
     "fast-glob": "^3.3.3",
+    "he": "^1.2.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/bun": "latest",
+    "@types/he": "^1.2.3",
     "typescript": "~5.8.3"
   }
 }
