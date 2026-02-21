@@ -1,8 +1,12 @@
 import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
+import { config as loadEnv } from 'dotenv';
 import { runCleanStage } from './stages/01-clean';
 import { runDedupStage } from './stages/02-dedup';
 import { runTagStage } from './stages/03-tag';
+import { runLoadStage } from './stages/04-load';
+import { resolveDbConfig } from '@sanctuary/db/config';
+import { createDb } from '@sanctuary/db/client';
 
 export type Stage = 'clean' | 'dedup' | 'tag' | 'load' | 'all';
 
@@ -87,7 +91,17 @@ if (import.meta.main) {
     );
   }
 
-  if (config.stage === 'load') {
-    console.log('\n▶ Pipeline stage (load) not yet implemented.');
+  if (runAll || config.stage === 'load') {
+    console.log('\n▶ Running Stage 4: Load');
+
+    // Load .env for database configuration
+    loadEnv({ path: resolve(PKG_ROOT, '.env') });
+    const dbConfig = resolveDbConfig();
+    const db = createDb(dbConfig);
+
+    const summary = await runLoadStage(config, db);
+    console.log(
+      `✔ Load complete: read=${summary.read} loaded=${summary.loaded} skippedNonPd=${summary.skippedNonPd} topicsUpserted=${summary.topicsUpserted}`,
+    );
   }
 }

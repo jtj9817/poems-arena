@@ -86,21 +86,21 @@ This track implements Phase 3 ("ETL") from `docs/plans/001-data-pipeline-plan.md
 
 ## Phase 5: Stage 4 - Load (`04-load.ts`) + CLI Orchestration
 
-- [ ] Task: Deterministic IDs and upsert semantics
-  - [ ] Implement deterministic ID generation (Plan 001 suggests `src/utils/id-gen.ts`) for `poems.id` and `scrape_sources.id`.
-  - [ ] Make idempotency explicit: repeated runs update existing rows and do not create duplicates.
-- [ ] Task: Transactional DB load (LibSQL/Turso via Drizzle)
-  - [ ] Upsert canonical topics into `topics` (IDs are canonical topic IDs; labels are display labels).
-  - [ ] Insert/update poems (`type = 'HUMAN'`, set `source`, `source_url`, `form`, `year`).
-  - [ ] Refresh `poem_topics` associations (delete + insert or upsert join rows).
-  - [ ] Insert `scrape_sources` provenance rows for each poem (including `is_public_domain`, `scraped_at`, and optional `raw_html` if present in the input contract).
-  - [ ] Default behavior: only load `isPublicDomain = true` poems; support an explicit override flag for non-PD data (for manual review workflows).
-- [ ] Task: CLI entry point (`src/index.ts`)
-  - [ ] Support: `--stage clean|dedup|tag|load|all`, `--dry-run`, `--input-dir`, `--work-dir`, `--limit`, `--include-non-pd`.
-  - [ ] Ensure each stage can run independently and can resume from prior stage outputs.
-- [ ] Task: Tests (`04-load.test.ts`)
-  - [ ] Mock DB client and verify the expected upsert/association calls are made.
-  - [ ] Verify idempotent behavior for a repeated run (no duplicate inserts).
+- [~] Task: Deterministic IDs and upsert semantics
+  - [x] Implement deterministic ID generation (Plan 001 suggests `src/utils/id-gen.ts`) for `poems.id` and `scrape_sources.id`.
+  - [x] Make idempotency explicit: repeated runs update existing rows and do not create duplicates.
+- [~] Task: Transactional DB load (LibSQL/Turso via Drizzle)
+  - [x] Upsert canonical topics into `topics` (IDs are canonical topic IDs; labels are display labels).
+  - [x] Insert/update poems (`type = 'HUMAN'`, set `source`, `source_url`, `form`, `year`).
+  - [x] Refresh `poem_topics` associations (delete + insert or upsert join rows).
+  - [x] Insert `scrape_sources` provenance rows for each poem (including `is_public_domain`, `scraped_at`, and optional `raw_html` if present in the input contract).
+  - [x] Default behavior: only load `isPublicDomain = true` poems; support an explicit override flag for non-PD data (for manual review workflows).
+- [~] Task: CLI entry point (`src/index.ts`)
+  - [x] Support: `--stage clean|dedup|tag|load|all`, `--dry-run`, `--input-dir`, `--work-dir`, `--limit`, `--include-non-pd`.
+  - [x] Ensure each stage can run independently and can resume from prior stage outputs.
+- [~] Task: Tests (`04-load.test.ts`)
+  - [x] Mock DB client and verify the expected upsert/association calls are made.
+  - [x] Verify idempotent behavior for a repeated run (no duplicate inserts).
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Load Stage & CLI Orchestration' (Protocol in workflow.md)
 
 ## Phase 6: Regression & Quality Gate
