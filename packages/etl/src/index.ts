@@ -2,6 +2,7 @@ import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
 import { runCleanStage } from './stages/01-clean';
 import { runDedupStage } from './stages/02-dedup';
+import { runTagStage } from './stages/03-tag';
 
 export type Stage = 'clean' | 'dedup' | 'tag' | 'load' | 'all';
 
@@ -78,7 +79,15 @@ if (import.meta.main) {
     );
   }
 
-  if (config.stage === 'tag' || config.stage === 'load') {
-    console.log('\n▶ Pipeline stages (tag, load) not yet implemented.');
+  if (runAll || config.stage === 'tag') {
+    console.log('\n▶ Running Stage 3: Tag');
+    const summary = await runTagStage(config);
+    console.log(
+      `✔ Tag complete: read=${summary.read} tagged=${summary.tagged} fallback=${summary.fallback} written=${summary.written}`,
+    );
+  }
+
+  if (config.stage === 'load') {
+    console.log('\n▶ Pipeline stage (load) not yet implemented.');
   }
 }
