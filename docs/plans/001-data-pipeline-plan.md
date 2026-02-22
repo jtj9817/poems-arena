@@ -1,8 +1,8 @@
 # Plan 001 — Data Pipeline: Scraper → ETL → AI Generation → Database
 
-**Status:** In Progress (Scraper & E2E Infrastructure Complete)
+**Status:** In Progress (Scraper, E2E Infrastructure & ETL Pipeline Complete)
 **Created:** 2026-02-19
-**Updated:** 2026-02-20
+**Updated:** 2026-02-21
 
 ---
 
@@ -446,14 +446,16 @@ Extend `apps/api/src/routes/duels.ts`:
 10. Scaffold `packages/e2e` for Playwright/CDP live source validation
 11. Deprioritize Poetry Foundation scraper in favor of Poets.org corpus
 
-### Phase 3: ETL [PENDING]
+### Phase 3: ETL [COMPLETED]
 
-11. Scaffold `packages/etl` package
-12. Implement clean stage
-13. Implement dedup stage
-14. Implement tag stage with canonical topic mapping
-15. Implement load stage (Drizzle upserts into Turso)
-16. Run full pipeline, verify data in DB
+11. Scaffold `packages/etl` package — `@sanctuary/etl` wired into pnpm workspace
+12. Implement clean stage — Unicode NFC, whitespace normalization, ≥4-line validation
+13. Implement dedup stage — exact + fuzzy (title, author) grouping; source priority resolution; provenance merging
+14. Implement tag stage — canonical topic mapping + keyword fallback; capped at 3 topics per poem
+15. Implement load stage — transactional Drizzle upserts; deterministic SHA-256 IDs for idempotency
+16. Run full pipeline; regression verified (stable counts across repeated runs)
+
+See `packages/etl/README.md` for usage, CLI flags, and IO conventions.
 
 ### Phase 4: AI Generation
 

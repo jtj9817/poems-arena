@@ -52,12 +52,15 @@ A blind taste test for the literary mind. Two anonymous poems on a shared topic 
 ```
 classicist-sanctuary-proto/
 ├── apps/
-│   ├── web/          @sanctuary/web   — React 19 + Vite SPA
-│   └── api/          @sanctuary/api   — Bun + Hono REST API
+│   ├── web/          @sanctuary/web    — React 19 + Vite SPA
+│   └── api/          @sanctuary/api    — Bun + Hono REST API
 ├── packages/
-│   └── shared/       @sanctuary/shared — Shared TypeScript types
-├── docs/                              — Project documentation
-├── CLAUDE.md                          — Developer reference
+│   ├── shared/       @sanctuary/shared — Shared TypeScript types
+│   ├── db/           @sanctuary/db     — Drizzle schema + client (shared)
+│   ├── scraper/      @sanctuary/scraper — Poem scraper (Poets.org, LOC, Gutenberg)
+│   └── etl/          @sanctuary/etl    — ETL pipeline (clean → dedup → tag → load)
+├── docs/                               — Project documentation
+├── CLAUDE.md                           — Developer reference
 ├── docker-compose.yml
 └── pnpm-workspace.yaml
 ```
@@ -88,6 +91,35 @@ pnpm dev
 | ---------- | --------------------- |
 | Web (Vite) | http://localhost:3000 |
 | API (Hono) | http://localhost:4000 |
+
+## ETL Pipeline
+
+The ETL pipeline loads scraped poems into the database in four stages: Clean → Deduplicate → Tag → Load.
+
+```bash
+# Copy credentials for the ETL package
+cp packages/etl/.env.example packages/etl/.env
+# Fill in LIBSQL_URL and LIBSQL_AGILIQUILL_TOKEN
+
+# Run the full pipeline
+pnpm --filter @sanctuary/etl run pipeline
+
+# Dry-run (no DB writes) with a sample of 50 poems
+pnpm --filter @sanctuary/etl run pipeline --dry-run --limit 50
+
+# Run a single stage
+pnpm --filter @sanctuary/etl run pipeline --stage clean
+pnpm --filter @sanctuary/etl run pipeline --stage dedup
+pnpm --filter @sanctuary/etl run pipeline --stage tag
+pnpm --filter @sanctuary/etl run pipeline --stage load
+
+# Include non-public-domain poems (manual review workflow)
+pnpm --filter @sanctuary/etl run pipeline --include-non-pd
+```
+
+See [`packages/etl/README.md`](./packages/etl/README.md) for the full flag reference, IO conventions, and stage details.
+
+---
 
 ## Documentation
 
