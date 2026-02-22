@@ -117,7 +117,7 @@ This track implements Phase 3 ("ETL") from `docs/plans/001-data-pipeline-plan.md
   - [x] Automation script: `scripts/verify-etl-phase-6.ts`.
   - [x] Shell wrapper: `scripts/run-manual-verification-phase-4.sh`.
 
-## Phase 7: Documentation
+## Phase 7: Documentation [checkpoint: 6d5213b]
 
 - [x] Task: Documentation update `3ad1371`
   - [x] Update `docs/plans/001-data-pipeline-plan.md` to reflect Phase 3 completion.
