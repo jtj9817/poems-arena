@@ -119,7 +119,7 @@ This track implements Phase 3 ("ETL") from `docs/plans/001-data-pipeline-plan.md
 
 ## Phase 7: Documentation
 
-- [ ] Task: Documentation update
-  - [ ] Update `docs/plans/001-data-pipeline-plan.md` to reflect Phase 3 completion.
-  - [ ] Add `packages/etl/README.md` with usage, flags, and IO conventions.
-  - [ ] Update project `README.md` to include ETL pipeline commands.
+- [x] Task: Documentation update `3ad1371`
+  - [x] Update `docs/plans/001-data-pipeline-plan.md` to reflect Phase 3 completion.
+  - [x] Add `packages/etl/README.md` with usage, flags, and IO conventions.
+  - [x] Update project `README.md` to include ETL pipeline commands.
