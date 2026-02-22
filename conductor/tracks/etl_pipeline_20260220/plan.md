@@ -105,15 +105,17 @@ This track implements Phase 3 ("ETL") from `docs/plans/001-data-pipeline-plan.md
 
 ## Phase 6: Regression & Quality Gate
 
-- [ ] Task: Coverage and regression verification
-  - [ ] Execute `pnpm --filter @sanctuary/etl test`.
-  - [ ] Execute `pnpm lint` and `pnpm format:check`.
-- [ ] Task: Regression checklist (explicit)
-  - [ ] Run full pipeline twice on the same raw dump; verify counts are stable and DB rows do not multiply.
-  - [ ] Verify source priority behavior across all sources: `poets.org` > `poetry-foundation` > `loc-180` > `gutenberg`.
-  - [ ] Verify poems with no theme tags still receive topics via keyword fallback.
-  - [ ] Verify non-PD poems are excluded by default and only included with an explicit override.
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Regression & Quality Gate' (Protocol in workflow.md)
+- [x] Task: Coverage and regression verification
+  - [x] Execute `pnpm --filter @sanctuary/etl test`.
+  - [x] Execute `pnpm lint` and `pnpm format:check`.
+- [x] Task: Regression checklist (explicit)
+  - [x] Run full pipeline twice on the same raw dump; verify counts are stable and DB rows do not multiply.
+  - [x] Verify source priority behavior across all sources: `poets.org` > `poetry-foundation` > `loc-180` > `gutenberg`.
+  - [x] Verify poems with no theme tags still receive topics via keyword fallback.
+  - [x] Verify non-PD poems are excluded by default and only included with an explicit override.
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Regression & Quality Gate' (Protocol in workflow.md)
+  - [x] Automation script: `scripts/verify-etl-phase-6.ts`.
+  - [x] Shell wrapper: `scripts/run-manual-verification-phase-4.sh`.
 
 ## Phase 7: Documentation
 
