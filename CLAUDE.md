@@ -12,8 +12,8 @@ classicist-sanctuary-proto/
 │   │   │   │   ├── duels.ts    # /duels endpoints
 │   │   │   │   └── votes.ts    # /votes endpoint
 │   │   │   └── db/
-│   │   │       ├── client.ts   # Drizzle + LibSQL client
-│   │   │       ├── schema.ts   # Database tables (poems, duels, votes)
+│   │   │       ├── client.ts   # Thin wrapper: re-exports createDb from @sanctuary/db
+│   │   │       ├── schema.ts   # Re-export shim for drizzle.config.ts (source of truth: @sanctuary/db)
 │   │   │       └── seed.ts     # Database seed script
 │   │   ├── drizzle.config.ts   # Drizzle Kit configuration
 │   │   ├── Dockerfile          # Multi-stage Bun build
@@ -41,9 +41,42 @@ classicist-sanctuary-proto/
 │       └── tsconfig.json
 │
 ├── packages/
-│   └── shared/                 @sanctuary/shared — TypeScript types
-│       └── src/
-│           └── index.ts        # Shared types (Poem, Duel, Vote, AuthorType)
+│   ├── shared/                 @sanctuary/shared — TypeScript types
+│   │   └── src/
+│   │       └── index.ts        # Shared types (Poem, Duel, Vote, AuthorType, ViewState, DuelResult)
+│   ├── db/                     @sanctuary/db — Drizzle schema + LibSQL client (shared)
+│   │   └── src/
+│   │       ├── schema.ts       # All DB tables: poems, duels, votes, topics, poem_topics, scrape_sources
+│   │       ├── client.ts       # createDb() factory using @libsql/client
+│   │       ├── config.ts       # resolveDbConfig() — reads env vars, handles test overrides
+│   │       └── index.ts        # Re-exports schema types
+│   ├── etl/                    @sanctuary/etl — ETL pipeline (clean → dedup → tag → load)
+│   │   ├── src/
+│   │   │   ├── index.ts        # CLI entry point (parseCliArgs, stage orchestration)
+│   │   │   ├── stages/
+│   │   │   │   ├── 01-clean.ts # Unicode NFC, HTML strip, whitespace normalize, ≥4-line validation
+│   │   │   │   ├── 02-dedup.ts # Exact + fuzzy (title, author) dedup; source priority merge
+│   │   │   │   ├── 03-tag.ts   # Map raw themes → canonical topics; keyword fallback
+│   │   │   │   └── 04-load.ts  # Transactional Drizzle upserts; SHA-256 deterministic IDs
+│   │   │   ├── mappings/
+│   │   │   │   └── theme-to-topic.ts  # Raw theme → canonical topic lookup table
+│   │   │   └── utils/
+│   │   │       └── id-gen.ts   # Deterministic SHA-256 poem ID generation
+│   │   ├── INPUT_CONTRACT.md   # ScrapedPoem field reference and scraper output conventions
+│   │   ├── .env.example        # Required environment variables for the ETL package
+│   │   ├── package.json
+│   │   └── tsconfig.json
+│   ├── scraper/                @sanctuary/scraper — Poem scraper (Poets.org, LOC 180, Gutenberg)
+│   │   ├── src/
+│   │   │   ├── index.ts        # CLI entry: orchestrates scrape jobs
+│   │   │   ├── scrapers/       # Per-source scraper implementations
+│   │   │   ├── parsers/        # Common HTML → structured poem extraction
+│   │   │   └── utils/          # Rate limiter, logger, dedup helpers
+│   │   ├── data/               # Scraped output (gitignored)
+│   │   │   └── raw/            # Raw JSON per source (ETL default input)
+│   │   ├── package.json
+│   │   └── tsconfig.json
+│   └── e2e/                    @sanctuary/e2e — Playwright/CDP live source validation
 │
 ├── docs/                       # Project documentation
 │   ├── README.md
@@ -51,8 +84,8 @@ classicist-sanctuary-proto/
 │   ├── backend/
 │   ├── domain/
 │   ├── frontend/
-│   ├── plans/
-│   ├── tickets/
+│   ├── plans/                  # Active implementation plans (001-data-pipeline-plan.md)
+│   ├── tickets/                # Work items and tracked findings
 │   └── archived-plans/
 │
 ├── package.json                # Root: workspace scripts, devDependencies
@@ -86,13 +119,18 @@ always calls `/api/v1/...` regardless of environment.
 
 ## Database — Drizzle + Turso (LibSQL)
 
-Schema lives at `apps/api/src/db/schema.ts`. Tables: `poems`, `duels`, `votes`.
+Schema lives at `packages/db/src/schema.ts` (`@sanctuary/db`). Tables:
 
 ```typescript
-// poems: id, title, content, author, type ('HUMAN' | 'AI'), year
-// duels: id, topic, poemAId, poemBId, createdAt
-// votes: id, duelId, selectedPoemId, isHuman, votedAt
+// poems:         id, title, content, author, type ('HUMAN'|'AI'), year, source, source_url, form, prompt, parent_poem_id
+// duels:         id, topic, topic_id, poem_a_id, poem_b_id, created_at
+// votes:         id, duel_id, selected_poem_id, is_human, voted_at
+// topics:        id, label, created_at
+// poem_topics:   poem_id, topic_id  (composite PK — many-to-many)
+// scrape_sources: id, poem_id, source, source_url, scraped_at, raw_html, is_public_domain
 ```
+
+The `@sanctuary/db` package is imported by both `apps/api` and `packages/etl`. The API package retains its own `drizzle.config.ts` for schema push/migrate operations.
 
 ```bash
 # Push schema changes directly to Turso (no migration file, good for dev)
@@ -108,15 +146,54 @@ pnpm --filter @sanctuary/api db:migrate
 pnpm --filter @sanctuary/api db:seed
 ```
 
+## ETL Pipeline — @sanctuary/etl
+
+Cleans, deduplicates, tags, and loads scraped poems into the database in four sequential stages. Intermediate NDJSON is written between stages so each can be re-run independently.
+
+```bash
+# Copy credentials (only the load stage reads env vars)
+cp packages/etl/.env.example packages/etl/.env
+
+# Run the full pipeline
+pnpm --filter @sanctuary/etl run pipeline
+
+# Dry-run (no DB writes) with a sample of 50 poems
+pnpm --filter @sanctuary/etl run pipeline --dry-run --limit 50
+
+# Run a single stage
+pnpm --filter @sanctuary/etl run pipeline --stage clean
+pnpm --filter @sanctuary/etl run pipeline --stage dedup
+pnpm --filter @sanctuary/etl run pipeline --stage tag
+pnpm --filter @sanctuary/etl run pipeline --stage load
+
+# Include non-public-domain poems (manual review workflow)
+pnpm --filter @sanctuary/etl run pipeline --include-non-pd
+```
+
+| Flag                 | Default                     | Description                                                   |
+| -------------------- | --------------------------- | ------------------------------------------------------------- |
+| `--stage <name>`     | `all`                       | `clean`, `dedup`, `tag`, `load`, or `all`                     |
+| `--input-dir <path>` | `packages/scraper/data/raw` | Directory containing raw scraper output (`*.json`/`*.ndjson`) |
+| `--work-dir <path>`  | `packages/etl/data`         | Working directory for intermediate stage outputs              |
+| `--dry-run`          | `false`                     | Skip all database writes (stages 1–3 still write files)       |
+| `--limit <n>`        | _(none)_                    | Process only the first N poems                                |
+| `--include-non-pd`   | `false`                     | Load non-public-domain poems (default: public-domain only)    |
+
+See `packages/etl/README.md` for full stage details, IO conventions, and canonical topics.
+
 ## Environment Variables
 
-| Variable                  | Used by        | Purpose                                                        |
-| ------------------------- | -------------- | -------------------------------------------------------------- |
-| `LIBSQL_URL`              | api            | Turso database URL (libsql://...)                              |
-| `LIBSQL_AGILIQUILL_TOKEN` | api            | Turso auth token                                               |
-| `VITE_API_URL`            | web (build)    | API base URL baked into the static bundle (default: `/api/v1`) |
-| `FRONTEND_URL`            | api (optional) | Additional CORS origin to allow (Cloud Run frontend URL)       |
-| `PORT`                    | api (optional) | Override api listen port (default: 4000)                       |
+| Variable                       | Used by        | Purpose                                                                        |
+| ------------------------------ | -------------- | ------------------------------------------------------------------------------ |
+| `LIBSQL_URL`                   | api, etl       | Turso database URL (`libsql://...`) or `file:./local.db` for local SQLite      |
+| `LIBSQL_AGILIQUILL_TOKEN`      | api, etl       | Turso auth token (leave blank for local file-backed databases)                 |
+| `LIBSQL_TEST_URL`              | db (test)      | Separate DB URL used when `NODE_ENV=test` (required for `@sanctuary/db` tests) |
+| `LIBSQL_TEST_AGILIQUILL_TOKEN` | db (test)      | Auth token for the test database (falls back to `LIBSQL_AGILIQUILL_TOKEN`)     |
+| `VITE_API_URL`                 | web (build)    | API base URL baked into the static bundle (default: `/api/v1`)                 |
+| `FRONTEND_URL`                 | api (optional) | Additional CORS origin to allow (Cloud Run frontend URL)                       |
+| `PORT`                         | api (optional) | Override api listen port (default: 4000)                                       |
+
+The ETL package reads its own `packages/etl/.env` file (loaded via `dotenv` only when the `load` stage runs). Copy `packages/etl/.env.example` to get started.
 
 ## Port Assignments
 
