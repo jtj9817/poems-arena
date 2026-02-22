@@ -66,3 +66,37 @@ for (const poem of poems) {
 
 - **Commit:** `cdce3e5`
 - **File:** `packages/etl/src/stages/02-dedup.ts`
+
+## Resolution
+
+**Status:** Resolved
+**Verified on:** 2026-02-21
+
+The optimization described in this ticket was confirmed as fully implemented in `packages/etl/src/stages/02-dedup.ts`.
+
+The `titleGroups` array now uses the object structure `{ key: string; poems: CleanPoem[] }[]` proposed in the ticket. The normalized title key is computed exactly once when a new group is created (`titleGroups.push({ key: titleKey, poems: [poem] })`), and subsequent comparisons reference `group.key` directly rather than re-calling `normalizeDedupKey` on the group head:
+
+```typescript
+// Current implementation (02-dedup.ts, lines 244–263)
+const titleGroups: { key: string; poems: CleanPoem[] }[] = [];
+
+for (const poem of poems) {
+  const titleKey = normalizeDedupKey(poem.title);
+  let matched = false;
+
+  for (const group of titleGroups) {
+    if (isFuzzyMatch(titleKey, group.key)) {
+      // uses cached key
+      group.poems.push(poem);
+      matched = true;
+      break;
+    }
+  }
+
+  if (!matched) {
+    titleGroups.push({ key: titleKey, poems: [poem] });
+  }
+}
+```
+
+The comment on line 243 explicitly states: "Array of objects, where each object caches the normalized title key and a group of matched poems". The fix is consistent with the proposed solution. No further action required.

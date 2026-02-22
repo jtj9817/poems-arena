@@ -174,3 +174,51 @@ Failure happens because `test:live` assertions fail due to scraper results, not 
 - Keep verbose structured logging; it provided essential diagnosis in this incident.
 - Do not weaken live assertions to hide scraper breakage; fix extraction and URL discovery logic.
 - Preserve test DB isolation semantics (`SCRAPER_TEST_DB_PATH`, `LIBSQL_TEST_URL`).
+
+## Current Status
+
+**Status:** Partially Resolved
+**Verified on:** 2026-02-21
+
+Code inspection of the scraper files reveals that the LOC 180 fix has been implemented, while the Poets.org content extraction issue remains unchanged.
+
+### LOC 180 (Root Cause 1): Resolved
+
+The LOC 180 scraper was rewritten to use the link-discovery approach recommended in Fix Direction A. It now fetches the authoritative index page directly:
+
+```typescript
+// loc-180.ts (line 8–9)
+const LIST_URL =
+  'https://www.loc.gov/programs/poetry-and-literature/poet-laureate/poet-laureate-projects/poetry-180/all-poems/';
+```
+
+It discovers poem links by filtering anchors whose `href` includes `/item/poetry-180-`, handles `start`/`end` range filtering, deduplicates URLs, and resolves relative paths to absolute URLs. A full try-catch wraps the entire discovery-and-scrape operation. The log message was updated to read `"Starting LOC Poetry 180 scrape (discovery mode)"`. The numeric URL generation pattern (`001.html` through `180.html`) has been removed. The `loadHtml`/cheerio-based strategy replaces the regex HTML extraction for content parsing.
+
+### Poets.org (Root Cause 2): Open
+
+The `scrapePoetsOrg` function in `packages/scraper/src/scrapers/poets-org.ts` still relies on the same selector chain documented in the original failure:
+
+```typescript
+const contentHtml = extractFirstClassInnerHtml(html, [
+  'field--name-body',
+  'field--body',
+  'field--name-field-poem-body',
+  'poem-body',
+  'field--name-field-poem',
+]);
+```
+
+`field--body` was added as a new candidate class, but the fundamental extraction strategy (regex-based `extractFirstClassInnerHtml`) has not changed to a DOM parser approach. If the live Poets.org DOM does not match these selectors, extraction will still silently fail.
+
+### Root Cause 3 (HTML Extraction Robustness): Partially Resolved
+
+The LOC 180 scraper was updated to use `loadHtml` (a cheerio-based DOM loader imported from `../utils/html`) for content extraction, which addresses the brittleness for that source. The Poets.org scraper continues to use `extractFirstClassInnerHtml` which is the regex-based utility.
+
+### Implementation Checklist Status
+
+- [x] Update LOC scraper to link-discovery approach — implemented
+- [ ] Update Poets.org selectors with validated live DOM strategy — not yet addressed
+- [ ] Improve HTML extraction utility robustness for Poets.org — not yet addressed
+- [ ] Add/refresh fixtures for LOC and Poets live HTML structures — not verified
+- [ ] Add tests covering new fallback extraction paths — not verified
+- [ ] Re-run full Phase 2 verification script and attach passing log — not confirmed

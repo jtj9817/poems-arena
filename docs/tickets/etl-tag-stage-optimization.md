@@ -120,3 +120,59 @@ try {
 ## Additional Notes
 
 - `packages/etl/src/mappings/theme-to-topic.ts`: The keyword "hunger" appears twice in the 'desire' topic list.
+
+## Resolution
+
+**Status:** Resolved
+**Verified on:** 2026-02-21
+
+Both optimizations described in this ticket were confirmed as implemented.
+
+### 1. Regex Pre-compilation: Resolved
+
+`KEYWORD_MATCHERS` is now pre-compiled at module load time in `packages/etl/src/mappings/theme-to-topic.ts` (lines 615–624). Each topic's keywords are escaped and joined into a single combined `\b(k1|k2|...)\b` regex, matching the suggested change exactly:
+
+```typescript
+// theme-to-topic.ts (lines 615–624)
+const KEYWORD_MATCHERS: ReadonlyArray<{
+  readonly matcher: RegExp;
+  readonly topic: CanonicalTopic;
+}> = KEYWORD_TOPICS.map(({ keywords, topic }) => ({
+  topic,
+  matcher: new RegExp(
+    `\\b(${keywords.map((k) => k.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')).join('|')})\\b`,
+    'i',
+  ),
+}));
+```
+
+`extractTopicsFromKeywords` iterates `KEYWORD_MATCHERS` and calls `matcher.test(text)` directly — no `new RegExp` is created during processing.
+
+### 2. Memory Buffering in Tag Stage: Resolved
+
+`runTagStage` in `packages/etl/src/stages/03-tag.ts` no longer accumulates results in a `taggedPoems` array. It opens a `FileHandle` lazily on first write and writes records incrementally, closing in a `finally` block:
+
+```typescript
+// 03-tag.ts (lines 76, 122–130, 136–140)
+let fileHandle: fs.promises.FileHandle | undefined;
+// ...
+if (!config.dryRun) {
+  if (!fileHandle) {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const outFile = join(outputDir, `tag-${timestamp}.ndjson`);
+    fileHandle = await fs.promises.open(outFile, 'w');
+  }
+  await fileHandle.write(JSON.stringify(tagPoem) + '\n');
+  summary.written++;
+}
+// ...
+} finally {
+  if (fileHandle) {
+    await fileHandle.close();
+  }
+}
+```
+
+### Duplicate keyword note
+
+The duplicate "hunger" keyword noted in the additional notes section was not present in the current `KEYWORD_TOPICS` definition. The 'desire' entry reads: `['desire', 'crave', 'yearn', 'hunger', 'thirst', 'longing', 'lust']` — "hunger" appears only once. This minor issue appears to have been fixed as well.

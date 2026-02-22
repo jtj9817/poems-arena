@@ -3,7 +3,7 @@
 **Date:** 2026-02-21
 **Commit:** 7d98cb9
 **Reviewer:** Gemini (Principal Software Engineer)
-**Status:** Open
+**Status:** Resolved
 **Priority:** High
 
 ## Summary
@@ -146,6 +146,58 @@ The following commits were excluded as they are documentation, conductor plan up
 - `1e930c8` — e2e Playwright config fix (unrelated to ETL pipeline)
 - `189ff7b` — dependency vulnerability remediation (meta)
 - `14f370e` — path traversal security fix in scraper writer (unrelated to Phase 0/1 ETL work)
+
+## Resolution
+
+**Status:** Resolved
+**Verified on:** 2026-02-21
+
+All four findings from this review were confirmed as addressed in `packages/etl/src/stages/01-clean.ts`.
+
+### Finding 1 — OOM Risk: Resolved
+
+The `runCleanStage` function no longer accumulates poems in a `cleanPoems` array. It opens a `FileHandle` lazily on the first valid record (`fs.promises.open(outFile, 'a')`) and writes each record incrementally inside the processing loop. The `finally` block ensures the handle is closed regardless of early termination:
+
+```typescript
+// 01-clean.ts (lines 254–259)
+if (!config.dryRun) {
+  if (!fileHandle) {
+    fileHandle = await fs.promises.open(outFile, 'a');
+  }
+  await fileHandle.write(JSON.stringify(cleaned) + '\n');
+  summary.written++;
+}
+```
+
+### Finding 2 — Fragile NDJSON Parsing: Resolved
+
+`JSON.parse` is now wrapped in a `try-catch` for both the NDJSON and JSON array paths. Malformed lines log a warning and are counted as skipped rather than crashing the pipeline:
+
+```typescript
+// 01-clean.ts (lines 236–242)
+try {
+  record = JSON.parse(trimmed);
+} catch {
+  summary.skipped++;
+  console.warn(`[clean] Skipping malformed JSON line in ${basename(filePath)}`);
+  continue;
+}
+```
+
+### Finding 3 — Limited HTML Entity Decoding: Resolved
+
+The hand-rolled `HTML_ENTITIES` map has been replaced with the `he` library. `stripHtml` now calls `he.decode(result)` which provides comprehensive coverage of all named, decimal, and hex HTML entities:
+
+```typescript
+// 01-clean.ts (line 73)
+result = he.decode(result);
+```
+
+### Finding 4 — RangeError in Entity Decoding: Resolved
+
+The hand-rolled hex entity decoder that called `String.fromCodePoint(parseInt(hex, 16))` without a range check has been removed entirely. Entity decoding is now delegated to `he.decode()`, which handles edge cases internally.
+
+---
 
 ## Phase 2: Stage 1 - Clean is complete. Here's a summary of what was implemented:
 
