@@ -83,3 +83,59 @@ pnpm format:check  # Check formatting
 - `CLAUDE.md`: Comprehensive developer guide for commands, ports, and environment variables.
 - `project-specs.md`: Detailed product requirements and user stories.
 - `docs/README.md`: Index of architectural and domain documentation.
+
+## ETL Pipeline — @sanctuary/etl
+
+Cleans, deduplicates, tags, and loads scraped poems into the database in four sequential stages. Intermediate NDJSON is written between stages so each can be re-run independently.
+
+```bash
+# Copy credentials (only the load stage reads env vars)
+cp packages/etl/.env.example packages/etl/.env
+
+# Run the full pipeline
+pnpm --filter @sanctuary/etl run pipeline
+
+# Dry-run (no DB writes) with a sample of 50 poems
+pnpm --filter @sanctuary/etl run pipeline --dry-run --limit 50
+
+# Run a single stage
+pnpm --filter @sanctuary/etl run pipeline --stage clean
+pnpm --filter @sanctuary/etl run pipeline --stage dedup
+pnpm --filter @sanctuary/etl run pipeline --stage tag
+pnpm --filter @sanctuary/etl run pipeline --stage load
+
+# Include non-public-domain poems (manual review workflow)
+pnpm --filter @sanctuary/etl run pipeline --include-non-pd
+```
+
+| Flag                 | Default                     | Description                                                   |
+| -------------------- | --------------------------- | ------------------------------------------------------------- |
+| `--stage <name>`     | `all`                       | `clean`, `dedup`, `tag`, `load`, or `all`                     |
+| `--input-dir <path>` | `packages/scraper/data/raw` | Directory containing raw scraper output (`*.json`/`*.ndjson`) |
+| `--work-dir <path>`  | `packages/etl/data`         | Working directory for intermediate stage outputs              |
+| `--dry-run`          | `false`                     | Skip all database writes (stages 1–3 still write files)       |
+| `--limit <n>`        | _(none)_                    | Process only the first N poems                                |
+| `--include-non-pd`   | `false`                     | Load non-public-domain poems (default: public-domain only)    |
+
+See `packages/etl/README.md` for full stage details, IO conventions, and canonical topics.
+
+## E2E Tests — @sanctuary/e2e
+
+End-to-end tests that validate the complete user journey from landing page to vote submission.
+
+```bash
+# Run all E2E tests
+pnpm --filter @sanctuary/e2e run test
+
+# Run with video recording on failure
+pnpm --filter @sanctuary/e2e run test:video
+
+# Run a single test file
+pnpm --filter @sanctuary/e2e run test tests/landing.test.ts
+```
+
+See `packages/e2e/README.md` for environment variables, test structure, and debugging tips.
+
+## Running Commands
+
+- Use `CI=true` to run commands in a CI environment by default.
