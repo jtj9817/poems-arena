@@ -61,3 +61,7 @@
   - [ ] Create `packages/ai-gen/README.md` with CLI usage instructions and configuration details.
   - [ ] Document the Gemini system prompts in the project documentation.
 - [ ] Task: Conductor - User Manual Verification 'Phase 6: Documentation' (Protocol in workflow.md)
+
+## Phase: Review Fixes
+
+- [x] Task: Apply review suggestions [e186e38]
