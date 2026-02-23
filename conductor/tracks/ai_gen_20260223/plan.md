@@ -1,0 +1,57 @@
+# Implementation Plan: Phase 4 - AI Poem Generation Service
+
+## Phase 1: Setup `packages/ai-gen` Package
+
+- [ ] Task: Scaffold `packages/ai-gen` workspace
+  - [ ] Initialize `package.json`, `tsconfig.json`, and set up testing environment (e.g., test runner).
+  - [ ] Add dependencies for Google Gemini API (`@google/genai`) and rate limiting (`p-limit`).
+- [ ] Task: Conductor - User Manual Verification 'Phase 1: Setup packages/ai-gen Package' (Protocol in workflow.md)
+
+## Phase 2: Generation Logic and Prompts
+
+- [ ] Task: Create custom prompt builder
+  - [ ] Write failing test for generating prompts based on a provided topic and target line count.
+  - [ ] Implement prompt builder logic based on the user-provided Gemini configs/prompts.
+- [ ] Task: Implement Gemini API Client
+  - [ ] Write failing test for the API wrapper (mocking the `gemini-3-flash-preview` API response).
+  - [ ] Implement the `gemini-3-flash-preview` API wrapper.
+- [ ] Task: Conductor - User Manual Verification 'Phase 2: Generation Logic and Prompts' (Protocol in workflow.md)
+
+## Phase 3: Validation and Quality Checks
+
+- [ ] Task: Implement Quality Validator
+  - [ ] Write failing tests for validation logic (minimum 4 lines, ±20% length of the parent poem, rejecting meta-text).
+  - [ ] Implement the `Line Count Check` logic to reject/retry mismatched lengths.
+  - [ ] Implement the `No Meta-Text` check to reject generic AI conversational fillers.
+- [ ] Task: Conductor - User Manual Verification 'Phase 3: Validation and Quality Checks' (Protocol in workflow.md)
+
+## Phase 4: Database Integration and CLI
+
+- [ ] Task: Orchestrate Data Persistence
+  - [ ] Write failing test for inserting generated poems (verifying schema mapping like `type = 'AI'`, linking `parent_poem_id`).
+  - [ ] Implement Drizzle ORM queries to fetch unmatched human poems and insert new AI counterparts.
+- [ ] Task: Implement the CLI interface
+  - [ ] Write failing test for CLI parsing and batch orchestration.
+  - [ ] Implement the CLI entry point (`src/index.ts`) that defaults to processing all unmatched poems.
+  - [ ] Add rate limiting using `p-limit` to handle batch generation efficiently.
+- [ ] Task: Conductor - User Manual Verification 'Phase 4: Database Integration and CLI' (Protocol in workflow.md)
+
+## Phase 5: Regression & Quality Gate
+
+- [ ] Task: Coverage and Regression Verification
+  - [ ] Execute `pnpm --filter @sanctuary/ai-gen test` to ensure tests pass and coverage is >80%.
+  - [ ] Execute `pnpm lint`.
+  - [ ] Execute `pnpm format:check` (or `pnpm format` to fix).
+- [ ] Task: Regression Checklist (Feature Behaviors)
+  - [ ] Verify that running the CLI processes a batch of human poems and generates corresponding AI poems.
+  - [ ] Verify that rerunning the CLI does not duplicate existing AI counterparts (idempotency).
+  - [ ] Verify validation successfully catches and rejects non-conforming responses.
+- [ ] Task: Conductor - User Manual Verification 'Phase 5: Regression & Quality Gate' (Protocol in workflow.md)
+
+## Phase 6: Documentation
+
+- [ ] Task: Documentation Update
+  - [ ] Update `docs/plans/001-data-pipeline-plan.md` to reflect Phase 4 completion with Gemini instead of Claude.
+  - [ ] Create `packages/ai-gen/README.md` with CLI usage instructions and configuration details.
+  - [ ] Document the Gemini system prompts in the project documentation.
+- [ ] Task: Conductor - User Manual Verification 'Phase 6: Documentation' (Protocol in workflow.md)

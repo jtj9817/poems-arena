@@ -6,7 +6,8 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ## Active Tracks
 
-_(No active tracks)_
+- [ ] **Track: Implement Phase 4: AI Poem Generation Service**
+      _Link: [./tracks/ai_gen_20260223/](./tracks/ai_gen_20260223/)_
 
 ---
 
