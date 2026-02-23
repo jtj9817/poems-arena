@@ -12,9 +12,13 @@
 - [ ] Task: Create custom prompt builder
   - [ ] Write failing test for generating prompts based on a provided topic and target line count.
   - [ ] Implement prompt builder logic based on the user-provided Gemini configs/prompts.
+  - [ ] Configure `System Instructions` using a custom Markdown file.
 - [ ] Task: Implement Gemini API Client
   - [ ] Write failing test for the API wrapper (mocking the `gemini-3-flash-preview` API response).
-  - [ ] Implement the `gemini-3-flash-preview` API wrapper.
+  - [ ] Implement the `gemini-3-flash-preview` API wrapper using `@google/genai`.
+  - [ ] Configure the API call to utilize `JSON Mode` (`responseMimeType: "application/json"`), `responseSchema`, and Gemini 3 specific settings (e.g., `temperature: 1.0`, `thinkingConfig`).
+- [ ] Task: Implement Poem Verification Agent
+  - [ ] Implement a secondary API call logic to verify the contents of the generated poem, potentially utilizing `Thought Signatures` to maintain context.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Generation Logic and Prompts' (Protocol in workflow.md)
 
 ## Phase 3: Validation and Quality Checks
@@ -28,11 +32,13 @@
 ## Phase 4: Database Integration and CLI
 
 - [ ] Task: Orchestrate Data Persistence
-  - [ ] Write failing test for inserting generated poems (verifying schema mapping like `type = 'AI'`, linking `parent_poem_id`).
-  - [ ] Implement Drizzle ORM queries to fetch unmatched human poems and insert new AI counterparts.
+  - [ ] Write failing test for transforming API JSON data into the database schema and inserting generated poems.
+  - [ ] Implement Drizzle ORM queries to fetch unmatched human poems, transform the verified API output, and insert new AI counterparts.
+  - [ ] Verify that the database storage call succeeded.
+  - [ ] Display the data.
 - [ ] Task: Implement the CLI interface
-  - [ ] Write failing test for CLI parsing and batch orchestration.
-  - [ ] Implement the CLI entry point (`src/index.ts`) that defaults to processing all unmatched poems.
+  - [ ] Write failing test for CLI parsing, batch orchestration, stateful management, and display.
+  - [ ] Implement the CLI entry point (`src/index.ts`) as a basic loop with stateful management, defaulting to processing all unmatched poems.
   - [ ] Add rate limiting using `p-limit` to handle batch generation efficiently.
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: Database Integration and CLI' (Protocol in workflow.md)
 
