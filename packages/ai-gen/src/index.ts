@@ -7,5 +7,5 @@
 
 export const AI_GEN_VERSION = '0.1.0';
 
-console.log('AI Poem Generation Service v' + AI_GEN_VERSION);
+console.log(`AI Poem Generation Service v${AI_GEN_VERSION}`);
 console.log('Package initialized successfully');
