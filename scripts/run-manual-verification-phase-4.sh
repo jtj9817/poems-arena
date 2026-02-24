@@ -12,8 +12,8 @@ mkdir -p "$(dirname "$LOG_FILE")"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
 echo "[phase4] Logging output to: $LOG_FILE"
-echo "[phase4] Running Phase 6 ETL regression and quality gate verification"
+echo "[phase4] Running AI-Gen Phase 4 database integration and CLI manual verification"
 
-bun scripts/verify-etl-phase-6.ts
+bun scripts/verify-phase4-ai-gen.ts
 
 echo "[phase4] Manual verification automation completed successfully"
