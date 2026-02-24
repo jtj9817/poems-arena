@@ -82,7 +82,7 @@ export async function generatePoem(params: GeneratePoemParams): Promise<PoemOutp
 
     const parsed = JSON.parse(responseText) as Partial<PoemOutput> | null;
 
-    if (!parsed || !parsed.title || !parsed.content) {
+    if (!parsed || typeof parsed.title !== 'string' || typeof parsed.content !== 'string') {
       throw new PoemGenerationError('Invalid response format: missing title or content');
     }
 
