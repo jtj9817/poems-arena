@@ -7,18 +7,18 @@
   - [x] Add dependencies for Google Gemini API (`@google/genai`) and rate limiting (`p-limit`).
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Setup packages/ai-gen Package' (Protocol in workflow.md) [4dacab8]
 
-## Phase 2: Generation Logic and Prompts
+## Phase 2: Generation Logic and Prompts [checkpoint: 8508407]
 
-- [ ] Task: Create custom prompt builder
-  - [ ] Write failing test for generating prompts based on a provided topic and target line count.
-  - [ ] Implement prompt builder logic based on the user-provided Gemini configs/prompts.
-  - [ ] Configure `System Instructions` using a custom Markdown file.
-- [ ] Task: Implement Gemini API Client
-  - [ ] Write failing test for the API wrapper (mocking the `gemini-3-flash-preview` API response).
-  - [ ] Implement the `gemini-3-flash-preview` API wrapper using `@google/genai`.
-  - [ ] Configure the API call to utilize `JSON Mode` (`responseMimeType: "application/json"`), `responseSchema`, and Gemini 3 specific settings (e.g., `temperature: 1.0`, `thinkingConfig`).
-- [ ] Task: Implement Poem Verification Agent
-  - [ ] Implement a secondary API call logic to verify the contents of the generated poem, potentially utilizing `Thought Signatures` to maintain context.
+- [x] Task: Create custom prompt builder
+  - [x] Write failing test for generating prompts based on a provided topic and target line count.
+  - [x] Implement prompt builder logic based on the user-provided Gemini configs/prompts.
+  - [x] Configure `System Instructions` using a custom Markdown file.
+- [x] Task: Implement Gemini API Client
+  - [x] Write failing test for the API wrapper (mocking the `gemini-3-flash-preview` API response).
+  - [x] Implement the `gemini-3-flash-preview` API wrapper using `@google/genai`.
+  - [x] Configure the API call to utilize `JSON Mode` (`responseMimeType: "application/json"`), `responseSchema`, and Gemini 3 specific settings (e.g., `temperature: 1.0`, `thinkingConfig`).
+- [x] Task: Implement Poem Verification Agent
+  - [x] Implement a secondary API call logic to verify the contents of the generated poem, potentially utilizing `Thought Signatures` to maintain context.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Generation Logic and Prompts' (Protocol in workflow.md)
 
 ## Phase 3: Validation and Quality Checks
