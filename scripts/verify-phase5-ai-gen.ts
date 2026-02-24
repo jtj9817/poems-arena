@@ -61,6 +61,38 @@ function countNonEmptyLines(content: string): number {
     .filter((line) => line.length > 0).length;
 }
 
+async function streamAndCaptureOutput(
+  stream: ReadableStream<Uint8Array> | null,
+  write: (chunk: string) => void,
+): Promise<string> {
+  if (!stream) {
+    return '';
+  }
+
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let output = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+
+    const chunk = decoder.decode(value, { stream: true });
+    output += chunk;
+    write(chunk);
+  }
+
+  const trailing = decoder.decode();
+  if (trailing) {
+    output += trailing;
+    write(trailing);
+  }
+
+  return output;
+}
+
 async function runCommand(command: string[], options: CommandOptions = {}): Promise<CommandResult> {
   const proc = Bun.spawn(command, {
     cwd: options.cwd ?? repoRoot,
@@ -70,8 +102,8 @@ async function runCommand(command: string[], options: CommandOptions = {}): Prom
   });
 
   const [stdout, stderr] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
+    streamAndCaptureOutput(proc.stdout, (chunk) => process.stdout.write(chunk)),
+    streamAndCaptureOutput(proc.stderr, (chunk) => process.stderr.write(chunk)),
   ]);
   await proc.exited;
 
@@ -90,18 +122,13 @@ async function runAndAssertCommand(
   TestLogger.info(`Running command for ${name}`, {
     command: command.join(' '),
   });
+  console.log(`\n$ ${command.join(' ')}`);
 
   const result = await runCommand(command, {
     env: { CI: 'true' },
   });
 
   TestLogger.info(`Command completed for ${name}`, { exitCode: result.exitCode });
-  if (result.stdout.trim()) {
-    TestLogger.info(`${name} stdout`, { output: result.stdout.trim() });
-  }
-  if (result.stderr.trim()) {
-    TestLogger.warning(`${name} stderr`, { output: result.stderr.trim() });
-  }
 
   if (result.exitCode !== 0) {
     throw new Error(`${name} failed with exit code ${result.exitCode}`);
