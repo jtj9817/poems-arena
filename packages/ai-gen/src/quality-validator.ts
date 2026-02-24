@@ -50,8 +50,8 @@ function countNonEmptyLines(content: string): number {
 }
 
 function calculateLineCountRange(parentLineCount: number): { min: number; max: number } {
-  const min = Math.floor(parentLineCount * (1 - LINE_COUNT_TOLERANCE_PERCENT / 100));
-  const max = Math.ceil(parentLineCount * (1 + LINE_COUNT_TOLERANCE_PERCENT / 100));
+  const min = parentLineCount * (1 - LINE_COUNT_TOLERANCE_PERCENT / 100);
+  const max = parentLineCount * (1 + LINE_COUNT_TOLERANCE_PERCENT / 100);
   return { min, max };
 }
 
@@ -59,12 +59,18 @@ function hasMetaText(content: string): boolean {
   return META_TEXT_PATTERNS.some((pattern) => pattern.test(content));
 }
 
-function hasValidOutputShape(generatedPoem: PoemOutput): boolean {
+function hasValidOutputShape(generatedPoem: unknown): generatedPoem is PoemOutput {
+  if (typeof generatedPoem !== 'object' || generatedPoem === null) {
+    return false;
+  }
+
+  const candidate = generatedPoem as { title?: unknown; content?: unknown };
+
   return (
-    typeof generatedPoem.title === 'string' &&
-    generatedPoem.title.trim().length > 0 &&
-    typeof generatedPoem.content === 'string' &&
-    generatedPoem.content.trim().length > 0
+    typeof candidate.title === 'string' &&
+    candidate.title.trim().length > 0 &&
+    typeof candidate.content === 'string' &&
+    candidate.content.trim().length > 0
   );
 }
 
@@ -75,12 +81,15 @@ export function validateGeneratedPoemQuality(
   const minVerificationScore = params.minVerificationScore ?? DEFAULT_MIN_VERIFICATION_SCORE;
   const { min: allowedLineCountMin, max: allowedLineCountMax } =
     calculateLineCountRange(parentLineCount);
-  const lineCount = countNonEmptyLines(generatedPoem.content);
   const issues: QualityIssue[] = [];
+  const isOutputShapeValid = hasValidOutputShape(generatedPoem);
 
-  if (!hasValidOutputShape(generatedPoem)) {
+  if (!isOutputShapeValid) {
     issues.push('invalid_output_shape');
   }
+
+  const content = isOutputShapeValid ? generatedPoem.content : '';
+  const lineCount = countNonEmptyLines(content);
 
   if (lineCount < MINIMUM_LINE_COUNT) {
     issues.push('line_count_below_minimum');
@@ -90,7 +99,7 @@ export function validateGeneratedPoemQuality(
     issues.push('line_count_out_of_range');
   }
 
-  if (hasMetaText(generatedPoem.content)) {
+  if (hasMetaText(content)) {
     issues.push('contains_meta_text');
   }
 
