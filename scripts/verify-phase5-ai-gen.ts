@@ -1,0 +1,440 @@
+#!/usr/bin/env bun
+/**
+ * Manual Test Script for Phase 5: Regression & Quality Gate
+ * Generated: 2026-02-24
+ * Purpose: Verify regression gates and Phase 5 feature behaviors for @sanctuary/ai-gen
+ *
+ * Run with: bun scripts/verify-phase5-ai-gen.ts
+ */
+
+import { Database } from 'bun:sqlite';
+import { existsSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import process from 'node:process';
+
+import {
+  runGenerationCli,
+  type CliConfig,
+  type ProcessPoemResult,
+} from '../packages/ai-gen/src/cli';
+import type { PoemOutput } from '../packages/ai-gen/src/gemini-client';
+import {
+  fetchUnmatchedHumanPoems,
+  persistGeneratedPoem,
+  type PersistenceDb,
+} from '../packages/ai-gen/src/persistence';
+import { validateGeneratedPoemQuality } from '../packages/ai-gen/src/quality-validator';
+import { DataTracker, TestAssertion, TestEnvironment, TestLogger } from './manual-test-helpers';
+
+interface CommandResult {
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+}
+
+interface CommandOptions {
+  cwd?: string;
+  env?: Record<string, string | undefined>;
+}
+
+const testRunId = `phase5_ai_gen_${new Date().toISOString().replace(/[:.]/g, '_')}`;
+const repoRoot = path.resolve(import.meta.dir, '..');
+const logFile = TestLogger.init(testRunId, path.join(repoRoot, 'logs', 'manual_tests'));
+
+TestEnvironment.guardProduction();
+TestEnvironment.displayInfo();
+
+const tracker = new DataTracker();
+let database: Database | null = null;
+let tempDbPath: string | null = null;
+let allPassed = false;
+
+const PHASE5_IDS = {
+  humans: ['phase5-human-1', 'phase5-human-2', 'phase5-human-3'],
+} as const;
+
+function countNonEmptyLines(content: string): number {
+  return content
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0).length;
+}
+
+async function runCommand(command: string[], options: CommandOptions = {}): Promise<CommandResult> {
+  const proc = Bun.spawn(command, {
+    cwd: options.cwd ?? repoRoot,
+    env: { ...process.env, ...options.env },
+    stdout: 'pipe',
+    stderr: 'pipe',
+  });
+
+  const [stdout, stderr] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+  ]);
+  await proc.exited;
+
+  return {
+    exitCode: proc.exitCode ?? 1,
+    stdout,
+    stderr,
+  };
+}
+
+async function runAndAssertCommand(
+  name: string,
+  command: string[],
+  opts: { parseCoverage?: boolean } = {},
+): Promise<number | undefined> {
+  TestLogger.info(`Running command for ${name}`, {
+    command: command.join(' '),
+  });
+
+  const result = await runCommand(command, {
+    env: { CI: 'true' },
+  });
+
+  TestLogger.info(`Command completed for ${name}`, { exitCode: result.exitCode });
+  if (result.stdout.trim()) {
+    TestLogger.info(`${name} stdout`, { output: result.stdout.trim() });
+  }
+  if (result.stderr.trim()) {
+    TestLogger.warning(`${name} stderr`, { output: result.stderr.trim() });
+  }
+
+  if (result.exitCode !== 0) {
+    throw new Error(`${name} failed with exit code ${result.exitCode}`);
+  }
+
+  if (!opts.parseCoverage) {
+    return undefined;
+  }
+
+  const coveragePattern = /All files\s+\|\s+[\d.]+\s+\|\s+([\d.]+)\s+\|/;
+  const coverageOutput = `${result.stdout}\n${result.stderr}`;
+  const match = coveragePattern.exec(coverageOutput);
+  if (!match) {
+    throw new Error('Unable to parse overall line coverage from coverage output.');
+  }
+
+  const lineCoverage = Number(match[1]);
+  if (!Number.isFinite(lineCoverage)) {
+    throw new Error(`Parsed non-numeric line coverage value: ${match[1]}`);
+  }
+
+  return lineCoverage;
+}
+
+function createPersistenceDb(localDb: Database): PersistenceDb {
+  const execute = async (query: unknown, params: unknown[] = []) => {
+    const sql = String(query);
+    const statement = localDb.query(sql);
+    const upper = sql.trimStart().toUpperCase();
+    const isReadQuery =
+      upper.startsWith('SELECT') || upper.startsWith('WITH') || upper.startsWith('PRAGMA');
+
+    if (isReadQuery) {
+      return {
+        rows: statement.all(...params) as Array<Record<string, unknown>>,
+      };
+    }
+
+    statement.run(...params);
+    return { rows: [] as Array<Record<string, unknown>> };
+  };
+
+  return {
+    execute: execute as PersistenceDb['execute'],
+  };
+}
+
+function initializeSchema(localDb: Database): void {
+  localDb.run('PRAGMA foreign_keys = ON');
+  localDb.run(`
+    CREATE TABLE poems (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      author TEXT NOT NULL,
+      type TEXT NOT NULL CHECK(type IN ('HUMAN', 'AI')),
+      source TEXT,
+      prompt TEXT,
+      parent_poem_id TEXT REFERENCES poems(id)
+    )
+  `);
+}
+
+function seedFixtures(localDb: Database): void {
+  for (const id of PHASE5_IDS.humans) {
+    localDb.run(
+      `INSERT INTO poems (id, title, content, author, type, source, prompt, parent_poem_id)
+       VALUES (?, ?, ?, ?, 'HUMAN', NULL, NULL, NULL)`,
+      [id, `Human ${id}`, 'line 1\nline 2\nline 3\nline 4\nline 5', 'Human Author'],
+    );
+  }
+}
+
+function countAiRows(localDb: Database, parentPoemId: string): number {
+  const row = localDb
+    .query(
+      `SELECT COUNT(*) AS total
+       FROM poems
+       WHERE type = 'AI' AND parent_poem_id = ?`,
+    )
+    .get(parentPoemId) as { total: number };
+  return Number(row.total);
+}
+
+function countTotalAiRows(localDb: Database): number {
+  const row = localDb
+    .query(
+      `SELECT COUNT(*) AS total
+       FROM poems
+       WHERE type = 'AI'`,
+    )
+    .get() as { total: number };
+  return Number(row.total);
+}
+
+function generatedPoemById(poemId: string): PoemOutput {
+  if (poemId === 'phase5-human-2') {
+    return {
+      title: 'Invalid Counterpart',
+      content:
+        'Here is a poem about moonlight\nline two glows softly\nline three drifts onward\nline four fades to ash',
+    };
+  }
+
+  return {
+    title: `Counterpart for ${poemId}`,
+    content: 'line one\nline two\nline three\nline four\nline five',
+  };
+}
+
+async function main(): Promise<void> {
+  TestLogger.info('=== Starting Manual Test: Phase 5 Regression & Quality Gate ===', {
+    testRunId,
+    logFile,
+  });
+
+  try {
+    TestLogger.startPhase('Setup');
+
+    tempDbPath = path.join(
+      tmpdir(),
+      `classicist-sanctuary-ai-gen-phase5-${Date.now()}-${process.pid}.sqlite`,
+    );
+    database = new Database(tempDbPath, { create: true });
+
+    initializeSchema(database);
+    seedFixtures(database);
+    tracker.track('phase5_seed_data', [...PHASE5_IDS.humans], async () => {
+      if (!database) {
+        return;
+      }
+      database.run(`DELETE FROM poems WHERE id LIKE 'ai-phase5-%' OR id LIKE 'phase5-human-%'`);
+    });
+
+    TestLogger.endPhase('Setup');
+
+    TestLogger.startPhase('Execution: Coverage and regression verification');
+    await runAndAssertCommand('ai-gen test suite', [
+      'pnpm',
+      '--filter',
+      '@sanctuary/ai-gen',
+      'test',
+    ]);
+    const coverage = await runAndAssertCommand(
+      'ai-gen test coverage',
+      ['pnpm', '--filter', '@sanctuary/ai-gen', 'exec', 'bun', 'test', '--coverage'],
+      { parseCoverage: true },
+    );
+    TestAssertion.assertTrue(
+      typeof coverage === 'number' && coverage >= 80,
+      `Coverage must be >=80% for Phase 5 (actual: ${coverage?.toFixed(2) ?? 'n/a'}%)`,
+    );
+    await runAndAssertCommand('workspace lint', ['pnpm', 'lint']);
+    await runAndAssertCommand('workspace format check', ['pnpm', 'format:check']);
+    TestLogger.endPhase('Execution: Coverage and regression verification');
+
+    TestLogger.startPhase('Execution: Regression checklist (feature behaviors)');
+    const persistenceDb = createPersistenceDb(database);
+    const logs: string[] = [];
+
+    const config: CliConfig = {
+      topic: undefined,
+      limit: undefined,
+      model: 'gemini-3-flash-preview',
+      concurrency: 2,
+      maxRetries: 2,
+    };
+
+    const dependencies = {
+      fetchPoems: async (cliConfig: CliConfig) =>
+        fetchUnmatchedHumanPoems({
+          db: persistenceDb,
+          topic: cliConfig.topic,
+          limit: cliConfig.limit,
+        }),
+      processPoem: async (poem: {
+        id: string;
+        title: string;
+        content: string;
+      }): Promise<ProcessPoemResult> => {
+        const generatedPoem = generatedPoemById(poem.id);
+        const validation = validateGeneratedPoemQuality({
+          generatedPoem,
+          parentLineCount: Math.max(countNonEmptyLines(poem.content), 4),
+          verification: {
+            isValid: true,
+            score: 92,
+            feedback: 'Verifier accepted output',
+          },
+        });
+
+        if (!validation.isValid) {
+          return {
+            poemId: poem.id,
+            status: 'skipped',
+            reason: validation.issues.join(','),
+          };
+        }
+
+        const storedPoem = await persistGeneratedPoem({
+          db: persistenceDb,
+          parentPoem: poem,
+          generatedPoem,
+          prompt: `Phase 5 regression prompt for ${poem.id}`,
+          model: config.model,
+        });
+
+        return {
+          poemId: poem.id,
+          status: 'stored',
+          storedPoemId: storedPoem.id,
+        };
+      },
+      log: (line: string) => {
+        logs.push(line);
+      },
+    };
+
+    const firstRun = await runGenerationCli(config, dependencies);
+    TestAssertion.assertEquals(
+      3,
+      firstRun.totalCandidates,
+      'CLI should process the initial batch of unmatched human poems',
+    );
+    TestAssertion.assertEquals(2, firstRun.stored, 'CLI should store valid generated AI poems');
+    TestAssertion.assertEquals(
+      1,
+      firstRun.skipped,
+      'CLI should skip non-conforming generated responses',
+    );
+    TestAssertion.assertEquals(
+      0,
+      firstRun.failed,
+      'CLI should avoid failures for deterministic regression inputs',
+    );
+    TestAssertion.assertTrue(
+      logs.some((line) => line.includes('Stored AI poem')),
+      'CLI run should log stored AI poem output',
+    );
+
+    const skippedResult = firstRun.results.find((result) => result.poemId === 'phase5-human-2');
+    TestAssertion.assertNotNull(
+      skippedResult,
+      'Regression run should include phase5-human-2 skip result for validation check',
+    );
+    TestAssertion.assertTrue(
+      skippedResult?.status === 'skipped' &&
+        (skippedResult.reason ?? '').includes('contains_meta_text'),
+      'Validation should reject non-conforming response containing meta-text',
+    );
+
+    TestAssertion.assertEquals(
+      1,
+      countAiRows(database, 'phase5-human-1'),
+      'First CLI run should create one AI counterpart for phase5-human-1',
+    );
+    TestAssertion.assertEquals(
+      1,
+      countAiRows(database, 'phase5-human-3'),
+      'First CLI run should create one AI counterpart for phase5-human-3',
+    );
+
+    const secondRun = await runGenerationCli(config, dependencies);
+    TestAssertion.assertEquals(
+      0,
+      secondRun.stored,
+      'Rerunning CLI should not store duplicates for already matched poems',
+    );
+    TestAssertion.assertEquals(
+      1,
+      secondRun.totalCandidates,
+      'Rerun should only include still-unmatched poem(s)',
+    );
+    TestAssertion.assertEquals(
+      1,
+      secondRun.skipped,
+      'Rerun should keep rejecting the same non-conforming generated response',
+    );
+
+    TestAssertion.assertEquals(
+      1,
+      countAiRows(database, 'phase5-human-1'),
+      'Rerun should keep idempotent AI counterpart count for phase5-human-1',
+    );
+    TestAssertion.assertEquals(
+      1,
+      countAiRows(database, 'phase5-human-3'),
+      'Rerun should keep idempotent AI counterpart count for phase5-human-3',
+    );
+    TestAssertion.assertEquals(
+      2,
+      countTotalAiRows(database),
+      'Rerun should not increase total AI counterpart rows',
+    );
+
+    TestLogger.endPhase('Execution: Regression checklist (feature behaviors)');
+    allPassed = TestAssertion.summary();
+  } catch (error) {
+    TestLogger.error('Fatal error in Phase 5 manual verification script', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    allPassed = false;
+  } finally {
+    if (database) {
+      await tracker.cleanup();
+      database.close();
+    }
+
+    if (tempDbPath && existsSync(tempDbPath)) {
+      rmSync(tempDbPath, { force: true });
+      TestLogger.info('Removed temporary sqlite database', { tempDbPath });
+    }
+
+    TestLogger.info('=== Manual Test Run Completed ===', {
+      result: allPassed ? 'PASSED' : 'FAILED',
+      logFile,
+    });
+
+    console.log('');
+    console.log('============================================');
+    console.log('Phase 5 AI-Gen Manual Verification Complete');
+    console.log('============================================');
+    console.log(`Test ID : ${testRunId}`);
+    console.log(`Result  : ${allPassed ? 'PASS' : 'FAIL'}`);
+    console.log(`Logs    : ${logFile}`);
+    console.log('============================================');
+    console.log('');
+
+    if (!allPassed) {
+      process.exitCode = 1;
+    }
+  }
+}
+
+void main();
