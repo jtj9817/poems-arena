@@ -20,5 +20,12 @@ export {
   VerificationError,
   VerifyPoemParams,
 } from './verification-agent';
+export {
+  validateGeneratedPoemQuality,
+  QualityIssue,
+  QualityValidatorParams,
+  QualityValidationMetrics,
+  QualityValidationResult,
+} from './quality-validator';
 
 export const AI_GEN_VERSION = '0.1.0';

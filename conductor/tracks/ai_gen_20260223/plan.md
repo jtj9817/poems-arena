@@ -23,10 +23,10 @@
 
 ## Phase 3: Validation and Quality Checks
 
-- [ ] Task: Implement Quality Validator
-  - [ ] Write failing tests for validation logic (minimum 4 lines, ±20% length of the parent poem, rejecting meta-text).
-  - [ ] Implement the `Line Count Check` logic to reject/retry mismatched lengths.
-  - [ ] Implement the `No Meta-Text` check to reject generic AI conversational fillers.
+- [x] Task: Implement Quality Validator
+  - [x] Write failing tests for validation logic (minimum 4 lines, ±20% length of the parent poem, rejecting meta-text).
+  - [x] Implement the `Line Count Check` logic to reject/retry mismatched lengths.
+  - [x] Implement the `No Meta-Text` check to reject generic AI conversational fillers.
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Validation and Quality Checks' (Protocol in workflow.md)
 
 ## Phase 4: Database Integration and CLI
