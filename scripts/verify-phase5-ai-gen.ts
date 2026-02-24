@@ -31,11 +31,14 @@ interface CommandResult {
   exitCode: number;
   stdout: string;
   stderr: string;
+  timedOut: boolean;
+  durationMs: number;
 }
 
 interface CommandOptions {
   cwd?: string;
   env?: Record<string, string | undefined>;
+  timeoutMs?: number;
 }
 
 const testRunId = `phase5_ai_gen_${new Date().toISOString().replace(/[:.]/g, '_')}`;
@@ -94,44 +97,101 @@ async function streamAndCaptureOutput(
 }
 
 async function runCommand(command: string[], options: CommandOptions = {}): Promise<CommandResult> {
+  const startedAt = Date.now();
   const proc = Bun.spawn(command, {
     cwd: options.cwd ?? repoRoot,
     env: { ...process.env, ...options.env },
     stdout: 'pipe',
     stderr: 'pipe',
   });
+  let timedOut = false;
+  const timeoutHandle =
+    typeof options.timeoutMs === 'number' && options.timeoutMs > 0
+      ? setTimeout(() => {
+          timedOut = true;
+          TestLogger.warning('Command timeout reached; terminating process', {
+            command: command.join(' '),
+            timeoutMs: options.timeoutMs,
+          });
+          proc.kill();
+        }, options.timeoutMs)
+      : null;
 
   const [stdout, stderr] = await Promise.all([
     streamAndCaptureOutput(proc.stdout, (chunk) => process.stdout.write(chunk)),
     streamAndCaptureOutput(proc.stderr, (chunk) => process.stderr.write(chunk)),
   ]);
   await proc.exited;
+  if (timeoutHandle) {
+    clearTimeout(timeoutHandle);
+  }
+  const durationMs = Date.now() - startedAt;
 
   return {
-    exitCode: proc.exitCode ?? 1,
+    exitCode: proc.exitCode ?? (timedOut ? 124 : 1),
     stdout,
     stderr,
+    timedOut,
+    durationMs,
   };
+}
+
+interface TimeoutDiagnostic {
+  command: string[];
+  timeoutMs?: number;
 }
 
 async function runAndAssertCommand(
   name: string,
   command: string[],
-  opts: { parseCoverage?: boolean } = {},
+  opts: { parseCoverage?: boolean; timeoutMs?: number; timeoutDiagnostic?: TimeoutDiagnostic } = {},
 ): Promise<number | undefined> {
   TestLogger.info(`Running command for ${name}`, {
     command: command.join(' '),
+    timeoutMs: opts.timeoutMs,
   });
   console.log(`\n$ ${command.join(' ')}`);
 
   const result = await runCommand(command, {
     env: { CI: 'true' },
+    timeoutMs: opts.timeoutMs,
   });
 
-  TestLogger.info(`Command completed for ${name}`, { exitCode: result.exitCode });
+  TestLogger.info(`Command completed for ${name}`, {
+    exitCode: result.exitCode,
+    durationMs: result.durationMs,
+    timedOut: result.timedOut,
+  });
+
+  if (result.timedOut) {
+    TestLogger.error(`Command timed out for ${name}`, {
+      command: command.join(' '),
+      timeoutMs: opts.timeoutMs,
+    });
+
+    if (opts.timeoutDiagnostic) {
+      const diagnosticCommand = opts.timeoutDiagnostic.command;
+      TestLogger.info(`Running timeout diagnostic for ${name}`, {
+        command: diagnosticCommand.join(' '),
+        timeoutMs: opts.timeoutDiagnostic.timeoutMs,
+      });
+      console.log(`\n$ ${diagnosticCommand.join(' ')}`);
+
+      await runCommand(diagnosticCommand, {
+        env: { ...process.env, CI: 'true' },
+        timeoutMs: opts.timeoutDiagnostic.timeoutMs,
+      });
+    }
+
+    throw new Error(
+      `${name} timed out after ${opts.timeoutMs ?? result.durationMs}ms (exit code ${result.exitCode})`,
+    );
+  }
 
   if (result.exitCode !== 0) {
-    throw new Error(`${name} failed with exit code ${result.exitCode}`);
+    throw new Error(
+      `${name} failed with exit code ${result.exitCode} after ${result.durationMs}ms`,
+    );
   }
 
   if (!opts.parseCoverage) {
@@ -282,7 +342,21 @@ async function main(): Promise<void> {
       `Coverage must be >=80% for Phase 5 (actual: ${coverage?.toFixed(2) ?? 'n/a'}%)`,
     );
     await runAndAssertCommand('workspace lint', ['pnpm', 'lint']);
-    await runAndAssertCommand('workspace format check', ['pnpm', 'format:check']);
+    const verboseFormatCheck = process.env.PHASE5_FORMAT_CHECK_DEBUG === '1';
+    const formatCheckCommand = verboseFormatCheck
+      ? ['pnpm', 'exec', 'prettier', '--check', '.', '--log-level', 'debug']
+      : ['pnpm', 'format:check'];
+    if (verboseFormatCheck) {
+      TestLogger.info('Format check debug mode enabled via PHASE5_FORMAT_CHECK_DEBUG=1');
+    }
+
+    await runAndAssertCommand('workspace format check', formatCheckCommand, {
+      timeoutMs: 120_000,
+      timeoutDiagnostic: {
+        command: ['pnpm', 'exec', 'prettier', '--check', '.', '--log-level', 'debug'],
+        timeoutMs: 60_000,
+      },
+    });
     TestLogger.endPhase('Execution: Coverage and regression verification');
 
     TestLogger.startPhase('Execution: Regression checklist (feature behaviors)');
