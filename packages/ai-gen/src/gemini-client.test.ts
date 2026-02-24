@@ -99,7 +99,7 @@ describe('generatePoem', () => {
 
     const config: GeminiConfig = {
       apiKey: 'test-api-key',
-      model: 'gemini-2.0-flash-preview',
+      model: 'gemini-3-flash-preview',
       systemInstructions: 'You are a poet.',
     };
 
