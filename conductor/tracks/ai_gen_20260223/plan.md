@@ -19,7 +19,7 @@
   - [x] Configure the API call to utilize `JSON Mode` (`responseMimeType: "application/json"`), `responseSchema`, and Gemini 3 specific settings (e.g., `temperature: 1.0`, `thinkingConfig`).
 - [x] Task: Implement Poem Verification Agent
   - [x] Implement a secondary API call logic to verify the contents of the generated poem, potentially utilizing `Thought Signatures` to maintain context.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Generation Logic and Prompts' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Generation Logic and Prompts' (Protocol in workflow.md)
 
 ## Phase 3: Validation and Quality Checks
 
@@ -27,7 +27,7 @@
   - [x] Write failing tests for validation logic (minimum 4 lines, ±20% length of the parent poem, rejecting meta-text).
   - [x] Implement the `Line Count Check` logic to reject/retry mismatched lengths.
   - [x] Implement the `No Meta-Text` check to reject generic AI conversational fillers.
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Validation and Quality Checks' (Protocol in workflow.md)
+- [~] Task: Conductor - User Manual Verification 'Phase 3: Validation and Quality Checks' (Protocol in workflow.md)
 
 ## Phase 4: Database Integration and CLI
 
