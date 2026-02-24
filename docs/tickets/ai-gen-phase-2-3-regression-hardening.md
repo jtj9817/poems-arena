@@ -1,7 +1,7 @@
 # Ticket: Harden Phase 2-3 Regression Suite for AI Generation Contracts
 
 **Ticket Type:** Test Infrastructure / Regression Hardening
-**Status:** Open
+**Status:** Completed
 **Priority:** High
 **Assignee:** Unassigned
 **Labels:** ai-gen, phase-2, phase-3, testing, regression
@@ -102,8 +102,28 @@ CI=true pnpm --filter @sanctuary/ai-gen test
 
 ## Acceptance Criteria
 
-1. Phase 2 tests fail if request payload contracts drift from implementation plan requirements.
-2. Phase 2 tests fail on malformed/invalid API outputs not conforming to expected schema.
-3. Phase 3 tests explicitly cover tolerance boundaries and retry-policy behavior.
-4. Phase 3 tests include meta-text false-positive guard cases.
-5. `CI=true pnpm --filter @sanctuary/ai-gen test` passes with the strengthened suite.
+- [x] Phase 2 tests fail if request payload contracts drift from implementation plan requirements.
+- [x] Phase 2 tests fail on malformed/invalid API outputs not conforming to expected schema.
+- [x] Phase 3 tests explicitly cover tolerance boundaries and retry-policy behavior.
+- [x] Phase 3 tests include meta-text false-positive guard cases.
+- [x] `CI=true pnpm --filter @sanctuary/ai-gen test` passes with the strengthened suite.
+
+## Resolution
+
+### Implemented Changes
+
+- [x] Hardened `packages/ai-gen/src/prompt-builder.test.ts` with exact contract assertions for tolerance text, JSON-only output format, escaped newline semantics, and optional original-poem-title context behavior.
+- [x] Hardened `packages/ai-gen/src/gemini-client.test.ts` with strict request payload assertions for default model/temperature, JSON mode/schema wiring, optional field gating, and expanded malformed-response/provider-failure paths.
+- [x] Hardened `packages/ai-gen/src/verification-agent.test.ts` with strict request payload assertions (default model, override behavior, prompt propagation, JSON config/schema) plus malformed-response/provider-failure paths.
+- [x] Hardened `packages/ai-gen/src/quality-validator.test.ts` with tolerance boundary checks, issue-combination and retry-policy matrix checks, verification condition matrix checks, and meta-text false-positive guard checks.
+- [x] Removed stale test model inconsistency by replacing the remaining `gemini-2.0-flash-preview` reference with `gemini-3-flash-preview` in `packages/ai-gen/src/gemini-client.test.ts`.
+
+### Verification
+
+- Executed: `CI=true pnpm --filter @sanctuary/ai-gen test`
+- Result: pass (`37 pass`, `0 fail`)
+
+### Commits
+
+- `8e4f6cf` — `test(ai-gen): harden phase 2-3 regression suite`
+- `4a45e61` — `test(ai-gen): align model string with phase 2 spec`
