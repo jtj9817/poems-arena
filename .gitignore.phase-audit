@@ -1,0 +1,7 @@
+# Phase Audit System (optional excludes)
+# PHASE_AUDIT.md should be committed to track evolution
+# PHASE_AUDIT.json can be excluded if only used for AI context
+
+PHASE_AUDIT.json
+PHASE_AUDIT.md.backup
+
