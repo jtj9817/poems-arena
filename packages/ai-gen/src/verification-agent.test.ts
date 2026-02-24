@@ -2,13 +2,13 @@ import { expect, test, describe, mock, beforeEach } from 'bun:test';
 import { verifyPoem, PoemVerificationResult, VerificationError } from './verification-agent';
 
 const mockVerifyContent = mock(() => {
-  return {
+  return Promise.resolve({
     text: JSON.stringify({
       isValid: true,
       score: 85,
       feedback: 'The poem has strong imagery and emotional resonance.',
     }),
-  };
+  });
 });
 
 mock.module('@google/genai', () => ({

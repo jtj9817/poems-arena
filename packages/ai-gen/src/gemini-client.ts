@@ -21,14 +21,14 @@ export interface PoemOutput {
 export class PoemGenerationError extends Error {
   constructor(
     message: string,
-    public readonly cause?: Error,
+    readonly cause?: Error,
   ) {
     super(message);
     this.name = 'PoemGenerationError';
   }
 }
 
-const DEFAULT_MODEL = 'gemini-2.0-flash-preview';
+const DEFAULT_MODEL = 'gemini-3-flash-preview';
 const DEFAULT_TEMPERATURE = 1.0;
 
 const POEM_RESPONSE_SCHEMA = {
@@ -80,13 +80,13 @@ export async function generatePoem(params: GeneratePoemParams): Promise<PoemOutp
       throw new PoemGenerationError('Empty response from Gemini API');
     }
 
-    const parsed = JSON.parse(responseText) as PoemOutput;
+    const parsed = JSON.parse(responseText) as Partial<PoemOutput> | null;
 
-    if (!parsed.title || !parsed.content) {
+    if (!parsed || !parsed.title || !parsed.content) {
       throw new PoemGenerationError('Invalid response format: missing title or content');
     }
 
-    return parsed;
+    return parsed as PoemOutput;
   } catch (error) {
     if (error instanceof PoemGenerationError) {
       throw error;

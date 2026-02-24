@@ -9,14 +9,14 @@ export interface PoemVerificationResult {
 export class VerificationError extends Error {
   constructor(
     message: string,
-    public readonly cause?: Error,
+    readonly cause?: Error,
   ) {
     super(message);
     this.name = 'VerificationError';
   }
 }
 
-const VERIFICATION_MODEL = 'gemini-2.0-flash-preview';
+const VERIFICATION_MODEL = 'gemini-3-flash-preview';
 
 const VERIFICATION_SYSTEM_INSTRUCTION = `You are a poem quality reviewer. Evaluate poems based on:
 1. Literary quality - imagery, metaphor, rhythm
@@ -81,9 +81,10 @@ Provide your evaluation in JSON format.`;
       throw new VerificationError('Empty response from verification API');
     }
 
-    const parsed = JSON.parse(responseText) as PoemVerificationResult;
+    const parsed = JSON.parse(responseText) as Partial<PoemVerificationResult> | null;
 
     if (
+      !parsed ||
       typeof parsed.isValid !== 'boolean' ||
       typeof parsed.score !== 'number' ||
       typeof parsed.feedback !== 'string'
@@ -91,7 +92,7 @@ Provide your evaluation in JSON format.`;
       throw new VerificationError('Invalid verification response format');
     }
 
-    return parsed;
+    return parsed as PoemVerificationResult;
   } catch (error) {
     if (error instanceof VerificationError) {
       throw error;
