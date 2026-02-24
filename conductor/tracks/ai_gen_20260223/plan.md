@@ -40,19 +40,23 @@
   - [x] Write failing test for CLI parsing, batch orchestration, stateful management, and display.
   - [x] Implement the CLI entry point (`src/index.ts`) as a basic loop with stateful management, defaulting to processing all unmatched poems.
   - [x] Add rate limiting using `p-limit` to handle batch generation efficiently.
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Database Integration and CLI' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Database Integration and CLI' (Protocol in workflow.md) [b02e14d]
+  - [x] Automation script: `scripts/verify-phase4-ai-gen.ts`.
+  - [x] Shell wrapper: `scripts/run-manual-verification-phase-4.sh`.
 
-## Phase 5: Regression & Quality Gate
+## Phase 5: Regression & Quality Gate [checkpoint: 90777dc]
 
-- [ ] Task: Coverage and Regression Verification
-  - [ ] Execute `pnpm --filter @sanctuary/ai-gen test` to ensure tests pass and coverage is >80%.
-  - [ ] Execute `pnpm lint`.
-  - [ ] Execute `pnpm format:check` (or `pnpm format` to fix).
-- [ ] Task: Regression Checklist (Feature Behaviors)
-  - [ ] Verify that running the CLI processes a batch of human poems and generates corresponding AI poems.
-  - [ ] Verify that rerunning the CLI does not duplicate existing AI counterparts (idempotency).
-  - [ ] Verify validation successfully catches and rejects non-conforming responses.
-- [ ] Task: Conductor - User Manual Verification 'Phase 5: Regression & Quality Gate' (Protocol in workflow.md)
+- [x] Task: Coverage and Regression Verification [d208b74]
+  - [x] Execute `pnpm --filter @sanctuary/ai-gen test` to ensure tests pass and coverage is >80%.
+  - [x] Execute `pnpm lint`.
+  - [x] Execute `pnpm format:check` (or `pnpm format` to fix).
+- [x] Task: Regression Checklist (Feature Behaviors) [d208b74]
+  - [x] Verify that running the CLI processes a batch of human poems and generates corresponding AI poems.
+  - [x] Verify that rerunning the CLI does not duplicate existing AI counterparts (idempotency).
+  - [x] Verify validation successfully catches and rejects non-conforming responses.
+- [x] Task: Conductor - User Manual Verification 'Phase 5: Regression & Quality Gate' (Protocol in workflow.md) [d208b74]
+  - [x] Automation script: `scripts/verify-phase5-ai-gen.ts`.
+  - [x] Shell wrapper: `scripts/run-manual-verification-phase-5.sh`.
 
 ## Phase 6: Documentation
 
