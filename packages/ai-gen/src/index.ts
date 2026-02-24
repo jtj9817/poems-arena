@@ -1,3 +1,13 @@
+import { createDb, resolveDbConfig } from '@sanctuary/db';
+import { parseCliArgs, runGenerationCli, type CliDependencies } from './cli';
+import {
+  generateCounterpartForPoem,
+  type GenerateCounterpartResult,
+  type GenerateCounterpartParams,
+} from './generation-service';
+import { fetchUnmatchedHumanPoems, type PersistenceDb } from './persistence';
+import { loadSystemInstructions } from './prompt-builder';
+
 /**
  * AI Poem Generation Service
  *
@@ -27,5 +37,125 @@ export {
   QualityValidationMetrics,
   QualityValidationResult,
 } from './quality-validator';
+export {
+  fetchUnmatchedHumanPoems,
+  buildAiPoemInsertValues,
+  persistGeneratedPoem,
+  HumanPoemCandidate,
+  PersistedAiPoem,
+} from './persistence';
+export {
+  generateCounterpartForPoem,
+  GenerateCounterpartParams,
+  GenerateCounterpartResult,
+  GenerationOutcome,
+} from './generation-service';
+export {
+  parseCliArgs,
+  runGenerationCli,
+  CliConfig,
+  CliDependencies,
+  CliRunSummary,
+  ProcessPoemResult,
+} from './cli';
 
-export const AI_GEN_VERSION = '0.1.0';
+export const AI_GEN_VERSION = '0.2.0';
+
+function resolveApiKey(env: NodeJS.ProcessEnv): string {
+  const apiKey = env.GEMINI_API_KEY ?? env.GOOGLE_API_KEY;
+  if (!apiKey) {
+    throw new Error('Missing Gemini API key. Set GEMINI_API_KEY (or GOOGLE_API_KEY).');
+  }
+  return apiKey;
+}
+
+function mapGenerationResult(result: GenerateCounterpartResult): {
+  poemId: string;
+  status: 'stored' | 'skipped' | 'failed';
+  storedPoemId?: string;
+  reason?: string;
+} {
+  if (result.status === 'stored') {
+    return {
+      poemId: result.poemId,
+      status: 'stored',
+      storedPoemId: result.storedPoem?.id,
+    };
+  }
+
+  if (result.status === 'skipped') {
+    return {
+      poemId: result.poemId,
+      status: 'skipped',
+      reason: result.reason,
+    };
+  }
+
+  return {
+    poemId: result.poemId,
+    status: 'failed',
+    reason: result.reason,
+  };
+}
+
+export function createDefaultCliDependencies(
+  env: NodeJS.ProcessEnv = process.env,
+): CliDependencies {
+  const dbConfig = resolveDbConfig(env);
+  const db = createDb(dbConfig);
+  const rawClient = (db as { $client?: unknown }).$client as
+    | {
+        execute: (statement: { sql: string; args?: unknown[] }) => Promise<{
+          rows?: Array<Record<string, unknown>>;
+        }>;
+      }
+    | undefined;
+  if (!rawClient || typeof rawClient.execute !== 'function') {
+    throw new Error('Unable to access LibSQL client for ai-gen persistence operations.');
+  }
+
+  const persistenceDb: PersistenceDb = {
+    execute: async (...args: unknown[]) => {
+      const [query, params] = args as [string, unknown[] | undefined];
+      const result = await rawClient.execute({
+        sql: query,
+        args: params ?? [],
+      });
+      return { rows: result.rows ?? [] };
+    },
+  };
+
+  const apiKey = resolveApiKey(env);
+  const systemInstructions = loadSystemInstructions();
+
+  return {
+    fetchPoems: async (config) =>
+      fetchUnmatchedHumanPoems({
+        db: persistenceDb,
+        topic: config.topic,
+        limit: config.limit,
+      }),
+    processPoem: async (poem, config) => {
+      const params: GenerateCounterpartParams = {
+        db: persistenceDb,
+        parentPoem: poem,
+        apiKey,
+        systemInstructions,
+        model: config.model,
+        topic: config.topic,
+        maxRetries: config.maxRetries,
+      };
+      const result = await generateCounterpartForPoem(params);
+      return mapGenerationResult(result);
+    },
+    log: (line: string) => {
+      console.log(line);
+    },
+  };
+}
+
+if (import.meta.main) {
+  const config = parseCliArgs(process.argv.slice(2));
+  const dependencies = createDefaultCliDependencies();
+  await runGenerationCli(config, dependencies);
+}

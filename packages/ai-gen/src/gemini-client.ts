@@ -1,5 +1,3 @@
-import { GoogleGenAI } from '@google/genai';
-
 export interface ThinkingConfig {
   thinkingBudget?: number;
 }
@@ -51,6 +49,7 @@ export async function generatePoem(params: GeneratePoemParams): Promise<PoemOutp
   const temperature = config.temperature ?? DEFAULT_TEMPERATURE;
 
   try {
+    const { GoogleGenAI } = await import('@google/genai');
     const client = new GoogleGenAI({ apiKey: config.apiKey });
 
     const generationConfig: Record<string, unknown> = {

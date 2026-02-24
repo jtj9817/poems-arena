@@ -1,5 +1,3 @@
-import { GoogleGenAI } from '@google/genai';
-
 export interface PoemVerificationResult {
   isValid: boolean;
   score: number;
@@ -62,6 +60,7 @@ ${poem.content}
 Provide your evaluation in JSON format.`;
 
   try {
+    const { GoogleGenAI } = await import('@google/genai');
     const client = new GoogleGenAI({ apiKey });
 
     const result = await client.models.generateContent({

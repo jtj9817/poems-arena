@@ -4,13 +4,16 @@
   "type": "module",
   "scripts": {
     "dev": "bun run src/index.ts",
+    "generate": "bun run src/index.ts",
     "start": "bun run src/index.ts",
     "test": "CI=true bun test",
     "test:watch": "bun test --watch"
   },
   "dependencies": {
     "@google/genai": "^1.4.0",
+    "@sanctuary/db": "workspace:*",
     "@sanctuary/shared": "workspace:*",
+    "drizzle-orm": "^0.38.4",
     "p-limit": "^6.2.0"
   },
   "devDependencies": {
