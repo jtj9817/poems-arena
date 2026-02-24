@@ -88,8 +88,12 @@ function parsePositiveInt(raw: string | undefined, flagName: string): number | u
     return undefined;
   }
 
-  const value = Number.parseInt(raw, 10);
-  if (!Number.isFinite(value) || value <= 0) {
+  if (!/^[1-9]\d*$/.test(raw)) {
+    throw new Error(`Invalid ${flagName} value: "${raw}" (must be a positive integer)`);
+  }
+
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value) || value <= 0) {
     throw new Error(`Invalid ${flagName} value: "${raw}" (must be a positive integer)`);
   }
 

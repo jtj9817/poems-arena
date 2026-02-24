@@ -37,6 +37,18 @@ describe('parseCliArgs', () => {
     expect(config.limit).toBeUndefined();
     expect(config.model).toBe('gemini-3-flash-preview');
   });
+
+  test('rejects malformed numeric flags', () => {
+    expect(() => parseCliArgs(['--limit', '5abc'])).toThrow(
+      'Invalid --limit value: "5abc" (must be a positive integer)',
+    );
+    expect(() => parseCliArgs(['--concurrency', '2.7'])).toThrow(
+      'Invalid --concurrency value: "2.7" (must be a positive integer)',
+    );
+    expect(() => parseCliArgs(['--max-retries', '1foo'])).toThrow(
+      'Invalid --max-retries value: "1foo" (must be a positive integer)',
+    );
+  });
 });
 
 describe('runGenerationCli', () => {
