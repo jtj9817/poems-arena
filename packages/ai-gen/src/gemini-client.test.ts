@@ -1,11 +1,11 @@
-import { expect, test, describe, mock, beforeEach } from 'bun:test';
-import { generatePoem, GeminiConfig, PoemGenerationError } from './gemini-client';
+import { beforeEach, describe, expect, mock, test } from 'bun:test';
+import { generatePoem, type GeminiConfig, PoemGenerationError } from './gemini-client';
 
-const mockGenerateContent = mock(() => {
+const mockGenerateContent = mock(async () => {
   return {
     text: JSON.stringify({
       title: 'Test Poem',
-      content: 'Line one\nLine two\nLine three',
+      content: 'Line one\nLine two\nLine three\nLine four',
     }),
   };
 });
@@ -23,10 +23,9 @@ describe('generatePoem', () => {
     mockGenerateContent.mockClear();
   });
 
-  test('should generate poem with correct structure', async () => {
+  test('builds Gemini request using default model/config when optional values are omitted', async () => {
     const config: GeminiConfig = {
       apiKey: 'test-api-key',
-      model: 'gemini-2.0-flash-preview',
       systemInstructions: 'You are a poet.',
     };
 
@@ -35,64 +34,66 @@ describe('generatePoem', () => {
       config,
     });
 
-    expect(result).toHaveProperty('title');
-    expect(result).toHaveProperty('content');
-    expect(typeof result.title).toBe('string');
-    expect(typeof result.content).toBe('string');
-  });
+    expect(result).toEqual({
+      title: 'Test Poem',
+      content: 'Line one\nLine two\nLine three\nLine four',
+    });
+    expect(mockGenerateContent).toHaveBeenCalledTimes(1);
 
-  test('should use JSON mode for response', async () => {
-    const config: GeminiConfig = {
-      apiKey: 'test-api-key',
-      model: 'gemini-2.0-flash-preview',
-      systemInstructions: 'You are a poet.',
+    const request = mockGenerateContent.mock.calls[0]?.[0] as {
+      model: string;
+      contents: string;
+      config: Record<string, unknown>;
     };
 
-    const result = await generatePoem({
-      prompt: 'Write about nature',
-      config,
+    expect(request.model).toBe('gemini-3-flash-preview');
+    expect(request.contents).toBe('Write about the sea');
+    expect(request.config.temperature).toBe(1.0);
+    expect(request.config.systemInstruction).toBe('You are a poet.');
+    expect(request.config.responseMimeType).toBe('application/json');
+    expect(request.config.responseSchema).toEqual({
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        content: { type: 'string' },
+      },
+      required: ['title', 'content'],
     });
-
-    expect(result.title.length).toBeGreaterThan(0);
-    expect(result.content.length).toBeGreaterThan(0);
+    expect('thinkingConfig' in request.config).toBe(false);
+    expect('maxOutputTokens' in request.config).toBe(false);
   });
 
-  test('should respect temperature setting', async () => {
+  test('uses provided model and optional generation config fields', async () => {
     const config: GeminiConfig = {
       apiKey: 'test-api-key',
-      model: 'gemini-2.0-flash-preview',
+      model: 'gemini-3-flash-preview',
       systemInstructions: 'You are a poet.',
       temperature: 0.8,
-    };
-
-    const result = await generatePoem({
-      prompt: 'Write about love',
-      config,
-    });
-
-    expect(result).toBeDefined();
-  });
-
-  test('should include thinking config when provided', async () => {
-    const config: GeminiConfig = {
-      apiKey: 'test-api-key',
-      model: 'gemini-2.0-flash-preview',
-      systemInstructions: 'You are a poet.',
       thinkingConfig: {
-        thinkingBudget: 0,
+        thinkingBudget: 128,
       },
+      maxOutputTokens: 1024,
     };
 
-    const result = await generatePoem({
+    await generatePoem({
       prompt: 'Write about death',
       config,
     });
 
-    expect(result).toBeDefined();
+    expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+    const request = mockGenerateContent.mock.calls[0]?.[0] as {
+      model: string;
+      config: Record<string, unknown>;
+    };
+
+    expect(request.model).toBe('gemini-3-flash-preview');
+    expect(request.config.temperature).toBe(0.8);
+    expect(request.config.thinkingConfig).toEqual({ thinkingBudget: 128 });
+    expect(request.config.maxOutputTokens).toBe(1024);
   });
 
-  test('should throw PoemGenerationError on empty response', async () => {
-    mockGenerateContent.mockReturnValueOnce({
+  test('throws PoemGenerationError on empty response text', async () => {
+    mockGenerateContent.mockResolvedValueOnce({
       text: '',
     });
 
@@ -107,18 +108,60 @@ describe('generatePoem', () => {
         prompt: 'Write about anything',
         config,
       }),
-    ).rejects.toThrow(PoemGenerationError);
+    ).rejects.toThrow('Empty response from Gemini API');
   });
-});
 
-describe('GeminiConfig', () => {
-  test('should allow custom model override', () => {
+  test('throws PoemGenerationError on malformed JSON response', async () => {
+    mockGenerateContent.mockResolvedValueOnce({
+      text: '{"title":"Broken"',
+    });
+
     const config: GeminiConfig = {
-      apiKey: 'test-key',
-      systemInstructions: 'Test',
-      model: 'gemini-1.5-pro',
+      apiKey: 'test-api-key',
+      systemInstructions: 'You are a poet.',
     };
 
-    expect(config.model).toBe('gemini-1.5-pro');
+    await expect(
+      generatePoem({
+        prompt: 'Write about stars',
+        config,
+      }),
+    ).rejects.toThrow(PoemGenerationError);
+  });
+
+  test('throws PoemGenerationError when JSON shape is missing required fields', async () => {
+    mockGenerateContent.mockResolvedValueOnce({
+      text: JSON.stringify({
+        title: 'Untitled',
+      }),
+    });
+
+    const config: GeminiConfig = {
+      apiKey: 'test-api-key',
+      systemInstructions: 'You are a poet.',
+    };
+
+    await expect(
+      generatePoem({
+        prompt: 'Write about rain',
+        config,
+      }),
+    ).rejects.toThrow('Invalid response format: missing title or content');
+  });
+
+  test('wraps provider failures in PoemGenerationError', async () => {
+    mockGenerateContent.mockRejectedValueOnce(new Error('transport failure'));
+
+    const config: GeminiConfig = {
+      apiKey: 'test-api-key',
+      systemInstructions: 'You are a poet.',
+    };
+
+    await expect(
+      generatePoem({
+        prompt: 'Write about silence',
+        config,
+      }),
+    ).rejects.toThrow(PoemGenerationError);
   });
 });
