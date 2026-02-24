@@ -39,6 +39,7 @@ interface CommandOptions {
   cwd?: string;
   env?: Record<string, string | undefined>;
   timeoutMs?: number;
+  captureOutput?: boolean;
 }
 
 const testRunId = `phase5_ai_gen_${new Date().toISOString().replace(/[:.]/g, '_')}`;
@@ -98,11 +99,12 @@ async function streamAndCaptureOutput(
 
 async function runCommand(command: string[], options: CommandOptions = {}): Promise<CommandResult> {
   const startedAt = Date.now();
+  const captureOutput = options.captureOutput ?? false;
   const proc = Bun.spawn(command, {
     cwd: options.cwd ?? repoRoot,
     env: { ...process.env, ...options.env },
-    stdout: 'pipe',
-    stderr: 'pipe',
+    stdout: captureOutput ? 'pipe' : 'inherit',
+    stderr: captureOutput ? 'pipe' : 'inherit',
   });
   let timedOut = false;
   const timeoutHandle =
@@ -113,14 +115,29 @@ async function runCommand(command: string[], options: CommandOptions = {}): Prom
             command: command.join(' '),
             timeoutMs: options.timeoutMs,
           });
-          proc.kill();
+          proc.kill('SIGTERM');
         }, options.timeoutMs)
       : null;
 
-  const [stdout, stderr] = await Promise.all([
-    streamAndCaptureOutput(proc.stdout, (chunk) => process.stdout.write(chunk)),
-    streamAndCaptureOutput(proc.stderr, (chunk) => process.stderr.write(chunk)),
-  ]);
+  const [stdout, stderr] = captureOutput
+    ? await Promise.all([
+        streamAndCaptureOutput(proc.stdout, (chunk) => process.stdout.write(chunk)),
+        streamAndCaptureOutput(proc.stderr, (chunk) => process.stderr.write(chunk)),
+      ])
+    : ['', ''];
+
+  if (timedOut) {
+    const exitedAfterTerm = await Promise.race([
+      proc.exited.then(() => true),
+      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 2_000)),
+    ]);
+    if (!exitedAfterTerm) {
+      TestLogger.warning('Process did not terminate after SIGTERM; sending SIGKILL', {
+        command: command.join(' '),
+      });
+      proc.kill('SIGKILL');
+    }
+  }
   await proc.exited;
   if (timeoutHandle) {
     clearTimeout(timeoutHandle);
@@ -141,6 +158,44 @@ interface TimeoutDiagnostic {
   timeoutMs?: number;
 }
 
+async function logProcessSnapshot(context: string): Promise<void> {
+  const snapshot = await runCommand(['ps', '-eo', 'pid,ppid,pgid,stat,etime,command'], {
+    captureOutput: true,
+    timeoutMs: 5_000,
+  });
+
+  if (snapshot.exitCode !== 0 || !snapshot.stdout.trim()) {
+    TestLogger.warning('Unable to capture process snapshot', {
+      context,
+      exitCode: snapshot.exitCode,
+      timedOut: snapshot.timedOut,
+    });
+    return;
+  }
+
+  const relevantLines = snapshot.stdout
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(
+      (line) =>
+        /(pnpm|prettier|eslint)/i.test(line) ||
+        /bun\s+(scripts\/verify-phase5-ai-gen\.ts|test)/i.test(line),
+    )
+    .slice(0, 40);
+
+  if (relevantLines.length === 0) {
+    TestLogger.info('Process snapshot captured with no relevant formatter/test processes', {
+      context,
+    });
+    return;
+  }
+
+  TestLogger.warning('Relevant process snapshot', {
+    context,
+    lines: relevantLines,
+  });
+}
+
 async function runAndAssertCommand(
   name: string,
   command: string[],
@@ -155,6 +210,7 @@ async function runAndAssertCommand(
   const result = await runCommand(command, {
     env: { CI: 'true' },
     timeoutMs: opts.timeoutMs,
+    captureOutput: opts.parseCoverage,
   });
 
   TestLogger.info(`Command completed for ${name}`, {
@@ -168,6 +224,7 @@ async function runAndAssertCommand(
       command: command.join(' '),
       timeoutMs: opts.timeoutMs,
     });
+    await logProcessSnapshot(`${name} timeout`);
 
     if (opts.timeoutDiagnostic) {
       const diagnosticCommand = opts.timeoutDiagnostic.command;
@@ -180,6 +237,7 @@ async function runAndAssertCommand(
       await runCommand(diagnosticCommand, {
         env: { ...process.env, CI: 'true' },
         timeoutMs: opts.timeoutDiagnostic.timeoutMs,
+        captureOutput: false,
       });
     }
 
