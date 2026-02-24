@@ -27,19 +27,19 @@
   - [x] Write failing tests for validation logic (minimum 4 lines, ±20% length of the parent poem, rejecting meta-text).
   - [x] Implement the `Line Count Check` logic to reject/retry mismatched lengths.
   - [x] Implement the `No Meta-Text` check to reject generic AI conversational fillers.
-- [~] Task: Conductor - User Manual Verification 'Phase 3: Validation and Quality Checks' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Validation and Quality Checks' (Protocol in workflow.md)
 
 ## Phase 4: Database Integration and CLI
 
-- [ ] Task: Orchestrate Data Persistence
-  - [ ] Write failing test for transforming API JSON data into the database schema and inserting generated poems.
-  - [ ] Implement Drizzle ORM queries to fetch unmatched human poems, transform the verified API output, and insert new AI counterparts.
-  - [ ] Verify that the database storage call succeeded.
-  - [ ] Display the data.
-- [ ] Task: Implement the CLI interface
-  - [ ] Write failing test for CLI parsing, batch orchestration, stateful management, and display.
-  - [ ] Implement the CLI entry point (`src/index.ts`) as a basic loop with stateful management, defaulting to processing all unmatched poems.
-  - [ ] Add rate limiting using `p-limit` to handle batch generation efficiently.
+- [x] Task: Orchestrate Data Persistence [0aa3944]
+  - [x] Write failing test for transforming API JSON data into the database schema and inserting generated poems.
+  - [x] Implement Drizzle ORM queries to fetch unmatched human poems, transform the verified API output, and insert new AI counterparts.
+  - [x] Verify that the database storage call succeeded.
+  - [x] Display the data.
+- [x] Task: Implement the CLI interface [0aa3944]
+  - [x] Write failing test for CLI parsing, batch orchestration, stateful management, and display.
+  - [x] Implement the CLI entry point (`src/index.ts`) as a basic loop with stateful management, defaulting to processing all unmatched poems.
+  - [x] Add rate limiting using `p-limit` to handle batch generation efficiently.
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: Database Integration and CLI' (Protocol in workflow.md)
 
 ## Phase 5: Regression & Quality Gate
