@@ -1,6 +1,6 @@
 # Implementation Plan - Phase 5: Duel Assembly & API Updates
 
-## Phase 1: Database Schema Updates
+## Phase 1: Database Schema Updates [checkpoint: 956c53a]
 
 - [x] Task: Add `featured_duels` table (269d895)
   - [x] Define the schema contract in docs:
