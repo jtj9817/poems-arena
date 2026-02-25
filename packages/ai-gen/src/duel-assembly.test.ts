@@ -26,13 +26,24 @@ const topicNature = { id: 'topic-nature', label: 'Nature' };
 const topicLove = { id: 'topic-love', label: 'Love' };
 const topicDeath = { id: 'topic-death', label: 'Death' };
 
-function createMockDb(rowsByCall: Array<Array<Record<string, unknown>>> = []): PersistenceDb & {
+type MockDbResult = {
+  rows: Array<Record<string, unknown>>;
+  rowsAffected?: number;
+};
+
+function createMockDb(
+  resultsByCall: Array<Array<Record<string, unknown>> | MockDbResult> = [],
+): PersistenceDb & {
   execute: ReturnType<typeof mock>;
 } {
   let index = 0;
-  const execute = mock(async (_query: string, _params?: unknown[]) => ({
-    rows: rowsByCall[index++] ?? [],
-  }));
+  const execute = mock(async (_query: string, _params?: unknown[]) => {
+    const result = resultsByCall[index++] ?? [];
+    if (Array.isArray(result)) {
+      return { rows: result };
+    }
+    return { rows: result.rows, rowsAffected: result.rowsAffected };
+  });
 
   return { execute };
 }
@@ -316,7 +327,10 @@ describe('persistDuelCandidates', () => {
       { id: 'duel-def', poemAId: 'ai-2', poemBId: 'human-2', topic: 'Love', topicId: 'topic-love' },
     ];
 
-    const db = createMockDb([[], []]);
+    const db = createMockDb([
+      { rows: [], rowsAffected: 1 },
+      { rows: [], rowsAffected: 1 },
+    ]);
     const count = await persistDuelCandidates(db, candidates);
 
     expect(db.execute).toHaveBeenCalledTimes(2);
@@ -344,7 +358,7 @@ describe('persistDuelCandidates', () => {
       topicId: 'topic-nature',
     };
 
-    const db = createMockDb([[]]);
+    const db = createMockDb([{ rows: [], rowsAffected: 1 }]);
     await persistDuelCandidates(db, [candidate]);
 
     const [query, params] = db.execute.mock.calls[0]!;
@@ -354,6 +368,32 @@ describe('persistDuelCandidates', () => {
     expect(query).toContain('poem_a_id');
     expect(query).toContain('poem_b_id');
     expect(params).toEqual(['duel-xyz', 'Nature', 'topic-nature', 'human-1', 'ai-1']);
+  });
+  test('counts only successfully inserted rows when INSERT OR IGNORE skips duplicates', async () => {
+    const candidates: DuelCandidate[] = [
+      {
+        id: 'duel-abc',
+        poemAId: 'human-1',
+        poemBId: 'ai-1',
+        topic: 'Nature',
+        topicId: 'topic-nature',
+      },
+      {
+        id: 'duel-def',
+        poemAId: 'human-2',
+        poemBId: 'ai-2',
+        topic: 'Love',
+        topicId: 'topic-love',
+      },
+    ];
+
+    const db = createMockDb([
+      { rows: [], rowsAffected: 1 },
+      { rows: [], rowsAffected: 0 },
+    ]);
+    const count = await persistDuelCandidates(db, candidates);
+
+    expect(count).toBe(1);
   });
 });
 
@@ -407,9 +447,7 @@ describe('assembleAndPersistDuels', () => {
     // fetchExistingDuelIds call → no existing duels
     const duelIdRows: Array<Record<string, unknown>> = [];
     // persistDuelCandidates → INSERT call (returns empty rows)
-    const insertRows: Array<Record<string, unknown>> = [];
-
-    const db = createMockDb([poemRows, duelIdRows, insertRows]);
+    const db = createMockDb([poemRows, duelIdRows, { rows: [], rowsAffected: 1 }]);
     const result = await assembleAndPersistDuels(db);
 
     // 1 pair assembled and persisted
@@ -468,10 +506,12 @@ describe('assembleAndPersistDuels', () => {
     ];
     const duelIdRows: Array<Record<string, unknown>> = [];
     // 2 INSERT calls (maxFanOut = 2)
-    const insertRows1: Array<Record<string, unknown>> = [];
-    const insertRows2: Array<Record<string, unknown>> = [];
-
-    const db = createMockDb([poemRows, duelIdRows, insertRows1, insertRows2]);
+    const db = createMockDb([
+      poemRows,
+      duelIdRows,
+      { rows: [], rowsAffected: 1 },
+      { rows: [], rowsAffected: 1 },
+    ]);
     const result = await assembleAndPersistDuels(db, { maxFanOut: 2 });
 
     expect(result.totalCandidates).toBe(2);

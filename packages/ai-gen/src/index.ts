@@ -120,6 +120,7 @@ export function createDefaultCliDependencies(
     | {
         execute: (statement: { sql: string; args?: unknown[] }) => Promise<{
           rows?: Array<Record<string, unknown>>;
+          rowsAffected?: number;
         }>;
       }
     | undefined;
@@ -133,7 +134,7 @@ export function createDefaultCliDependencies(
         sql: query,
         args: params ?? [],
       });
-      return { rows: result.rows ?? [] };
+      return { rows: result.rows ?? [], rowsAffected: result.rowsAffected };
     },
   };
 

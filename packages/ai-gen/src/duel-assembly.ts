@@ -47,6 +47,7 @@ export interface PersistenceDb {
     params?: unknown[],
   ): Promise<{
     rows: Array<Record<string, unknown>>;
+    rowsAffected?: number;
   }>;
 }
 
@@ -267,8 +268,7 @@ export async function fetchExistingDuelIds(db: PersistenceDb): Promise<Set<strin
 
 /**
  * Bulk-inserts duel candidates using INSERT OR IGNORE (idempotent).
- * Returns the number of candidates attempted (not necessarily inserted — existing
- * rows are silently skipped by the database engine).
+ * Returns the number of rows actually inserted.
  */
 export async function persistDuelCandidates(
   db: PersistenceDb,
@@ -276,15 +276,20 @@ export async function persistDuelCandidates(
 ): Promise<number> {
   if (candidates.length === 0) return 0;
 
+  let insertedCount = 0;
   for (const candidate of candidates) {
-    await db.execute(
+    const result = await db.execute(
       `INSERT OR IGNORE INTO duels (id, topic, topic_id, poem_a_id, poem_b_id)
        VALUES (?, ?, ?, ?, ?)`,
       [candidate.id, candidate.topic, candidate.topicId, candidate.poemAId, candidate.poemBId],
     );
+
+    if (typeof result.rowsAffected === 'number' && Number.isFinite(result.rowsAffected)) {
+      insertedCount += Math.max(0, Math.trunc(result.rowsAffected));
+    }
   }
 
-  return candidates.length;
+  return insertedCount;
 }
 
 /**
