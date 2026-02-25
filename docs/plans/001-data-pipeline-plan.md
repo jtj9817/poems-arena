@@ -353,7 +353,7 @@ For each human poem in the database that lacks an AI counterpart:
    - Specifies the topic
    - Matches approximate length (line count ± 20%)
    - Does NOT reveal the human poem's text (zero-shot, not imitation)
-   - Follows the project spec prompt: _"Write a poem about [Topic] in the style of a contemporary master, without rhyming unnecessarily."_
+   - Enforces JSON-only output with `title` and `content` fields and newline-preserving poem content
 3. **Call Gemini API** (`gemini-3-flash-preview`) with JSON mode and response schema:
    - `responseMimeType: "application/json"`
    - `responseSchema` enforcing `title` + `content`
@@ -386,7 +386,7 @@ System-level persona and guardrails are loaded from:
 
 - `packages/ai-gen/prompts/system-instructions.md`
 
-### 6.4 Rate Limiting & Cost
+### 6.4 Runtime Controls & Idempotency
 
 - **Concurrency limiting:** CLI uses `p-limit` (fallback limiter included) with default concurrency of `3`.
 - **Idempotency:** Deterministic AI IDs (`ai-{parentPoemId}-{digest}`) + `INSERT OR IGNORE` prevent duplicates on reruns.
@@ -432,13 +432,12 @@ Extend `apps/api/src/routes/duels.ts`:
 
 ## 8. Environment Variables (New)
 
-| Variable          | Used by | Purpose                                                     |
-| ----------------- | ------- | ----------------------------------------------------------- |
-| `GEMINI_API_KEY`  | ai-gen  | Primary Gemini API key for poem generation                  |
-| `GOOGLE_API_KEY`  | ai-gen  | Fallback Gemini API key                                     |
-| `AI_MODEL`        | ai-gen  | Optional model override (default: `gemini-3-flash-preview`) |
-| `SCRAPE_DELAY_MS` | scraper | Delay between HTTP requests (default: 1500)                 |
-| `SCRAPE_DATA_DIR` | scraper | Output directory for scraped data                           |
+| Variable          | Used by | Purpose                                     |
+| ----------------- | ------- | ------------------------------------------- |
+| `GEMINI_API_KEY`  | ai-gen  | Primary Gemini API key for poem generation  |
+| `GOOGLE_API_KEY`  | ai-gen  | Fallback Gemini API key                     |
+| `SCRAPE_DELAY_MS` | scraper | Delay between HTTP requests (default: 1500) |
+| `SCRAPE_DATA_DIR` | scraper | Output directory for scraped data           |
 
 ---
 

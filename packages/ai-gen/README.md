@@ -17,7 +17,7 @@ This package generates AI counterparts for HUMAN poems in the `poems` table usin
 
 - Bun installed
 - Workspace dependencies installed (`pnpm install` at repo root)
-- Database schema includes required columns/tables used by AI generation (`poems`, `topics`, `poem_topics`)
+- Database schema includes AI-generation fields on `poems`; `topics`/`poem_topics` are only required when using `--topic`
 
 ## Environment Variables
 
