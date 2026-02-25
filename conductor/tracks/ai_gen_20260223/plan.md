@@ -60,11 +60,13 @@
 
 ## Phase 6: Documentation
 
-- [ ] Task: Documentation Update
-  - [ ] Update `docs/plans/001-data-pipeline-plan.md` to reflect Phase 4 completion with Gemini instead of Claude.
-  - [ ] Create `packages/ai-gen/README.md` with CLI usage instructions and configuration details.
-  - [ ] Document the Gemini system prompts in the project documentation.
-- [ ] Task: Conductor - User Manual Verification 'Phase 6: Documentation' (Protocol in workflow.md)
+- [x] Task: Documentation Update [bf31a6e]
+  - [x] Update `docs/plans/001-data-pipeline-plan.md` to reflect Phase 4 completion with Gemini instead of Claude.
+  - [x] Create `packages/ai-gen/README.md` with CLI usage instructions and configuration details.
+  - [x] Document the Gemini system prompts in the project documentation.
+- [x] Task: Conductor - User Manual Verification 'Phase 6: Documentation' (Protocol in workflow.md) [bf31a6e]
+  - [x] Automation script: `scripts/verify-phase6-ai-gen.ts`.
+  - [x] Shell wrapper: `scripts/run-manual-verification-phase-6.sh`.
 
 ## Phase: Review Fixes
 
