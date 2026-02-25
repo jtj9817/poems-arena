@@ -3,9 +3,21 @@
 ## Phase 1: Database Schema Updates
 
 - [ ] Task: Add `featured_duels` table
-  - [ ] Write a test for the new table schema (if applicable in the test suite).
+  - [ ] Define the schema contract in docs:
+    - [ ] `id` autoincrement primary key
+    - [ ] `duel_id` foreign key to `duels.id`
+    - [ ] `featured_on` UTC date (`YYYY-MM-DD`)
+    - [ ] `created_at` UTC timestamp default
+  - [ ] Define tracking cardinality rules in docs:
+    - [ ] Multiple featured duel records per day are allowed (global behavior).
+    - [ ] The same duel can be recorded multiple times on the same day.
   - [ ] Add the `featured_duels` table definition to the Drizzle schema in the shared database package.
-  - [ ] Generate and apply the database migrations.
+  - [ ] Add non-unique indexes for `featured_on` and `duel_id`.
+  - [ ] Write/update schema tests for `featured_duels` export presence.
+  - [ ] Generate and apply database migrations.
+  - [ ] Verify migration behavior with manual smoke checks:
+    - [ ] Same day + different duel inserts succeed.
+    - [ ] Same day + same duel inserts also succeed.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Database Schema Updates' (Protocol in workflow.md)
 
 ## Phase 2: Duel Assembly Logic
@@ -17,12 +29,13 @@
 
 ## Phase 3: API Updates
 
+- [ ] Task: Promote `GET /duels/:id` as canonical duel retrieval endpoint
+  - [ ] Write failing tests for anonymous duel retrieval by ID and `featured_duels` logging side effect.
+  - [ ] Implement/adjust route behavior so multiple duels can be served on the same day without daily lock semantics.
+  - [ ] Decide and implement compatibility behavior for `GET /duels/today` (deprecate/remove/temporary alias).
 - [ ] Task: Update `GET /duels` and `GET /duels/:id/stats`
-  - [ ] Write failing tests for fetching duels with topic metadata and stats with topic/source info.
+  - [ ] Write failing tests for fetching duels with topic metadata and stats with topic/source info for both poems.
   - [ ] Update Drizzle queries in `apps/api/src/routes/duels.ts` to join `topics` and `scrape_sources` tables.
-- [ ] Task: Update `GET /duels/today`
-  - [ ] Write failing tests for selecting a daily duel based on "largest pool first" topic rotation and recording it in `featured_duels`.
-  - [ ] Implement the daily selection logic prioritizing topics with the most unused duels, and handle the insertion into the `featured_duels` tracking table.
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: API Updates' (Protocol in workflow.md)
 
 ## Phase 4: Regression & Quality Gate
@@ -32,12 +45,14 @@
   - [ ] Execute `pnpm lint` and `pnpm format:check`.
 - [ ] Task: Regression Checklist (Feature Behaviors)
   - [ ] Verify that running the AI generator also successfully creates new duels in the database.
-  - [ ] Verify that `GET /duels/today` rotates correctly and populates `featured_duels`.
+  - [ ] Verify repeated calls to `GET /duels/:id` append records to `featured_duels` (including same-day duplicates).
+  - [ ] Verify `GET /duels` + `GET /duels/:id` support serving multiple duels per day.
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: Regression & Quality Gate' (Protocol in workflow.md)
 
 ## Phase 5: Documentation
 
 - [ ] Task: Documentation Update
   - [ ] Update `docs/plans/001-data-pipeline-plan.md` to reflect Phase 5 completion.
-  - [ ] Document the new `featured_duels` table and updated API endpoints.
+  - [ ] Document the new `featured_duels` schema contract and append-only global tracking behavior.
+  - [ ] Document `GET /duels/:id` as the canonical duel retrieval endpoint and the compatibility decision for `GET /duels/today`.
 - [ ] Task: Conductor - User Manual Verification 'Phase 5: Documentation' (Protocol in workflow.md)
