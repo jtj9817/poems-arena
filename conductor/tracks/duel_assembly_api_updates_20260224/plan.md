@@ -20,7 +20,7 @@
     - [x] Same day + same duel inserts also succeed.
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Database Schema Updates' (Protocol in workflow.md) (e1405e0)
 
-## Phase 2: Duel Assembly Logic
+## Phase 2: Duel Assembly Logic [checkpoint: 7e3baf5]
 
 - [x] Task: Implement Auto-Pairing in `packages/ai-gen` (d3e3419)
   - [x] Define and document the pairing policy:
