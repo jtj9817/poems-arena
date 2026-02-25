@@ -31,6 +31,8 @@
     - [ ] Creates multiple duels for one HUMAN poem when multiple eligible AI poems exist.
     - [ ] Prevents duplicate duel creation for an existing unordered pair.
     - [ ] Resolves `topic_id`/`topic` from the selected shared topic.
+    - [ ] Uses lexicographically smallest shared `topic_id` when multiple shared topics exist.
+    - [ ] Skips pair creation when no shared topic exists.
     - [ ] Randomizes `poem_a` and `poem_b` on first pair creation.
     - [ ] Preserves existing orientation and skips insertions on reruns (idempotency).
   - [ ] Implement pair candidate selection and assembly logic in `packages/ai-gen`:
@@ -48,7 +50,7 @@
   - [ ] Return standardized `404` payload `{ error: 'Duel not found', code: 'DUEL_NOT_FOUND' }` when duel exists but references a missing poem row.
   - [ ] Remove `GET /duels/today` from `apps/api/src/routes/duels.ts`.
   - [ ] Remove/update callers and tests that depend on `GET /duels/today`.
-  - [ ] Ensure unknown/deprecated duel endpoints return `{ error: string, code: 'ENDPOINT_NOT_FOUND' }`.
+  - [ ] Ensure unknown/deprecated duel endpoints return HTTP `404` with `{ error: string, code: 'ENDPOINT_NOT_FOUND' }`.
 - [ ] Task: Update `GET /duels` and `GET /duels/:id/stats`
   - [ ] Define response contracts in tests and docs:
     - [ ] `GET /duels` returns `topic` (legacy string) and `topicMeta` object.

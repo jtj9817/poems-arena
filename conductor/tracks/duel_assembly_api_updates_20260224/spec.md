@@ -17,6 +17,10 @@ This track implements Phase 5 of the Data Pipeline plan. It focuses on taking ge
     - Topic rule:
       - Duel candidates should be formed from HUMAN and AI poems that share the selected duel topic.
       - `duels.topic_id` and display `duels.topic` must resolve from that selected topic.
+      - If candidate poems share multiple topic IDs, topic selection must be deterministic:
+        - choose the lexicographically smallest shared `topic_id`
+        - resolve `duels.topic` from the matched `topics.label` for that `topic_id`
+      - If no shared topic exists for a candidate pair, skip duel creation for that pair.
     - Direct counterpart rule:
       - If a HUMAN poem has an AI counterpart linked by `parent_poem_id`, that pair is eligible but not exclusive.
     - Positional bias rule:
@@ -80,7 +84,7 @@ This track implements Phase 5 of the Data Pipeline plan. It focuses on taking ge
         - If duel ID does not exist, return `404`.
         - If duel exists but either referenced poem row is missing, return `404` with `{ error: 'Duel not found', code: 'DUEL_NOT_FOUND' }`.
     - `GET /duels/today`: Fully deprecated and removed from the active API contract for this track. Active clients must use `GET /duels` to choose duel IDs and `GET /duels/:id` to retrieve a duel payload.
-      - Requests to removed/unknown duel endpoints must return a standardized not-found payload with code `ENDPOINT_NOT_FOUND`.
+      - Requests to removed/unknown duel endpoints must return HTTP `404` with a standardized not-found payload and code `ENDPOINT_NOT_FOUND`.
 
 4.  **Testing & Coverage Requirements:**
     - Add route-level unit tests in `@sanctuary/api` for:
