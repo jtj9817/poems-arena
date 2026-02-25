@@ -41,11 +41,19 @@ This track implements Phase 5 of the Data Pipeline plan. It focuses on taking ge
 
 3.  **API Updates (`apps/api`):**
     - `GET /duels/:id`: Becomes the canonical duel retrieval endpoint for active play. It must return an anonymous duel payload and log exposure in `featured_duels`.
+      - Error handling rules:
+        - If duel ID does not exist, return `404`.
+        - If duel exists but either referenced poem row is missing, return `404` with error message `'Duel not found'`.
     - `GET /duels`: Updated to return topic metadata alongside duel data and support client selection of multiple duels per day.
       - Required response contract per item:
         - `id`, `createdAt`, `humanWinRate`, `avgReadingTime`
         - `topic` (legacy display string for cards)
         - `topicMeta`: `{ id: string | null, label: string }`
+      - Query validation rules:
+        - `page` must be a positive integer.
+        - Invalid `page` values (`0`, negative, non-integer, non-numeric) must return `400`.
+        - `400` responses must use a stable error body shape:
+          - `{ "error": string, "code": "INVALID_PAGE" }`
       - Topic resolution rules:
         - Use `duels.topic_id -> topics.id` when present.
         - If `topic_id` is null or join misses, set `topicMeta.id = null` and `topicMeta.label = duels.topic`.
@@ -62,7 +70,29 @@ This track implements Phase 5 of the Data Pipeline plan. It focuses on taking ge
         - `primary` comes from `poems.source` and `poems.source_url`.
         - `provenances` comes from `scrape_sources` for the poem ID (sorted by `scraped_at` descending).
         - AI poems may have empty `provenances` arrays; this is valid.
+      - Error handling rules:
+        - If duel ID does not exist, return `404`.
+        - If duel exists but either referenced poem row is missing, return `404` with error message `'Duel not found'`.
     - `GET /duels/today`: Fully deprecated and removed from the active API contract for this track. Active clients must use `GET /duels` to choose duel IDs and `GET /duels/:id` to retrieve a duel payload.
+
+4.  **Testing & Coverage Requirements:**
+    - Add route-level unit tests in `@sanctuary/api` for:
+      - `GET /duels`, `GET /duels/:id`, `GET /duels/:id/stats`
+      - `GET /duels/today` removal behavior
+      - query validation (`page`) and missing-poem `404` behavior
+    - Add unit tests in `@sanctuary/ai-gen` for duel assembly policy:
+      - many-duels-per-poem
+      - unordered pair uniqueness
+      - rerun idempotency
+      - bounded fan-out and deterministic candidate selection
+      - randomized first-time orientation
+    - Coverage targets:
+      - `apps/api/src/routes/duels.ts`: at least 85% statement and branch coverage
+      - duel-assembly module in `@sanctuary/ai-gen`: at least 90% statement and branch coverage
+      - package-level floor: at least 80% for `@sanctuary/api` and `@sanctuary/ai-gen`
+    - Coverage enforcement:
+      - Coverage thresholds are a hard CI gate for this track.
+      - PRs must fail when thresholds are not met.
 
 ## Out of Scope
 

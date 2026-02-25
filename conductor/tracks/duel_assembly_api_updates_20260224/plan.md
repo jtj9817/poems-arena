@@ -45,6 +45,7 @@
 - [ ] Task: Promote `GET /duels/:id` as canonical duel retrieval endpoint
   - [ ] Write failing tests for anonymous duel retrieval by ID and `featured_duels` logging side effect.
   - [ ] Implement/adjust route behavior so multiple duels can be served on the same day without daily lock semantics.
+  - [ ] Return `404` with message `'Duel not found'` when duel exists but references a missing poem row.
   - [ ] Remove `GET /duels/today` from `apps/api/src/routes/duels.ts`.
   - [ ] Remove/update callers and tests that depend on `GET /duels/today`.
 - [ ] Task: Update `GET /duels` and `GET /duels/:id/stats`
@@ -52,9 +53,12 @@
     - [ ] `GET /duels` returns `topic` (legacy string) and `topicMeta` object.
     - [ ] `GET /duels/:id/stats` returns `duel.topicMeta` and per-poem `sourceInfo`.
   - [ ] Write failing tests for `GET /duels`:
+    - [ ] Invalid `page` query values return `400` (`0`, negative, non-integer, non-numeric).
+    - [ ] `400` payload uses stable shape `{ error: string, code: 'INVALID_PAGE' }`.
     - [ ] Includes `topicMeta.id` + `topicMeta.label` when topic join succeeds.
     - [ ] Falls back to `topicMeta: { id: null, label: duel.topic }` when `topic_id` is missing/unresolved.
   - [ ] Write failing tests for `GET /duels/:id/stats`:
+    - [ ] Returns `404` with `'Duel not found'` when duel references missing poem row(s).
     - [ ] Includes topic metadata in `duel.topicMeta`.
     - [ ] Includes per-poem `sourceInfo.primary` and `sourceInfo.provenances`.
     - [ ] Allows AI poems to return empty `sourceInfo.provenances`.
@@ -68,7 +72,12 @@
 ## Phase 4: Regression & Quality Gate
 
 - [ ] Task: Coverage and Regression Verification
-  - [ ] Execute tests across affected packages (`@sanctuary/ai-gen`, `@sanctuary/api`) to ensure >80% coverage.
+  - [ ] Add route-level unit tests in `apps/api` for `duels` routes (`GET /duels`, `GET /duels/:id`, `GET /duels/:id/stats`) and removed `GET /duels/today`.
+  - [ ] Add unit tests in `packages/ai-gen` for duel assembly policy, idempotency, and bounded fan-out behavior.
+  - [ ] Ensure `apps/api/src/routes/duels.ts` reaches >=85% statement and branch coverage.
+  - [ ] Ensure duel-assembly module in `@sanctuary/ai-gen` reaches >=90% statement and branch coverage.
+  - [ ] Ensure package-level coverage floor remains >=80% for both `@sanctuary/ai-gen` and `@sanctuary/api`.
+  - [ ] Enforce the coverage thresholds as a hard CI gate (pipeline fails when below threshold).
   - [ ] Execute `pnpm lint` and `pnpm format:check`.
 - [ ] Task: Regression Checklist (Feature Behaviors)
   - [ ] Verify that running the AI generator also successfully creates new duels in the database.
