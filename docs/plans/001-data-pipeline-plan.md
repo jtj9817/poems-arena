@@ -14,7 +14,7 @@ The Classicist's Sanctuary needs a rich corpus of human poems and AI-generated c
 2. **Poem scraper** — Harvest human poems from four public sources
 3. **ETL pipeline** — Clean, deduplicate, tag, and load scraped poems into the database
 4. **AI poem generation service** — Generate matched AI counterparts for each human poem
-5. **Duel assembly** — Automatically pair human + AI poems into duels by topic
+5. **Duel assembly** — Assemble featured human-vs-AI duels by topic and expose them via duel ID APIs
 
 ---
 
@@ -105,6 +105,22 @@ CREATE TABLE scrape_sources (
   raw_html    TEXT,                    -- Optional: store raw HTML for reprocessing
   is_public_domain INTEGER NOT NULL DEFAULT 0
 );
+```
+
+#### `featured_duels` (Phase 5)
+
+Append-only log of featured duel exposure events used for tracking and analytics.
+
+```sql
+CREATE TABLE featured_duels (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  duel_id     TEXT NOT NULL REFERENCES duels(id),
+  featured_on TEXT NOT NULL, -- UTC date: YYYY-MM-DD
+  created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE INDEX idx_featured_duels_featured_on ON featured_duels(featured_on);
+CREATE INDEX idx_featured_duels_duel_id ON featured_duels(duel_id);
 ```
 
 ### 3.3 Schema Modifications to `poems`
@@ -416,17 +432,25 @@ pnpm --filter @sanctuary/ai-gen run generate --model gemini-3-flash-preview
 
 After AI poems are generated, assemble duels:
 
-1. For each human poem with an AI counterpart (`parent_poem_id` link):
-   - Create a duel with `topic` from the shared topic
-   - Randomly assign human/AI to position A or B (prevents positional bias)
-2. Mark one duel per topic as "featured" for the daily rotation
+1. Build HUMAN↔AI duel candidates by shared topic (`poem_topics` intersection).
+2. Support many-duels-per-poem while enforcing unordered pair uniqueness:
+   - `(poem_x, poem_y)` and `(poem_y, poem_x)` are the same logical pair.
+3. Topic resolution:
+   - Assign `duels.topic_id` from the selected shared topic.
+   - If multiple shared topics exist, choose the lexicographically smallest `topic_id`.
+   - Skip pair creation when no shared topic exists.
+4. Randomly assign poem positions (`poem_a`, `poem_b`) on first creation to prevent positional bias.
+5. Keep reruns idempotent by inserting only missing unique pairs.
 
-### 7.2 Daily Duel Selection
+### 7.2 Featured Duel API Contract
 
 Extend `apps/api/src/routes/duels.ts`:
 
-- `GET /duels/today` → Select a duel that hasn't been featured recently, rotating through topics
-- Add a `featured_at` column to `duels` or a separate `featured_duels` table
+- `GET /duels/:id` is the canonical duel retrieval endpoint.
+- `GET /duels` returns duel cards with topic metadata.
+- `GET /duels/:id/stats` returns topic metadata and poem source attribution/provenance.
+- Each successful duel retrieval logs an event in `featured_duels` (`duel_id`, `featured_on`, `created_at`).
+- `GET /duels/today` is deprecated/removed from the active API contract.
 
 ---
 
@@ -483,15 +507,16 @@ See `packages/etl/README.md` for usage, CLI flags, and IO conventions.
 ### Phase 5: Duel Assembly & API Updates
 
 23. Implement auto-pairing logic
-24. Update `GET /duels/today` to use topic-based rotation
-25. Update `GET /duels` to return topic metadata
-26. Update `GET /duels/:id/stats` to include topic and source info
+24. Add `featured_duels` table for featured duel event tracking
+25. Promote `GET /duels/:id` as canonical duel retrieval + featured event logging
+26. Update `GET /duels` and `GET /duels/:id/stats` to include topic metadata and source provenance
+27. Remove `GET /duels/today` from active API contract
 
 ### Phase 6: Frontend Integration (Last)
 
-27. Update Anthology page to filter by canonical topics
-28. Show source attribution on Verdict screen
-29. Display topic tags on duel cards
+28. Update Anthology page to filter by canonical topics
+29. Show source attribution on Verdict screen
+30. Display topic tags on duel cards
 
 ---
 
@@ -532,6 +557,6 @@ pnpm --filter @sanctuary/ai-gen add p-limit                   # Rate limiting
 - [ ] ≥500 public-domain human poems loaded with topic tags
 - [ ] ≥500 AI-generated counterpart poems stored with provenance
 - [ ] ≥200 duels auto-assembled across ≥10 distinct topics
-- [ ] Daily duel rotation works via `GET /duels/today`
+- [ ] Featured duel retrieval works via `GET /duels/:id` and logs to `featured_duels`
 - [ ] Anthology page can filter by topic
 - [ ] All scraped data is traceable to its source URL
