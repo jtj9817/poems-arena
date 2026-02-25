@@ -12,7 +12,7 @@ function createMockDb(rowsByCall: Array<Array<Record<string, unknown>>> = []): P
   execute: ReturnType<typeof mock>;
 } {
   let index = 0;
-  const execute = mock(async () => ({
+  const execute = mock(async (_query: string, _params?: unknown[]) => ({
     rows: rowsByCall[index++] ?? [],
   }));
 
@@ -81,10 +81,16 @@ describe('persistGeneratedPoem', () => {
     expect(db.execute).toHaveBeenCalledTimes(2);
     const insertCall = db.execute.mock.calls[0];
     expect(insertCall?.[0]).toContain('INSERT OR IGNORE INTO poems');
-    expect(insertCall?.[0]).toContain("'Counterpart'");
-    expect(insertCall?.[0]).toContain("'gemini-3-flash-preview'");
-    expect(insertCall?.[0]).toContain("'Write a poem about storms'");
-    expect(insertCall?.[0]).toContain("'human-1'");
+    expect(insertCall?.[1]).toEqual([
+      expect.stringContaining('ai-human-1-'),
+      'Counterpart',
+      'line one\nline two\nline three\nline four',
+      'gemini-3-flash-preview',
+      'AI',
+      'ai-generated',
+      'Write a poem about storms',
+      'human-1',
+    ]);
     expect(result).toEqual(storedRow);
   });
 });
@@ -110,8 +116,9 @@ describe('fetchUnmatchedHumanPoems', () => {
     expect(db.execute).toHaveBeenCalledTimes(1);
     const fetchCall = db.execute.mock.calls[0];
     expect(fetchCall?.[0]).toContain("WHERE p.type = 'HUMAN'");
-    expect(fetchCall?.[0]).toContain("LOWER('nature')");
-    expect(fetchCall?.[0]).toContain('LIMIT 25');
+    expect(fetchCall?.[0]).toContain('LOWER(?) OR LOWER(t.label) = LOWER(?)');
+    expect(fetchCall?.[0]).toContain('LIMIT ?');
+    expect(fetchCall?.[1]).toEqual(['nature', 'nature', 25]);
     expect(result).toEqual([
       {
         id: 'human-1',

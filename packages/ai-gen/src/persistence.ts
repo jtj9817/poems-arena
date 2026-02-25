@@ -44,22 +44,12 @@ export interface PersistedAiPoem {
 }
 
 export interface PersistenceDb {
-  execute(...args: unknown[]): Promise<{
+  execute(
+    query: string,
+    params?: unknown[],
+  ): Promise<{
     rows: Array<Record<string, unknown>>;
   }>;
-}
-
-function escapeSqlValue(value: unknown): string {
-  if (value === null || value === undefined) {
-    return 'NULL';
-  }
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? String(value) : 'NULL';
-  }
-  if (typeof value === 'boolean') {
-    return value ? '1' : '0';
-  }
-  return `'${String(value).replace(/'/g, "''")}'`;
 }
 
 async function executeQuery(
@@ -67,26 +57,7 @@ async function executeQuery(
   query: string,
   params: unknown[] = [],
 ): Promise<{ rows: Array<Record<string, unknown>> }> {
-  const executeFn = db.execute as (
-    ...args: unknown[]
-  ) => Promise<{ rows: Array<Record<string, unknown>> }>;
-
-  if (executeFn.length >= 2) {
-    return executeFn(query, params);
-  }
-
-  if (params.length === 0) {
-    return executeFn(query);
-  }
-
-  let parameterIndex = 0;
-  const interpolatedQuery = query.replace(/\?/g, () => {
-    const value = params[parameterIndex];
-    parameterIndex += 1;
-    return escapeSqlValue(value);
-  });
-
-  return executeFn(interpolatedQuery);
+  return db.execute(query, params);
 }
 
 export async function fetchUnmatchedHumanPoems(

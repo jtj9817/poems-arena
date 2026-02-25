@@ -115,8 +115,7 @@ export function createDefaultCliDependencies(
   }
 
   const persistenceDb: PersistenceDb = {
-    execute: async (...args: unknown[]) => {
-      const [query, params] = args as [string, unknown[] | undefined];
+    execute: async (query: string, params?: unknown[]) => {
       const result = await rawClient.execute({
         sql: query,
         args: params ?? [],

@@ -272,8 +272,8 @@ async function runAndAssertCommand(
 }
 
 function createPersistenceDb(localDb: Database): PersistenceDb {
-  const execute = async (query: unknown, params: unknown[] = []) => {
-    const sql = String(query);
+  const execute: PersistenceDb['execute'] = async (query: string, params: unknown[] = []) => {
+    const sql = query;
     const statement = localDb.query(sql);
     const upper = sql.trimStart().toUpperCase();
     const isReadQuery =
@@ -290,7 +290,7 @@ function createPersistenceDb(localDb: Database): PersistenceDb {
   };
 
   return {
-    execute: execute as PersistenceDb['execute'],
+    execute,
   };
 }
 
