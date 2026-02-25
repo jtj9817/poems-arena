@@ -45,20 +45,24 @@
 - [ ] Task: Promote `GET /duels/:id` as canonical duel retrieval endpoint
   - [ ] Write failing tests for anonymous duel retrieval by ID and `featured_duels` logging side effect.
   - [ ] Implement/adjust route behavior so multiple duels can be served on the same day without daily lock semantics.
-  - [ ] Return `404` with message `'Duel not found'` when duel exists but references a missing poem row.
+  - [ ] Return standardized `404` payload `{ error: 'Duel not found', code: 'DUEL_NOT_FOUND' }` when duel exists but references a missing poem row.
   - [ ] Remove `GET /duels/today` from `apps/api/src/routes/duels.ts`.
   - [ ] Remove/update callers and tests that depend on `GET /duels/today`.
+  - [ ] Ensure unknown/deprecated duel endpoints return `{ error: string, code: 'ENDPOINT_NOT_FOUND' }`.
 - [ ] Task: Update `GET /duels` and `GET /duels/:id/stats`
   - [ ] Define response contracts in tests and docs:
     - [ ] `GET /duels` returns `topic` (legacy string) and `topicMeta` object.
     - [ ] `GET /duels/:id/stats` returns `duel.topicMeta` and per-poem `sourceInfo`.
+  - [ ] Define standardized Phase 5 error contract in tests and docs:
+    - [ ] All error payloads use `{ error: string, code: string }`.
+    - [ ] `INVALID_PAGE`, `DUEL_NOT_FOUND`, and `ENDPOINT_NOT_FOUND` are used consistently.
   - [ ] Write failing tests for `GET /duels`:
     - [ ] Invalid `page` query values return `400` (`0`, negative, non-integer, non-numeric).
     - [ ] `400` payload uses stable shape `{ error: string, code: 'INVALID_PAGE' }`.
     - [ ] Includes `topicMeta.id` + `topicMeta.label` when topic join succeeds.
     - [ ] Falls back to `topicMeta: { id: null, label: duel.topic }` when `topic_id` is missing/unresolved.
   - [ ] Write failing tests for `GET /duels/:id/stats`:
-    - [ ] Returns `404` with `'Duel not found'` when duel references missing poem row(s).
+    - [ ] Returns `404` payload `{ error: 'Duel not found', code: 'DUEL_NOT_FOUND' }` when duel references missing poem row(s).
     - [ ] Includes topic metadata in `duel.topicMeta`.
     - [ ] Includes per-poem `sourceInfo.primary` and `sourceInfo.provenances`.
     - [ ] Allows AI poems to return empty `sourceInfo.provenances`.
@@ -86,6 +90,7 @@
   - [ ] Verify API response edge cases:
     - [ ] Missing `topic_id` still yields stable `topicMeta` fallback.
     - [ ] AI poems return empty provenance arrays without failing stats payload.
+    - [ ] All error responses follow `{ error: string, code: string }` across in-scope endpoints.
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: Regression & Quality Gate' (Protocol in workflow.md)
 
 ## Phase 5: Documentation

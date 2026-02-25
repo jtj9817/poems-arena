@@ -40,10 +40,17 @@ This track implements Phase 5 of the Data Pipeline plan. It focuses on taking ge
       - table is append-only historical tracking for global usage (not user-scoped)
 
 3.  **API Updates (`apps/api`):**
+    - Error contract (applies to all Phase 5 API errors):
+      - All error responses must use a stable envelope:
+        - `{ "error": string, "code": string }`
+      - Required error codes for this track:
+        - `INVALID_PAGE` (invalid `page` query for `GET /duels`)
+        - `DUEL_NOT_FOUND` (missing duel ID or missing referenced poem rows)
+        - `ENDPOINT_NOT_FOUND` (unknown/deprecated route access, including removed `GET /duels/today`)
     - `GET /duels/:id`: Becomes the canonical duel retrieval endpoint for active play. It must return an anonymous duel payload and log exposure in `featured_duels`.
       - Error handling rules:
         - If duel ID does not exist, return `404`.
-        - If duel exists but either referenced poem row is missing, return `404` with error message `'Duel not found'`.
+        - If duel exists but either referenced poem row is missing, return `404` with `{ error: 'Duel not found', code: 'DUEL_NOT_FOUND' }`.
     - `GET /duels`: Updated to return topic metadata alongside duel data and support client selection of multiple duels per day.
       - Required response contract per item:
         - `id`, `createdAt`, `humanWinRate`, `avgReadingTime`
@@ -52,8 +59,7 @@ This track implements Phase 5 of the Data Pipeline plan. It focuses on taking ge
       - Query validation rules:
         - `page` must be a positive integer.
         - Invalid `page` values (`0`, negative, non-integer, non-numeric) must return `400`.
-        - `400` responses must use a stable error body shape:
-          - `{ "error": string, "code": "INVALID_PAGE" }`
+        - `400` responses must use `{ error: string, code: 'INVALID_PAGE' }`.
       - Topic resolution rules:
         - Use `duels.topic_id -> topics.id` when present.
         - If `topic_id` is null or join misses, set `topicMeta.id = null` and `topicMeta.label = duels.topic`.
@@ -72,14 +78,16 @@ This track implements Phase 5 of the Data Pipeline plan. It focuses on taking ge
         - AI poems may have empty `provenances` arrays; this is valid.
       - Error handling rules:
         - If duel ID does not exist, return `404`.
-        - If duel exists but either referenced poem row is missing, return `404` with error message `'Duel not found'`.
+        - If duel exists but either referenced poem row is missing, return `404` with `{ error: 'Duel not found', code: 'DUEL_NOT_FOUND' }`.
     - `GET /duels/today`: Fully deprecated and removed from the active API contract for this track. Active clients must use `GET /duels` to choose duel IDs and `GET /duels/:id` to retrieve a duel payload.
+      - Requests to removed/unknown duel endpoints must return a standardized not-found payload with code `ENDPOINT_NOT_FOUND`.
 
 4.  **Testing & Coverage Requirements:**
     - Add route-level unit tests in `@sanctuary/api` for:
       - `GET /duels`, `GET /duels/:id`, `GET /duels/:id/stats`
       - `GET /duels/today` removal behavior
       - query validation (`page`) and missing-poem `404` behavior
+      - standardized error envelope and expected error codes
     - Add unit tests in `@sanctuary/ai-gen` for duel assembly policy:
       - many-duels-per-poem
       - unordered pair uniqueness
