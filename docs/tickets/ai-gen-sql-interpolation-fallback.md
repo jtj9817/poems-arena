@@ -1,5 +1,7 @@
 # [BUG] SQL Injection / Data Safety Risk via Manual Interpolation Fallback in Persistence Layer
 
+**Status:** Closed
+
 ## Summary
 
 The `PersistenceDb` interface and its implementation in `index.ts` use rest parameters (`...args`), which causes `executeFn.length >= 2` to erroneously evaluate to `false`. This silently bypasses the database client's native parameterized query binding and falls back to a custom, less secure string interpolation method `escapeSqlValue`.

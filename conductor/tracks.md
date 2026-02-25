@@ -6,12 +6,12 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ## Active Tracks
 
-- [x] **Track: Implement Phase 4: AI Poem Generation Service**
-      _Link: [./tracks/ai_gen_20260223/](./tracks/ai_gen_20260223/)_
-
 ---
 
 ## Archived Tracks
+
+- [x] **Track: Implement Phase 4: AI Poem Generation Service**
+      _Link: [./archive/ai_gen_20260223/](./archive/ai_gen_20260223/)_
 
 - [x] **Track: Implement the Extract, Transform, Load (ETL) pipeline for processing scraped poems.**
       _Link: [./archive/etl_pipeline_20260220/](./archive/etl_pipeline_20260220/)_
