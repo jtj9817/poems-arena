@@ -22,25 +22,25 @@
 
 ## Phase 2: Duel Assembly Logic
 
-- [ ] Task: Implement Auto-Pairing in `packages/ai-gen`
-  - [ ] Define and document the pairing policy:
-    - [ ] Many-duels-per-poem model (HUMAN poem can face multiple AI poems in same topic).
-    - [ ] Unordered pair uniqueness (`A/B` and `B/A` treated as the same pair), enforced via deterministic duel IDs (e.g., hash of sorted poem IDs).
-    - [ ] Bounded fan-out per HUMAN poem to control scale.
-  - [ ] Write failing tests for duel assembly behavior:
-    - [ ] Creates multiple duels for one HUMAN poem when multiple eligible AI poems exist.
-    - [ ] Prevents duplicate duel creation for an existing unordered pair.
-    - [ ] Resolves `topic_id`/`topic` from the selected shared topic.
-    - [ ] Uses a pseudo-random selection (e.g., seeded by poem IDs) when multiple shared topics exist to avoid alphabetical skew.
-    - [ ] Skips pair creation when no shared topic exists.
-    - [ ] Randomizes `poem_a` and `poem_b` on first pair creation.
-    - [ ] Preserves existing orientation and skips insertions on reruns (idempotency).
-  - [ ] Implement pair candidate selection and assembly logic in `packages/ai-gen`:
-    - [ ] Extract pairing logic into a pure, testable function `assemblePairs` (Functional Core) separated from database side-effects.
-    - [ ] Select eligible HUMAN↔AI pairings by shared topic.
-    - [ ] Ensure deterministic selection order for capped fan-out.
-    - [ ] Perform bulk database insertions using `INSERT ON CONFLICT DO NOTHING` for optimal performance.
-  - [ ] Integrate duel assembly step into AI generation completion flow.
+- [x] Task: Implement Auto-Pairing in `packages/ai-gen` (d3e3419)
+  - [x] Define and document the pairing policy:
+    - [x] Many-duels-per-poem model (HUMAN poem can face multiple AI poems in same topic).
+    - [x] Unordered pair uniqueness (`A/B` and `B/A` treated as the same pair), enforced via deterministic duel IDs (e.g., hash of sorted poem IDs).
+    - [x] Bounded fan-out per HUMAN poem to control scale.
+  - [x] Write failing tests for duel assembly behavior:
+    - [x] Creates multiple duels for one HUMAN poem when multiple eligible AI poems exist.
+    - [x] Prevents duplicate duel creation for an existing unordered pair.
+    - [x] Resolves `topic_id`/`topic` from the selected shared topic.
+    - [x] Uses a pseudo-random selection (e.g., seeded by poem IDs) when multiple shared topics exist to avoid alphabetical skew.
+    - [x] Skips pair creation when no shared topic exists.
+    - [x] Randomizes `poem_a` and `poem_b` on first pair creation.
+    - [x] Preserves existing orientation and skips insertions on reruns (idempotency).
+  - [x] Implement pair candidate selection and assembly logic in `packages/ai-gen`:
+    - [x] Extract pairing logic into a pure, testable function `assemblePairs` (Functional Core) separated from database side-effects.
+    - [x] Select eligible HUMAN↔AI pairings by shared topic.
+    - [x] Ensure deterministic selection order for capped fan-out.
+    - [x] Perform bulk database insertions using `INSERT ON CONFLICT DO NOTHING` for optimal performance.
+  - [x] Integrate duel assembly step into AI generation completion flow.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Duel Assembly Logic' (Protocol in workflow.md)
 
 ## Phase 3: API Updates
