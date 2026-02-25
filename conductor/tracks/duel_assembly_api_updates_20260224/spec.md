@@ -43,7 +43,7 @@ This track implements Phase 5 of the Data Pipeline plan. It focuses on taking ge
     - `GET /duels/:id`: Becomes the canonical duel retrieval endpoint for active play. It must return an anonymous duel payload and log exposure in `featured_duels`.
     - `GET /duels`: Updated to return topic metadata alongside duel data and support client selection of multiple duels per day.
     - `GET /duels/:id/stats`: Updated to include topic metadata and source information for both poems.
-    - `GET /duels/today`: Deprecated or removed from active contract. If kept temporarily for compatibility, it should internally resolve through the same duel selection/retrieval flow as `GET /duels/:id`.
+    - `GET /duels/today`: Fully deprecated and removed from the active API contract for this track. Active clients must use `GET /duels` to choose duel IDs and `GET /duels/:id` to retrieve a duel payload.
 
 ## Out of Scope
 

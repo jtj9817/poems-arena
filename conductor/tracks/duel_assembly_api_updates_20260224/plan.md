@@ -45,7 +45,8 @@
 - [ ] Task: Promote `GET /duels/:id` as canonical duel retrieval endpoint
   - [ ] Write failing tests for anonymous duel retrieval by ID and `featured_duels` logging side effect.
   - [ ] Implement/adjust route behavior so multiple duels can be served on the same day without daily lock semantics.
-  - [ ] Decide and implement compatibility behavior for `GET /duels/today` (deprecate/remove/temporary alias).
+  - [ ] Remove `GET /duels/today` from `apps/api/src/routes/duels.ts`.
+  - [ ] Remove/update callers and tests that depend on `GET /duels/today`.
 - [ ] Task: Update `GET /duels` and `GET /duels/:id/stats`
   - [ ] Write failing tests for fetching duels with topic metadata and stats with topic/source info for both poems.
   - [ ] Update Drizzle queries in `apps/api/src/routes/duels.ts` to join `topics` and `scrape_sources` tables.
@@ -67,5 +68,5 @@
 - [ ] Task: Documentation Update
   - [ ] Update `docs/plans/001-data-pipeline-plan.md` to reflect Phase 5 completion.
   - [ ] Document the new `featured_duels` schema contract and append-only global tracking behavior.
-  - [ ] Document `GET /duels/:id` as the canonical duel retrieval endpoint and the compatibility decision for `GET /duels/today`.
+  - [ ] Document `GET /duels/:id` as the canonical duel retrieval endpoint and `GET /duels/today` deprecation/removal.
 - [ ] Task: Conductor - User Manual Verification 'Phase 5: Documentation' (Protocol in workflow.md)
