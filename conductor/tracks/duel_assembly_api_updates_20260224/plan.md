@@ -2,22 +2,22 @@
 
 ## Phase 1: Database Schema Updates
 
-- [ ] Task: Add `featured_duels` table
-  - [ ] Define the schema contract in docs:
-    - [ ] `id` autoincrement primary key
-    - [ ] `duel_id` foreign key to `duels.id`
-    - [ ] `featured_on` UTC date (`YYYY-MM-DD`)
-    - [ ] `created_at` UTC timestamp default
-  - [ ] Define tracking cardinality rules in docs:
-    - [ ] Multiple featured duel records per day are allowed (global behavior).
-    - [ ] The same duel can be recorded multiple times on the same day.
-  - [ ] Add the `featured_duels` table definition to the Drizzle schema in the shared database package.
-  - [ ] Add non-unique indexes for `featured_on` and `duel_id`.
-  - [ ] Write/update schema tests for `featured_duels` export presence.
-  - [ ] Generate and apply database migrations.
-  - [ ] Verify migration behavior with manual smoke checks:
-    - [ ] Same day + different duel inserts succeed.
-    - [ ] Same day + same duel inserts also succeed.
+- [x] Task: Add `featured_duels` table (269d895)
+  - [x] Define the schema contract in docs:
+    - [x] `id` autoincrement primary key
+    - [x] `duel_id` foreign key to `duels.id`
+    - [x] `featured_on` UTC date (`YYYY-MM-DD`)
+    - [x] `created_at` UTC timestamp default
+  - [x] Define tracking cardinality rules in docs:
+    - [x] Multiple featured duel records per day are allowed (global behavior).
+    - [x] The same duel can be recorded multiple times on the same day.
+  - [x] Add the `featured_duels` table definition to the Drizzle schema in the shared database package.
+  - [x] Add non-unique indexes for `featured_on` and `duel_id`.
+  - [x] Write/update schema tests for `featured_duels` export presence.
+  - [x] Generate and apply database migrations.
+  - [x] Verify migration behavior with manual smoke checks:
+    - [x] Same day + different duel inserts succeed.
+    - [x] Same day + same duel inserts also succeed.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Database Schema Updates' (Protocol in workflow.md)
 
 ## Phase 2: Duel Assembly Logic
