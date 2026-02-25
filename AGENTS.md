@@ -51,5 +51,5 @@ Run commands from repo root unless noted.
 ## Security & Configuration Tips
 
 - Never commit secrets; keep credentials in `.env`.
-- Required API env vars include `LIBSQL_URL` and `LIBSQL_AGILIQUILL_TOKEN`.
+- Required API env vars include `LIBSQL_URL` and `LIBSQL_AUTH_TOKEN`.
 - Use `FRONTEND_URL`/`PORT` only as needed for deployment-specific overrides.

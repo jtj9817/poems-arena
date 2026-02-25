@@ -179,7 +179,7 @@ Input: tagged poems from Stage 3.
 Database:
 
 - Connect to LibSQL (Turso or local file-backed LibSQL) via Drizzle.
-- Required env vars: `LIBSQL_URL`, `LIBSQL_AGILIQUILL_TOKEN`.
+- Required env vars: `LIBSQL_URL`, `LIBSQL_AUTH_TOKEN`.
 
 Operations (transactional):
 

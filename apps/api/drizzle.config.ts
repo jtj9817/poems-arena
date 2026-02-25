@@ -6,6 +6,6 @@ export default defineConfig({
   dialect: 'turso',
   dbCredentials: {
     url: process.env.LIBSQL_URL!,
-    authToken: process.env.LIBSQL_AGILIQUILL_TOKEN,
+    authToken: process.env.LIBSQL_AUTH_TOKEN,
   },
 });

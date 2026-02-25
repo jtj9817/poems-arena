@@ -6,8 +6,10 @@ export interface DbConnectionConfig {
 export interface DbConfigEnv {
   NODE_ENV?: string;
   LIBSQL_URL?: string;
+  LIBSQL_AUTH_TOKEN?: string;
   LIBSQL_AGILIQUILL_TOKEN?: string;
   LIBSQL_TEST_URL?: string;
+  LIBSQL_TEST_AUTH_TOKEN?: string;
   LIBSQL_TEST_AGILIQUILL_TOKEN?: string;
 }
 
@@ -19,7 +21,11 @@ export function resolveDbConfig(env: DbConfigEnv = process.env): DbConnectionCon
 
     return {
       url: env.LIBSQL_TEST_URL,
-      authToken: env.LIBSQL_TEST_AGILIQUILL_TOKEN ?? env.LIBSQL_AGILIQUILL_TOKEN,
+      authToken:
+        env.LIBSQL_TEST_AUTH_TOKEN ??
+        env.LIBSQL_AUTH_TOKEN ??
+        env.LIBSQL_TEST_AGILIQUILL_TOKEN ??
+        env.LIBSQL_AGILIQUILL_TOKEN,
     };
   }
 
@@ -29,6 +35,6 @@ export function resolveDbConfig(env: DbConfigEnv = process.env): DbConnectionCon
 
   return {
     url: env.LIBSQL_URL,
-    authToken: env.LIBSQL_AGILIQUILL_TOKEN,
+    authToken: env.LIBSQL_AUTH_TOKEN ?? env.LIBSQL_AGILIQUILL_TOKEN,
   };
 }

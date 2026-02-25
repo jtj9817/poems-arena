@@ -183,15 +183,15 @@ See `packages/etl/README.md` for full stage details, IO conventions, and canonic
 
 ## Environment Variables
 
-| Variable                       | Used by        | Purpose                                                                        |
-| ------------------------------ | -------------- | ------------------------------------------------------------------------------ |
-| `LIBSQL_URL`                   | api, etl       | Turso database URL (`libsql://...`) or `file:./local.db` for local SQLite      |
-| `LIBSQL_AGILIQUILL_TOKEN`      | api, etl       | Turso auth token (leave blank for local file-backed databases)                 |
-| `LIBSQL_TEST_URL`              | db (test)      | Separate DB URL used when `NODE_ENV=test` (required for `@sanctuary/db` tests) |
-| `LIBSQL_TEST_AGILIQUILL_TOKEN` | db (test)      | Auth token for the test database (falls back to `LIBSQL_AGILIQUILL_TOKEN`)     |
-| `VITE_API_URL`                 | web (build)    | API base URL baked into the static bundle (default: `/api/v1`)                 |
-| `FRONTEND_URL`                 | api (optional) | Additional CORS origin to allow (Cloud Run frontend URL)                       |
-| `PORT`                         | api (optional) | Override api listen port (default: 4000)                                       |
+| Variable                 | Used by        | Purpose                                                                        |
+| ------------------------ | -------------- | ------------------------------------------------------------------------------ |
+| `LIBSQL_URL`             | api, etl       | Turso database URL (`libsql://...`) or `file:./local.db` for local SQLite      |
+| `LIBSQL_AUTH_TOKEN`      | api, etl       | Turso auth token (leave blank for local file-backed databases)                 |
+| `LIBSQL_TEST_URL`        | db (test)      | Separate DB URL used when `NODE_ENV=test` (required for `@sanctuary/db` tests) |
+| `LIBSQL_TEST_AUTH_TOKEN` | db (test)      | Auth token for the test database (falls back to `LIBSQL_AUTH_TOKEN`)           |
+| `VITE_API_URL`           | web (build)    | API base URL baked into the static bundle (default: `/api/v1`)                 |
+| `FRONTEND_URL`           | api (optional) | Additional CORS origin to allow (Cloud Run frontend URL)                       |
+| `PORT`                   | api (optional) | Override api listen port (default: 4000)                                       |
 
 The ETL package reads its own `packages/etl/.env` file (loaded via `dotenv` only when the `load` stage runs). Copy `packages/etl/.env.example` to get started.
 

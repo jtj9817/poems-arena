@@ -69,8 +69,8 @@ const cfg = resolveDbConfig({
   NODE_ENV: 'test',
   LIBSQL_URL: 'libsql://development-db.example.com',
   LIBSQL_TEST_URL: 'libsql://manual-test-db.example.com',
-  LIBSQL_AGILIQUILL_TOKEN: 'dev-token',
-  LIBSQL_TEST_AGILIQUILL_TOKEN: 'test-token',
+  LIBSQL_AUTH_TOKEN: 'dev-token',
+  LIBSQL_TEST_AUTH_TOKEN: 'test-token',
 });
 if (cfg.url !== 'libsql://manual-test-db.example.com') {
   throw new Error('test mode config did not prefer LIBSQL_TEST_URL');

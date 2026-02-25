@@ -68,10 +68,10 @@ pnpm --filter @sanctuary/etl run pipeline --include-non-pd
 
 Copy `.env.example` to `.env` and set:
 
-| Variable                  | Purpose                                                                          |
-| ------------------------- | -------------------------------------------------------------------------------- |
-| `LIBSQL_URL`              | Turso database URL (`libsql://...`) or `file:./local.db` for a local SQLite file |
-| `LIBSQL_AGILIQUILL_TOKEN` | Turso auth token (leave blank for local file-backed databases)                   |
+| Variable            | Purpose                                                                          |
+| ------------------- | -------------------------------------------------------------------------------- |
+| `LIBSQL_URL`        | Turso database URL (`libsql://...`) or `file:./local.db` for a local SQLite file |
+| `LIBSQL_AUTH_TOKEN` | Turso auth token (leave blank for local file-backed databases)                   |
 
 Only the `load` stage reads environment variables. Stages 1–3 operate purely on the filesystem.
 

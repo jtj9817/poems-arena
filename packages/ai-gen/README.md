@@ -21,14 +21,14 @@ This package generates AI counterparts for HUMAN poems in the `poems` table usin
 
 ## Environment Variables
 
-| Variable                       | Required           | Description                                            |
-| ------------------------------ | ------------------ | ------------------------------------------------------ |
-| `LIBSQL_URL`                   | Yes (outside test) | LibSQL/Turso connection URL for `@sanctuary/db`        |
-| `LIBSQL_AGILIQUILL_TOKEN`      | Optional           | LibSQL auth token                                      |
-| `GEMINI_API_KEY`               | Yes\*              | Primary Gemini API key                                 |
-| `GOOGLE_API_KEY`               | Yes\*              | Fallback Gemini API key when `GEMINI_API_KEY` is unset |
-| `LIBSQL_TEST_URL`              | Test only          | Test DB URL when `NODE_ENV=test`                       |
-| `LIBSQL_TEST_AGILIQUILL_TOKEN` | Test only          | Optional test DB auth token                            |
+| Variable                 | Required           | Description                                            |
+| ------------------------ | ------------------ | ------------------------------------------------------ |
+| `LIBSQL_URL`             | Yes (outside test) | LibSQL/Turso connection URL for `@sanctuary/db`        |
+| `LIBSQL_AUTH_TOKEN`      | Optional           | LibSQL auth token                                      |
+| `GEMINI_API_KEY`         | Yes\*              | Primary Gemini API key                                 |
+| `GOOGLE_API_KEY`         | Yes\*              | Fallback Gemini API key when `GEMINI_API_KEY` is unset |
+| `LIBSQL_TEST_URL`        | Test only          | Test DB URL when `NODE_ENV=test`                       |
+| `LIBSQL_TEST_AUTH_TOKEN` | Test only          | Optional test DB auth token                            |
 
 \* Either `GEMINI_API_KEY` or `GOOGLE_API_KEY` must be set.
 

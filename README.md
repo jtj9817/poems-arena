@@ -75,7 +75,7 @@ pnpm install
 
 # Copy environment variables
 cp .env.example .env
-# Fill in LIBSQL_URL and LIBSQL_AGILIQUILL_TOKEN
+# Fill in LIBSQL_URL and LIBSQL_AUTH_TOKEN
 
 # Push schema to database
 pnpm --filter @sanctuary/api db:push
@@ -99,7 +99,7 @@ The ETL pipeline loads scraped poems into the database in four stages: Clean →
 ```bash
 # Copy credentials for the ETL package
 cp packages/etl/.env.example packages/etl/.env
-# Fill in LIBSQL_URL and LIBSQL_AGILIQUILL_TOKEN
+# Fill in LIBSQL_URL and LIBSQL_AUTH_TOKEN
 
 # Run the full pipeline
 pnpm --filter @sanctuary/etl run pipeline

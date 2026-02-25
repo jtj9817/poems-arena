@@ -25,7 +25,7 @@ This track implements Phase 3 ("ETL") from `docs/plans/001-data-pipeline-plan.md
   - [x] Update `apps/api` to import schema from the shared location.
   - [x] Configure `packages/etl` to import the shared schema and (if needed) a shared `db` client factory.
 - [x] Task: Environment + configuration — f442fc5
-  - [x] Document required env vars for ETL: `LIBSQL_URL`, `LIBSQL_AGILIQUILL_TOKEN` (plus any local/dev defaults).
+  - [x] Document required env vars for ETL: `LIBSQL_URL`, `LIBSQL_AUTH_TOKEN` (plus any local/dev defaults).
   - [x] Add explicit defaults for CLI flags (input/work dirs, stage selection, dry-run).
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Setup & Data Access Layer' (Protocol in workflow.md)
 

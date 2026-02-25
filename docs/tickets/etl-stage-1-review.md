@@ -130,7 +130,7 @@ Below are the **implementation commits** (code edits only, excluding docs/conduc
 
 - Created `packages/etl/.env.example` documenting required environment variables:
   - `LIBSQL_URL` — database URL (with `file:./local.db` dev-friendly shorthand)
-  - `LIBSQL_AGILIQUILL_TOKEN` — authentication token for Turso/LibSQL
+  - `LIBSQL_AUTH_TOKEN` — authentication token for Turso/LibSQL
 - Documented all CLI flag defaults as comments for operator reference
 
 ---

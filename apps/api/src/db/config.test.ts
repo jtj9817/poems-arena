@@ -7,7 +7,7 @@ describe('resolveDbConfig (via @sanctuary/db re-export)', () => {
   test('resolves production config from LIBSQL_URL', () => {
     const config = resolveDbConfig({
       LIBSQL_URL: 'libsql://prod.example.com',
-      LIBSQL_AGILIQUILL_TOKEN: 'token',
+      LIBSQL_AUTH_TOKEN: 'token',
     });
 
     expect(config.url).toBe('libsql://prod.example.com');

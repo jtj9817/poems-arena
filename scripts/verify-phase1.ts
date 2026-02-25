@@ -399,7 +399,7 @@ async function check4_envExample() {
     const content = readFileSync(envPath, 'utf-8');
 
     // Required env var keys
-    const requiredEnvKeys = ['LIBSQL_URL', 'LIBSQL_AGILIQUILL_TOKEN'];
+    const requiredEnvKeys = ['LIBSQL_URL', 'LIBSQL_AUTH_TOKEN'];
     // Required CLI flag documentation
     const requiredCliFlags = ['--input-dir', '--work-dir', '--stage', '--dry-run'];
 

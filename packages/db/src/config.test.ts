@@ -7,8 +7,8 @@ describe('resolveDbConfig', () => {
       NODE_ENV: 'test',
       LIBSQL_URL: 'libsql://dev-db.example.com',
       LIBSQL_TEST_URL: 'libsql://test-db.example.com',
-      LIBSQL_AGILIQUILL_TOKEN: 'dev-token',
-      LIBSQL_TEST_AGILIQUILL_TOKEN: 'test-token',
+      LIBSQL_AUTH_TOKEN: 'dev-token',
+      LIBSQL_TEST_AUTH_TOKEN: 'test-token',
     });
 
     expect(config.url).toBe('libsql://test-db.example.com');
@@ -28,7 +28,7 @@ describe('resolveDbConfig', () => {
     const config = resolveDbConfig({
       NODE_ENV: 'development',
       LIBSQL_URL: 'libsql://dev-db.example.com',
-      LIBSQL_AGILIQUILL_TOKEN: 'dev-token',
+      LIBSQL_AUTH_TOKEN: 'dev-token',
     });
 
     expect(config.url).toBe('libsql://dev-db.example.com');
@@ -43,13 +43,23 @@ describe('resolveDbConfig', () => {
     ).toThrow('LIBSQL_URL environment variable is required');
   });
 
-  test('falls back to LIBSQL_AGILIQUILL_TOKEN for test auth when dedicated token absent', () => {
+  test('falls back to LIBSQL_AUTH_TOKEN for test auth when dedicated token absent', () => {
     const config = resolveDbConfig({
       NODE_ENV: 'test',
       LIBSQL_TEST_URL: 'libsql://test-db.example.com',
-      LIBSQL_AGILIQUILL_TOKEN: 'shared-token',
+      LIBSQL_AUTH_TOKEN: 'shared-token',
     });
 
     expect(config.authToken).toBe('shared-token');
+  });
+
+  test('supports legacy LIBSQL_AGILIQUILL_TOKEN env var name', () => {
+    const config = resolveDbConfig({
+      NODE_ENV: 'development',
+      LIBSQL_URL: 'libsql://dev-db.example.com',
+      LIBSQL_AGILIQUILL_TOKEN: 'legacy-token',
+    });
+
+    expect(config.authToken).toBe('legacy-token');
   });
 });
