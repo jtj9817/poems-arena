@@ -25,20 +25,21 @@
 - [ ] Task: Implement Auto-Pairing in `packages/ai-gen`
   - [ ] Define and document the pairing policy:
     - [ ] Many-duels-per-poem model (HUMAN poem can face multiple AI poems in same topic).
-    - [ ] Unordered pair uniqueness (`A/B` and `B/A` treated as the same pair).
+    - [ ] Unordered pair uniqueness (`A/B` and `B/A` treated as the same pair), enforced via deterministic duel IDs (e.g., hash of sorted poem IDs).
     - [ ] Bounded fan-out per HUMAN poem to control scale.
   - [ ] Write failing tests for duel assembly behavior:
     - [ ] Creates multiple duels for one HUMAN poem when multiple eligible AI poems exist.
     - [ ] Prevents duplicate duel creation for an existing unordered pair.
     - [ ] Resolves `topic_id`/`topic` from the selected shared topic.
-    - [ ] Uses lexicographically smallest shared `topic_id` when multiple shared topics exist.
+    - [ ] Uses a pseudo-random selection (e.g., seeded by poem IDs) when multiple shared topics exist to avoid alphabetical skew.
     - [ ] Skips pair creation when no shared topic exists.
     - [ ] Randomizes `poem_a` and `poem_b` on first pair creation.
     - [ ] Preserves existing orientation and skips insertions on reruns (idempotency).
   - [ ] Implement pair candidate selection and assembly logic in `packages/ai-gen`:
+    - [ ] Extract pairing logic into a pure, testable function `assemblePairs` (Functional Core) separated from database side-effects.
     - [ ] Select eligible HUMAN↔AI pairings by shared topic.
     - [ ] Ensure deterministic selection order for capped fan-out.
-    - [ ] Insert only missing unique pairs.
+    - [ ] Perform bulk database insertions using `INSERT ON CONFLICT DO NOTHING` for optimal performance.
   - [ ] Integrate duel assembly step into AI generation completion flow.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Duel Assembly Logic' (Protocol in workflow.md)
 
@@ -47,7 +48,7 @@
 - [ ] Task: Promote `GET /duels/:id` as canonical duel retrieval endpoint
   - [ ] Write failing tests for anonymous duel retrieval by ID and `featured_duels` logging side effect.
   - [ ] Implement/adjust route behavior so multiple duels can be served on the same day without daily lock semantics.
-  - [ ] Return standardized `404` payload `{ error: 'Duel not found', code: 'DUEL_NOT_FOUND' }` when duel exists but references a missing poem row.
+  - [ ] Throw custom Error classes (e.g., `NotFoundError`) to trigger a standardized `404` payload `{ error: 'Duel not found', code: 'DUEL_NOT_FOUND' }` when duel exists but references a missing poem row.
   - [ ] Remove `GET /duels/today` from `apps/api/src/routes/duels.ts`.
   - [ ] Remove/update callers and tests that depend on `GET /duels/today`.
   - [ ] Ensure unknown/deprecated duel endpoints return HTTP `404` with `{ error: string, code: 'ENDPOINT_NOT_FOUND' }`.
@@ -56,7 +57,7 @@
     - [ ] `GET /duels` returns `topic` (legacy string) and `topicMeta` object.
     - [ ] `GET /duels/:id/stats` returns `duel.topicMeta` and per-poem `sourceInfo`.
   - [ ] Define standardized Phase 5 error contract in tests and docs:
-    - [ ] All error payloads use `{ error: string, code: string }`.
+    - [ ] Implement Hono global error handling middleware to catch custom Error classes and format standardized `{ error: string, code: string }` responses.
     - [ ] `INVALID_PAGE`, `DUEL_NOT_FOUND`, and `ENDPOINT_NOT_FOUND` are used consistently.
   - [ ] Write failing tests for `GET /duels`:
     - [ ] Invalid `page` query values return `400` (`0`, negative, non-integer, non-numeric).
@@ -71,7 +72,7 @@
     - [ ] Returns `sourceInfo.provenances` sorted by `scrapedAt` descending.
   - [ ] Update Drizzle queries in `apps/api/src/routes/duels.ts`:
     - [ ] Join `topics` for list and stats responses.
-    - [ ] Query `scrape_sources` for both poem IDs in stats response.
+    - [ ] Fetch `scrape_sources` for both poem IDs in a single round trip (e.g., using `WHERE poem_id IN (...)` or Drizzle relational queries) to avoid N+1 queries.
     - [ ] Map fallback values for missing topic joins and missing scrape rows.
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: API Updates' (Protocol in workflow.md)
 
