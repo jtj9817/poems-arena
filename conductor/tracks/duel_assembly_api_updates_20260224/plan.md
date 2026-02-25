@@ -48,8 +48,21 @@
   - [ ] Remove `GET /duels/today` from `apps/api/src/routes/duels.ts`.
   - [ ] Remove/update callers and tests that depend on `GET /duels/today`.
 - [ ] Task: Update `GET /duels` and `GET /duels/:id/stats`
-  - [ ] Write failing tests for fetching duels with topic metadata and stats with topic/source info for both poems.
-  - [ ] Update Drizzle queries in `apps/api/src/routes/duels.ts` to join `topics` and `scrape_sources` tables.
+  - [ ] Define response contracts in tests and docs:
+    - [ ] `GET /duels` returns `topic` (legacy string) and `topicMeta` object.
+    - [ ] `GET /duels/:id/stats` returns `duel.topicMeta` and per-poem `sourceInfo`.
+  - [ ] Write failing tests for `GET /duels`:
+    - [ ] Includes `topicMeta.id` + `topicMeta.label` when topic join succeeds.
+    - [ ] Falls back to `topicMeta: { id: null, label: duel.topic }` when `topic_id` is missing/unresolved.
+  - [ ] Write failing tests for `GET /duels/:id/stats`:
+    - [ ] Includes topic metadata in `duel.topicMeta`.
+    - [ ] Includes per-poem `sourceInfo.primary` and `sourceInfo.provenances`.
+    - [ ] Allows AI poems to return empty `sourceInfo.provenances`.
+    - [ ] Returns `sourceInfo.provenances` sorted by `scrapedAt` descending.
+  - [ ] Update Drizzle queries in `apps/api/src/routes/duels.ts`:
+    - [ ] Join `topics` for list and stats responses.
+    - [ ] Query `scrape_sources` for both poem IDs in stats response.
+    - [ ] Map fallback values for missing topic joins and missing scrape rows.
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: API Updates' (Protocol in workflow.md)
 
 ## Phase 4: Regression & Quality Gate
@@ -61,6 +74,9 @@
   - [ ] Verify that running the AI generator also successfully creates new duels in the database.
   - [ ] Verify repeated calls to `GET /duels/:id` append records to `featured_duels` (including same-day duplicates).
   - [ ] Verify `GET /duels` + `GET /duels/:id` support serving multiple duels per day.
+  - [ ] Verify API response edge cases:
+    - [ ] Missing `topic_id` still yields stable `topicMeta` fallback.
+    - [ ] AI poems return empty provenance arrays without failing stats payload.
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: Regression & Quality Gate' (Protocol in workflow.md)
 
 ## Phase 5: Documentation

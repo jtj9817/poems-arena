@@ -42,7 +42,26 @@ This track implements Phase 5 of the Data Pipeline plan. It focuses on taking ge
 3.  **API Updates (`apps/api`):**
     - `GET /duels/:id`: Becomes the canonical duel retrieval endpoint for active play. It must return an anonymous duel payload and log exposure in `featured_duels`.
     - `GET /duels`: Updated to return topic metadata alongside duel data and support client selection of multiple duels per day.
+      - Required response contract per item:
+        - `id`, `createdAt`, `humanWinRate`, `avgReadingTime`
+        - `topic` (legacy display string for cards)
+        - `topicMeta`: `{ id: string | null, label: string }`
+      - Topic resolution rules:
+        - Use `duels.topic_id -> topics.id` when present.
+        - If `topic_id` is null or join misses, set `topicMeta.id = null` and `topicMeta.label = duels.topic`.
     - `GET /duels/:id/stats`: Updated to include topic metadata and source information for both poems.
+      - Required response contract:
+        - `humanWinRate`, `avgReadingTime`
+        - `duel`: `{ id, topic, topicMeta, poemA, poemB }`
+      - `poemA` and `poemB` must include:
+        - poem fields used by current reveal flow (`id`, `title`, `content`, `author`, `type`)
+        - `sourceInfo`:
+          - `primary`: `{ source: string | null, sourceUrl: string | null }`
+          - `provenances`: `Array<{ source: string, sourceUrl: string, scrapedAt: string, isPublicDomain: boolean }>`
+      - Source resolution rules:
+        - `primary` comes from `poems.source` and `poems.source_url`.
+        - `provenances` comes from `scrape_sources` for the poem ID (sorted by `scraped_at` descending).
+        - AI poems may have empty `provenances` arrays; this is valid.
     - `GET /duels/today`: Fully deprecated and removed from the active API contract for this track. Active clients must use `GET /duels` to choose duel IDs and `GET /duels/:id` to retrieve a duel payload.
 
 ## Out of Scope
