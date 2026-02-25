@@ -18,7 +18,7 @@
   - [x] Verify migration behavior with manual smoke checks:
     - [x] Same day + different duel inserts succeed.
     - [x] Same day + same duel inserts also succeed.
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Database Schema Updates' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Database Schema Updates' (Protocol in workflow.md) (e1405e0)
 
 ## Phase 2: Duel Assembly Logic
 
