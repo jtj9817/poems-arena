@@ -1,8 +1,8 @@
 # Plan 001 — Data Pipeline: Scraper → ETL → AI Generation → Database
 
-**Status:** In Progress (Scraper, E2E Infrastructure & ETL Pipeline Complete)
+**Status:** In Progress (Scraper, E2E Infrastructure, ETL Pipeline, and AI Generation Complete)
 **Created:** 2026-02-19
-**Updated:** 2026-02-21
+**Updated:** 2026-02-25
 
 ---
 
@@ -329,14 +329,17 @@ Generates AI counterpart poems for human poems in the database.
 
 ```
 packages/ai-gen/
+├── prompts/
+│   └── system-instructions.md  # Generation system instructions
 ├── src/
 │   ├── index.ts              # CLI entry: generate AI poems
-│   ├── generator.ts          # Core generation logic
-│   ├── prompts/
-│   │   └── poem-prompt.ts    # Prompt templates by topic/style
-│   ├── quality/
-│   │   └── validator.ts      # Basic quality checks on generated poems
-│   └── config.ts             # Model selection, temperature, etc.
+│   ├── cli.ts                # CLI parsing + orchestration loop
+│   ├── generation-service.ts # Generation + verification + validation orchestration
+│   ├── prompt-builder.ts     # Prompt templates and system prompt loading
+│   ├── gemini-client.ts      # Gemini generation client (JSON mode + schema)
+│   ├── verification-agent.ts # Secondary Gemini verification call
+│   ├── quality-validator.ts  # Output quality validation rules
+│   └── persistence.ts        # Unmatched selection + idempotent AI poem persistence
 ├── package.json
 └── tsconfig.json
 ```
@@ -351,32 +354,43 @@ For each human poem in the database that lacks an AI counterpart:
    - Matches approximate length (line count ± 20%)
    - Does NOT reveal the human poem's text (zero-shot, not imitation)
    - Follows the project spec prompt: _"Write a poem about [Topic] in the style of a contemporary master, without rhyming unnecessarily."_
-3. **Call Claude API** (Claude Sonnet 4.6 for cost efficiency at scale, Opus for select "featured" duels)
-4. **Validate output:**
+3. **Call Gemini API** (`gemini-3-flash-preview`) with JSON mode and response schema:
+   - `responseMimeType: "application/json"`
+   - `responseSchema` enforcing `title` + `content`
+   - Generation `temperature: 1.0` with optional Gemini thinking config support
+4. **Run verification pass** using a secondary Gemini call to score quality and validity.
+5. **Validate output:**
    - Has ≥ 4 lines
    - Not a refusal or meta-commentary
    - Doesn't contain prompt artifacts
-5. **Store** with `type = 'AI'`, `author = 'Claude Sonnet 4.6'`, `prompt` field populated, `parent_poem_id` linking to the human original
+   - Within ±20% of parent poem line count
+   - Meets verification score threshold
+6. **Store** with `type = 'AI'`, `author = 'gemini-3-flash-preview'`, `prompt` field populated, `parent_poem_id` linking to the human original
 
-### 6.3 Prompt Template
+### 6.3 Prompt Template & System Instructions
 
 ```typescript
-const POEM_PROMPT = `Write a poem about {topic}.
+const POEM_PROMPT = `Write an original poem about "{topic}"
 
 Guidelines:
-- Write in the style of a contemporary master poet
-- Do not rhyme unnecessarily — favor natural language over forced rhyme
-- Aim for approximately {lineCount} lines
-- The poem should feel authentic, contemplative, and literary
-- Do not include a title — just the poem text
-- Do not include any commentary or explanation`;
+- The poem must be between {minLines} and {maxLines} lines (target: {targetLineCount} lines, ±20% tolerance).
+- Do not include line numbers or stanza markers in your response.
+- Respond ONLY with valid JSON:
+  {
+    "title": "Your poem title",
+    "content": "The full poem text with line breaks represented as \\n"
+  }`;
 ```
+
+System-level persona and guardrails are loaded from:
+
+- `packages/ai-gen/prompts/system-instructions.md`
 
 ### 6.4 Rate Limiting & Cost
 
-- **Batch processing:** Process in batches of 10 with 1s delay between batches
-- **Cost estimate:** ~500 poems × ~300 tokens/poem = 150K tokens ≈ $0.45 with Sonnet
-- **Checkpoint:** Track generated poem IDs to allow resumable runs
+- **Concurrency limiting:** CLI uses `p-limit` (fallback limiter included) with default concurrency of `3`.
+- **Idempotency:** Deterministic AI IDs (`ai-{parentPoemId}-{digest}`) + `INSERT OR IGNORE` prevent duplicates on reruns.
+- **Resumability:** Candidates are selected from unmatched HUMAN poems only.
 
 ### 6.5 CLI Interface
 
@@ -391,7 +405,7 @@ pnpm --filter @sanctuary/ai-gen run generate --topic nature
 pnpm --filter @sanctuary/ai-gen run generate --limit 50
 
 # Use a specific model
-pnpm --filter @sanctuary/ai-gen run generate --model claude-sonnet-4-6
+pnpm --filter @sanctuary/ai-gen run generate --model gemini-3-flash-preview
 ```
 
 ---
@@ -418,12 +432,13 @@ Extend `apps/api/src/routes/duels.ts`:
 
 ## 8. Environment Variables (New)
 
-| Variable            | Used by | Purpose                                     |
-| ------------------- | ------- | ------------------------------------------- |
-| `ANTHROPIC_API_KEY` | ai-gen  | Claude API key for poem generation          |
-| `AI_MODEL`          | ai-gen  | Model ID (default: `claude-sonnet-4-6`)     |
-| `SCRAPE_DELAY_MS`   | scraper | Delay between HTTP requests (default: 1500) |
-| `SCRAPE_DATA_DIR`   | scraper | Output directory for scraped data           |
+| Variable          | Used by | Purpose                                                     |
+| ----------------- | ------- | ----------------------------------------------------------- |
+| `GEMINI_API_KEY`  | ai-gen  | Primary Gemini API key for poem generation                  |
+| `GOOGLE_API_KEY`  | ai-gen  | Fallback Gemini API key                                     |
+| `AI_MODEL`        | ai-gen  | Optional model override (default: `gemini-3-flash-preview`) |
+| `SCRAPE_DELAY_MS` | scraper | Delay between HTTP requests (default: 1500)                 |
+| `SCRAPE_DATA_DIR` | scraper | Output directory for scraped data                           |
 
 ---
 
@@ -457,14 +472,14 @@ Extend `apps/api/src/routes/duels.ts`:
 
 See `packages/etl/README.md` for usage, CLI flags, and IO conventions.
 
-### Phase 4: AI Generation
+### Phase 4: AI Generation [COMPLETED]
 
 17. Scaffold `packages/ai-gen` package
 18. Implement prompt builder
-19. Implement Claude API integration (using `@anthropic-ai/sdk`)
+19. Implement Gemini API integration (using `@google/genai`)
 20. Implement quality validator
-21. Run generation for a small batch, review output
-22. Run full generation pass
+21. Implement persistence + CLI orchestration for unmatched HUMAN poems
+22. Run regression + quality gate verification for ai-gen flow
 
 ### Phase 5: Duel Assembly & API Updates
 
@@ -507,7 +522,7 @@ pnpm --filter @sanctuary/etl add drizzle-orm @libsql/client  # DB access
 pnpm --filter @sanctuary/etl add fast-glob                    # File discovery
 
 # packages/ai-gen
-pnpm --filter @sanctuary/ai-gen add @anthropic-ai/sdk         # Claude API
+pnpm --filter @sanctuary/ai-gen add @google/genai             # Gemini API
 pnpm --filter @sanctuary/ai-gen add p-limit                   # Rate limiting
 ```
 

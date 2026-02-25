@@ -16,6 +16,6 @@ This directory contains all project documentation for Classicist's Sanctuary.
 
 ## Key Plans
 
-| Plan                                                                   | Status                                                                               |
-| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| [`plans/001-data-pipeline-plan.md`](./plans/001-data-pipeline-plan.md) | Phase 1 (Schema), Phase 2 (Scraper), and Phase 3 (ETL) complete. Phases 4–6 pending. |
+| Plan                                                                   | Status                                                                                                                |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| [`plans/001-data-pipeline-plan.md`](./plans/001-data-pipeline-plan.md) | Phases 1-4 complete (Schema, Scraper, ETL, AI Generation with Gemini). Duel assembly and frontend integration remain. |
