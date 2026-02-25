@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { duels, poemTopics, poems, scrapeSources, topics, votes } from './schema';
+import { duels, featuredDuels, poemTopics, poems, scrapeSources, topics, votes } from './schema';
 
 describe('schema', () => {
   test('exports poems table', () => {
@@ -24,5 +24,9 @@ describe('schema', () => {
 
   test('exports votes table', () => {
     expect(votes).toBeDefined();
+  });
+
+  test('exports featuredDuels table', () => {
+    expect(featuredDuels).toBeDefined();
   });
 });

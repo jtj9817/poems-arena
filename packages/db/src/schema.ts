@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import type { AnySQLiteColumn } from 'drizzle-orm/sqlite-core';
-import { integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 export const poems = sqliteTable('poems', {
   id: text('id').primaryKey(),
@@ -82,8 +82,27 @@ export const votes = sqliteTable('votes', {
     .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
 });
 
+export const featuredDuels = sqliteTable(
+  'featured_duels',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    duelId: text('duel_id')
+      .notNull()
+      .references(() => duels.id),
+    featuredOn: text('featured_on').notNull(),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
+  },
+  (t) => ({
+    featuredOnIdx: index('featured_duels_featured_on_idx').on(t.featuredOn),
+    duelIdIdx: index('featured_duels_duel_id_idx').on(t.duelId),
+  }),
+);
+
 export type Poem = typeof poems.$inferSelect;
 export type Duel = typeof duels.$inferSelect;
 export type Vote = typeof votes.$inferSelect;
 export type Topic = typeof topics.$inferSelect;
 export type ScrapeSource = typeof scrapeSources.$inferSelect;
+export type FeaturedDuel = typeof featuredDuels.$inferSelect;
