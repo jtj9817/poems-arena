@@ -25,7 +25,17 @@ export interface ProcessPoemResult {
 export interface CliDependencies {
   fetchPoems: (config: CliConfig) => Promise<HumanPoemCandidate[]>;
   processPoem: (poem: HumanPoemCandidate, config: CliConfig) => Promise<ProcessPoemResult>;
+  /**
+   * Optional hook called after poem generation completes.
+   * Used to trigger duel assembly as part of the generation completion flow.
+   */
+  assembleAfterRun?: () => Promise<AssemblyRunResult>;
   log: (line: string) => void;
+}
+
+export interface AssemblyRunResult {
+  totalCandidates: number;
+  newDuels: number;
 }
 
 export interface CliRunSummary {
@@ -35,6 +45,7 @@ export interface CliRunSummary {
   skipped: number;
   failed: number;
   results: ProcessPoemResult[];
+  assemblyResult?: AssemblyRunResult;
 }
 
 function createConcurrencyLimiter(concurrency: number) {
@@ -148,6 +159,22 @@ export async function runGenerationCli(
   if (poems.length === 0) {
     dependencies.log('No unmatched human poems found.');
     dependencies.log('Completed generation run');
+
+    if (dependencies.assembleAfterRun) {
+      dependencies.log('Running duel assembly...');
+      try {
+        const assemblyResult = await dependencies.assembleAfterRun();
+        summary.assemblyResult = assemblyResult;
+        dependencies.log(
+          `Duel assembly: ${assemblyResult.newDuels} new duel(s) created from ${assemblyResult.totalCandidates} candidate(s)`,
+        );
+      } catch (error) {
+        dependencies.log(
+          `Duel assembly failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+
     return summary;
   }
 
@@ -190,6 +217,21 @@ export async function runGenerationCli(
   dependencies.log(
     `Completed generation run: processed=${summary.processed} stored=${summary.stored} skipped=${summary.skipped} failed=${summary.failed}`,
   );
+
+  if (dependencies.assembleAfterRun) {
+    dependencies.log('Running duel assembly...');
+    try {
+      const assemblyResult = await dependencies.assembleAfterRun();
+      summary.assemblyResult = assemblyResult;
+      dependencies.log(
+        `Duel assembly: ${assemblyResult.newDuels} new duel(s) created from ${assemblyResult.totalCandidates} candidate(s)`,
+      );
+    } catch (error) {
+      dependencies.log(
+        `Duel assembly failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
 
   return summary;
 }

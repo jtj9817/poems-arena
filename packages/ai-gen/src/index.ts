@@ -1,5 +1,6 @@
 import { createDb, resolveDbConfig } from '@sanctuary/db';
 import { parseCliArgs, runGenerationCli, type CliDependencies } from './cli';
+import { assembleAndPersistDuels, type PersistenceDb as DuelAssemblyDb } from './duel-assembly';
 import {
   generateCounterpartForPoem,
   type GenerateCounterpartResult,
@@ -45,6 +46,17 @@ export {
   PersistedAiPoem,
 } from './persistence';
 export {
+  assemblePairs,
+  assembleAndPersistDuels,
+  fetchPoemsWithTopics,
+  fetchExistingDuelIds,
+  persistDuelCandidates,
+  DuelCandidate,
+  PoemWithTopics,
+  TopicInfo,
+  AssemblePairsOptions,
+} from './duel-assembly';
+export {
   generateCounterpartForPoem,
   GenerateCounterpartParams,
   GenerateCounterpartResult,
@@ -57,6 +69,7 @@ export {
   CliDependencies,
   CliRunSummary,
   ProcessPoemResult,
+  AssemblyRunResult,
 } from './cli';
 
 export const AI_GEN_VERSION = '0.2.0';
@@ -114,7 +127,7 @@ export function createDefaultCliDependencies(
     throw new Error('Unable to access LibSQL client for ai-gen persistence operations.');
   }
 
-  const persistenceDb: PersistenceDb = {
+  const persistenceDb: PersistenceDb & DuelAssemblyDb = {
     execute: async (query: string, params?: unknown[]) => {
       const result = await rawClient.execute({
         sql: query,
@@ -147,6 +160,7 @@ export function createDefaultCliDependencies(
       const result = await generateCounterpartForPoem(params);
       return mapGenerationResult(result);
     },
+    assembleAfterRun: async () => assembleAndPersistDuels(persistenceDb),
     log: (line: string) => {
       console.log(line);
     },

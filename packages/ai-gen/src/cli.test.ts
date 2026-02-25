@@ -1,7 +1,8 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, mock, test } from 'bun:test';
 import {
   parseCliArgs,
   runGenerationCli,
+  type AssemblyRunResult,
   type CliConfig,
   type CliDependencies,
   type ProcessPoemResult,
@@ -99,5 +100,102 @@ describe('runGenerationCli', () => {
     expect(maxInFlight).toBeLessThanOrEqual(2);
     expect(logs.some((line) => line.includes('Stored AI poem'))).toBe(true);
     expect(logs.some((line) => line.includes('Completed generation run'))).toBe(true);
+  });
+
+  test('calls assembleAfterRun hook after generation and records assembly result', async () => {
+    const poems: HumanPoemCandidate[] = [{ id: 'h1', title: 'One', content: '1\n2\n3\n4' }];
+    const logs: string[] = [];
+    const assemblyResult: AssemblyRunResult = { totalCandidates: 2, newDuels: 1 };
+    const assembleAfterRun = mock(async (): Promise<AssemblyRunResult> => assemblyResult);
+
+    const dependencies: CliDependencies = {
+      fetchPoems: async () => poems,
+      processPoem: async (poem): Promise<ProcessPoemResult> => ({
+        poemId: poem.id,
+        status: 'stored',
+        storedPoemId: 'ai-h1',
+      }),
+      assembleAfterRun,
+      log: (line) => logs.push(line),
+    };
+
+    const config: CliConfig = {
+      topic: undefined,
+      limit: undefined,
+      model: 'gemini-3-flash-preview',
+      concurrency: 1,
+      maxRetries: 1,
+    };
+
+    const summary = await runGenerationCli(config, dependencies);
+
+    expect(assembleAfterRun).toHaveBeenCalledTimes(1);
+    expect(summary.assemblyResult).toEqual(assemblyResult);
+    expect(logs.some((l) => l.includes('Running duel assembly'))).toBe(true);
+    expect(logs.some((l) => l.includes('1 new duel(s) created from 2 candidate(s)'))).toBe(true);
+  });
+
+  test('logs assembly error and continues when assembleAfterRun throws', async () => {
+    const poems: HumanPoemCandidate[] = [{ id: 'h1', title: 'One', content: '1\n2\n3\n4' }];
+    const logs: string[] = [];
+
+    const dependencies: CliDependencies = {
+      fetchPoems: async () => poems,
+      processPoem: async (poem): Promise<ProcessPoemResult> => ({
+        poemId: poem.id,
+        status: 'stored',
+        storedPoemId: 'ai-h1',
+      }),
+      assembleAfterRun: async () => {
+        throw new Error('DB connection failed');
+      },
+      log: (line) => logs.push(line),
+    };
+
+    const config: CliConfig = {
+      topic: undefined,
+      limit: undefined,
+      model: 'gemini-3-flash-preview',
+      concurrency: 1,
+      maxRetries: 1,
+    };
+
+    // Should not throw — assembly errors are swallowed and logged
+    const summary = await runGenerationCli(config, dependencies);
+    expect(summary.assemblyResult).toBeUndefined();
+    expect(logs.some((l) => l.includes('Duel assembly failed'))).toBe(true);
+    expect(logs.some((l) => l.includes('DB connection failed'))).toBe(true);
+  });
+
+  test('calls assembleAfterRun even when no poems are found', async () => {
+    const logs: string[] = [];
+    const assembleAfterRun = mock(
+      async (): Promise<AssemblyRunResult> => ({ totalCandidates: 0, newDuels: 0 }),
+    );
+
+    const dependencies: CliDependencies = {
+      fetchPoems: async () => [],
+      processPoem: async (poem): Promise<ProcessPoemResult> => ({
+        poemId: poem.id,
+        status: 'stored',
+      }),
+      assembleAfterRun,
+      log: (line) => logs.push(line),
+    };
+
+    const config: CliConfig = {
+      topic: undefined,
+      limit: undefined,
+      model: 'gemini-3-flash-preview',
+      concurrency: 1,
+      maxRetries: 1,
+    };
+
+    const summary = await runGenerationCli(config, dependencies);
+
+    expect(assembleAfterRun).toHaveBeenCalledTimes(1);
+    expect(summary.assemblyResult).toEqual({ totalCandidates: 0, newDuels: 0 });
+    expect(logs.some((l) => l.includes('No unmatched human poems found'))).toBe(true);
+    expect(logs.some((l) => l.includes('Running duel assembly'))).toBe(true);
   });
 });
