@@ -8,9 +8,21 @@ This track implements Phase 5 of the Data Pipeline plan. It focuses on taking ge
 
 1.  **Auto-Pairing Logic:**
     - Implemented as a step within the `packages/ai-gen` process.
-    - For every human poem that has a generated AI counterpart (linked via `parent_poem_id`), a duel must be created.
-    - The `topic` for the duel should be inherited from the shared topic.
-    - The assignment of Human vs. AI to `poem_a` or `poem_b` must be randomized to prevent positional bias.
+    - Pairing model is **many-duels-per-poem**:
+      - A HUMAN poem can be matched with multiple AI poems in the same topic pool.
+      - This supports Turing-test-style repeated evaluation and stronger stats across duels.
+    - Pair uniqueness rule:
+      - Each unordered poem pair can exist at most once as a duel.
+      - `(poem_x, poem_y)` and `(poem_y, poem_x)` are the same logical pair and must not create duplicates.
+    - Topic rule:
+      - Duel candidates should be formed from HUMAN and AI poems that share the selected duel topic.
+      - `duels.topic_id` and display `duels.topic` must resolve from that selected topic.
+    - Direct counterpart rule:
+      - If a HUMAN poem has an AI counterpart linked by `parent_poem_id`, that pair is eligible but not exclusive.
+    - Positional bias rule:
+      - On first creation of a unique pair, assignment to `poem_a` vs `poem_b` must be randomized and then persisted.
+    - Scale guard:
+      - Pair generation must use bounded fan-out per HUMAN poem (deterministic selection order) to avoid combinatorial explosion on large datasets.
 
 2.  **Global Duel Exposure Tracking (`featured_duels`):**
     - A new table, `featured_duels`, must be created to track duel exposure events by UTC date.

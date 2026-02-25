@@ -23,8 +23,21 @@
 ## Phase 2: Duel Assembly Logic
 
 - [ ] Task: Implement Auto-Pairing in `packages/ai-gen`
-  - [ ] Write a failing test for the duel creation logic, ensuring randomization of `poem_a` and `poem_b` and correct topic inheritance.
-  - [ ] Implement the duel assembly step at the end of the AI generation pipeline, creating a new duel for every newly generated AI poem.
+  - [ ] Define and document the pairing policy:
+    - [ ] Many-duels-per-poem model (HUMAN poem can face multiple AI poems in same topic).
+    - [ ] Unordered pair uniqueness (`A/B` and `B/A` treated as the same pair).
+    - [ ] Bounded fan-out per HUMAN poem to control scale.
+  - [ ] Write failing tests for duel assembly behavior:
+    - [ ] Creates multiple duels for one HUMAN poem when multiple eligible AI poems exist.
+    - [ ] Prevents duplicate duel creation for an existing unordered pair.
+    - [ ] Resolves `topic_id`/`topic` from the selected shared topic.
+    - [ ] Randomizes `poem_a` and `poem_b` on first pair creation.
+    - [ ] Preserves existing orientation and skips insertions on reruns (idempotency).
+  - [ ] Implement pair candidate selection and assembly logic in `packages/ai-gen`:
+    - [ ] Select eligible HUMAN↔AI pairings by shared topic.
+    - [ ] Ensure deterministic selection order for capped fan-out.
+    - [ ] Insert only missing unique pairs.
+  - [ ] Integrate duel assembly step into AI generation completion flow.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Duel Assembly Logic' (Protocol in workflow.md)
 
 ## Phase 3: API Updates
