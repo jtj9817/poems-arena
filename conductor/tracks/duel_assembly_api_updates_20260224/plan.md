@@ -43,7 +43,7 @@
   - [x] Integrate duel assembly step into AI generation completion flow.
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Duel Assembly Logic' (Protocol in workflow.md) (2c199b7)
 
-## Phase 3: API Updates
+## Phase 3: API Updates [checkpoint: 13c4f93]
 
 - [x] Task: Promote `GET /duels/:id` as canonical duel retrieval endpoint (58affa6)
   - [x] Write failing tests for anonymous duel retrieval by ID and `featured_duels` logging side effect.
@@ -74,7 +74,7 @@
     - [x] Join `topics` for list and stats responses.
     - [x] Fetch `scrape_sources` for both poem IDs in a single round trip (e.g., using `WHERE poem_id IN (...)` or Drizzle relational queries) to avoid N+1 queries.
     - [x] Map fallback values for missing topic joins and missing scrape rows.
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: API Updates' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: API Updates' (Protocol in workflow.md) (b54d90c)
 
 ## Phase 4: Regression & Quality Gate
 
