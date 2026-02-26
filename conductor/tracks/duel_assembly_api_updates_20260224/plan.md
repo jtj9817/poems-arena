@@ -45,35 +45,35 @@
 
 ## Phase 3: API Updates
 
-- [ ] Task: Promote `GET /duels/:id` as canonical duel retrieval endpoint
-  - [ ] Write failing tests for anonymous duel retrieval by ID and `featured_duels` logging side effect.
-  - [ ] Implement/adjust route behavior so multiple duels can be served on the same day without daily lock semantics.
-  - [ ] Throw custom Error classes (e.g., `NotFoundError`) to trigger a standardized `404` payload `{ error: 'Duel not found', code: 'DUEL_NOT_FOUND' }` when duel exists but references a missing poem row.
-  - [ ] Remove `GET /duels/today` from `apps/api/src/routes/duels.ts`.
-  - [ ] Remove/update callers and tests that depend on `GET /duels/today`.
-  - [ ] Ensure unknown/deprecated duel endpoints return HTTP `404` with `{ error: string, code: 'ENDPOINT_NOT_FOUND' }`.
-- [ ] Task: Update `GET /duels` and `GET /duels/:id/stats`
-  - [ ] Define response contracts in tests and docs:
-    - [ ] `GET /duels` returns `topic` (legacy string) and `topicMeta` object.
-    - [ ] `GET /duels/:id/stats` returns `duel.topicMeta` and per-poem `sourceInfo`.
-  - [ ] Define standardized Phase 5 error contract in tests and docs:
-    - [ ] Implement Hono global error handling middleware to catch custom Error classes and format standardized `{ error: string, code: string }` responses.
-    - [ ] `INVALID_PAGE`, `DUEL_NOT_FOUND`, and `ENDPOINT_NOT_FOUND` are used consistently.
-  - [ ] Write failing tests for `GET /duels`:
-    - [ ] Invalid `page` query values return `400` (`0`, negative, non-integer, non-numeric).
-    - [ ] `400` payload uses stable shape `{ error: string, code: 'INVALID_PAGE' }`.
-    - [ ] Includes `topicMeta.id` + `topicMeta.label` when topic join succeeds.
-    - [ ] Falls back to `topicMeta: { id: null, label: duel.topic }` when `topic_id` is missing/unresolved.
-  - [ ] Write failing tests for `GET /duels/:id/stats`:
-    - [ ] Returns `404` payload `{ error: 'Duel not found', code: 'DUEL_NOT_FOUND' }` when duel references missing poem row(s).
-    - [ ] Includes topic metadata in `duel.topicMeta`.
-    - [ ] Includes per-poem `sourceInfo.primary` and `sourceInfo.provenances`.
-    - [ ] Allows AI poems to return empty `sourceInfo.provenances`.
-    - [ ] Returns `sourceInfo.provenances` sorted by `scrapedAt` descending.
-  - [ ] Update Drizzle queries in `apps/api/src/routes/duels.ts`:
-    - [ ] Join `topics` for list and stats responses.
-    - [ ] Fetch `scrape_sources` for both poem IDs in a single round trip (e.g., using `WHERE poem_id IN (...)` or Drizzle relational queries) to avoid N+1 queries.
-    - [ ] Map fallback values for missing topic joins and missing scrape rows.
+- [x] Task: Promote `GET /duels/:id` as canonical duel retrieval endpoint (58affa6)
+  - [x] Write failing tests for anonymous duel retrieval by ID and `featured_duels` logging side effect.
+  - [x] Implement/adjust route behavior so multiple duels can be served on the same day without daily lock semantics.
+  - [x] Throw custom Error classes (e.g., `NotFoundError`) to trigger a standardized `404` payload `{ error: 'Duel not found', code: 'DUEL_NOT_FOUND' }` when duel exists but references a missing poem row.
+  - [x] Remove `GET /duels/today` from `apps/api/src/routes/duels.ts`.
+  - [x] Remove/update callers and tests that depend on `GET /duels/today`.
+  - [x] Ensure unknown/deprecated duel endpoints return HTTP `404` with `{ error: string, code: 'ENDPOINT_NOT_FOUND' }`.
+- [x] Task: Update `GET /duels` and `GET /duels/:id/stats` (58affa6)
+  - [x] Define response contracts in tests and docs:
+    - [x] `GET /duels` returns `topic` (legacy string) and `topicMeta` object.
+    - [x] `GET /duels/:id/stats` returns `duel.topicMeta` and per-poem `sourceInfo`.
+  - [x] Define standardized Phase 5 error contract in tests and docs:
+    - [x] Implement Hono global error handling middleware to catch custom Error classes and format standardized `{ error: string, code: string }` responses.
+    - [x] `INVALID_PAGE`, `DUEL_NOT_FOUND`, and `ENDPOINT_NOT_FOUND` are used consistently.
+  - [x] Write failing tests for `GET /duels`:
+    - [x] Invalid `page` query values return `400` (`0`, negative, non-integer, non-numeric).
+    - [x] `400` payload uses stable shape `{ error: string, code: 'INVALID_PAGE' }`.
+    - [x] Includes `topicMeta.id` + `topicMeta.label` when topic join succeeds.
+    - [x] Falls back to `topicMeta: { id: null, label: duel.topic }` when `topic_id` is missing/unresolved.
+  - [x] Write failing tests for `GET /duels/:id/stats`:
+    - [x] Returns `404` payload `{ error: 'Duel not found', code: 'DUEL_NOT_FOUND' }` when duel references missing poem row(s).
+    - [x] Includes topic metadata in `duel.topicMeta`.
+    - [x] Includes per-poem `sourceInfo.primary` and `sourceInfo.provenances`.
+    - [x] Allows AI poems to return empty `sourceInfo.provenances`.
+    - [x] Returns `sourceInfo.provenances` sorted by `scrapedAt` descending.
+  - [x] Update Drizzle queries in `apps/api/src/routes/duels.ts`:
+    - [x] Join `topics` for list and stats responses.
+    - [x] Fetch `scrape_sources` for both poem IDs in a single round trip (e.g., using `WHERE poem_id IN (...)` or Drizzle relational queries) to avoid N+1 queries.
+    - [x] Map fallback values for missing topic joins and missing scrape rows.
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: API Updates' (Protocol in workflow.md)
 
 ## Phase 4: Regression & Quality Gate
