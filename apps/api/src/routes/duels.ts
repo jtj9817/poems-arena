@@ -73,7 +73,11 @@ export function createDuelsRouter(db: Db) {
     if (!poemARows[0] || !poemBRows[0]) throw new DuelNotFoundError();
 
     const today = new Date().toISOString().slice(0, 10);
-    await db.insert(featuredDuels).values({ duelId: id, featuredOn: today });
+    try {
+      await db.insert(featuredDuels).values({ duelId: id, featuredOn: today });
+    } catch (error) {
+      if (!isMissingFeaturedDuelsTableError(error)) throw error;
+    }
 
     return c.json({
       id: duelRow.id,
@@ -200,6 +204,18 @@ function parsePage(raw: string | undefined): number {
     throw new InvalidPageError(`Invalid page value: "${raw}" — must be a positive integer`);
   }
   return n;
+}
+
+function isMissingFeaturedDuelsTableError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const causeMessage =
+    error.cause instanceof Error
+      ? error.cause.message
+      : typeof error.cause === 'string'
+        ? error.cause
+        : '';
+  const combinedMessage = `${error.message} ${causeMessage}`.toLowerCase();
+  return combinedMessage.includes('no such table') && combinedMessage.includes('featured_duels');
 }
 
 /** Builds a topicMeta object. Falls back to { id: null, label: duelTopic } when join misses. */

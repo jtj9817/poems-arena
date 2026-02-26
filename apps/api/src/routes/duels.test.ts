@@ -15,10 +15,11 @@ import { createDuelsRouter } from './duels';
 
 type TestDb = ReturnType<typeof drizzle<typeof schema>>;
 
-async function createTestDb(): Promise<TestDb> {
+async function createTestDb(options?: { includeFeaturedDuelsTable?: boolean }): Promise<TestDb> {
+  const { includeFeaturedDuelsTable = true } = options ?? {};
   const client = createClient({ url: 'file::memory:' });
 
-  // Create all required tables (matches production schema + featured_duels)
+  // Create all required tables (optionally including featured_duels)
   const ddl = [
     `CREATE TABLE IF NOT EXISTS topics (
       id TEXT PRIMARY KEY NOT NULL,
@@ -62,13 +63,16 @@ async function createTestDb(): Promise<TestDb> {
       raw_html TEXT,
       is_public_domain INTEGER NOT NULL DEFAULT false
     )`,
-    `CREATE TABLE IF NOT EXISTS featured_duels (
+  ];
+
+  if (includeFeaturedDuelsTable) {
+    ddl.push(`CREATE TABLE IF NOT EXISTS featured_duels (
       id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
       duel_id TEXT NOT NULL REFERENCES duels(id),
       featured_on TEXT NOT NULL,
       created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-    )`,
-  ];
+    )`);
+  }
 
   for (const stmt of ddl) {
     await client.execute(stmt);
@@ -298,6 +302,25 @@ describe('GET /duels/:id', () => {
     expect(rows).toHaveLength(2);
     expect(rows[0].duelId).toBe('duel-001');
     expect(rows[1].duelId).toBe('duel-001');
+  });
+
+  test('still returns duel payload when featured_duels table does not exist', async () => {
+    const dbWithoutFeaturedDuels = await createTestDb({ includeFeaturedDuelsTable: false });
+    const appWithoutFeaturedDuels = createTestApp(dbWithoutFeaturedDuels);
+
+    try {
+      await dbWithoutFeaturedDuels.insert(schema.topics).values(TOPIC_NATURE);
+      await dbWithoutFeaturedDuels.insert(schema.poems).values([POEM_HUMAN, POEM_AI]);
+      await dbWithoutFeaturedDuels.insert(schema.duels).values(DUEL_1);
+
+      const res = await appWithoutFeaturedDuels.request('/duel-001');
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { id: string };
+      expect(body.id).toBe('duel-001');
+    } finally {
+      // @ts-expect-error – accessing internal client for cleanup
+      await dbWithoutFeaturedDuels.$client.close();
+    }
   });
 
   test('returns 404 with DUEL_NOT_FOUND code when duel does not exist', async () => {
