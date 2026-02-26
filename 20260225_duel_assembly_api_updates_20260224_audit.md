@@ -1,10 +1,10 @@
 ---
 audit_file: 20260225_duel_assembly_api_updates_20260224_audit.md
 project_name: duel_assembly_api_updates_20260224
-last_audited_commit: 74a8a16
-last_audit_date: 2026-02-25
-total_phases: 3
-total_commits: 30
+last_audited_commit: a693260
+last_audit_date: 2026-02-26
+total_phases: 4
+total_commits: 34
 ---
 
 # Phase Commit Audit — duel_assembly_api_updates_20260224
@@ -27,6 +27,10 @@ Implemented full duel assembly system in `packages/ai-gen`: pure functional core
 ### Phase 3: API Updates (2 implementation commits, 2026-02-25) ✅ COMPLETE [checkpoint: 13c4f93]
 
 Refactored `apps/api/src/routes/duels.ts` into a `createDuelsRouter(db)` factory for testability. Added `apps/api/src/errors.ts` with `ApiError` base class and three subclasses (`DuelNotFoundError`, `InvalidPageError`, `EndpointNotFoundError`) producing stable `{ error, code }` JSON envelopes. Updated all three active duel endpoints: `GET /duels` adds `topicMeta` via topics JOIN with null fallback + `page` validation (400 INVALID_PAGE); `GET /duels/today` removed and replaced with 404 ENDPOINT_NOT_FOUND; `GET /duels/:id` logs every call to `featured_duels` with graceful degradation when the table is absent; `GET /duels/:id/stats` adds `topicMeta` and per-poem `sourceInfo` (primary + provenances from `scrape_sources` fetched in a single batch). Added router-level and app-level `onError` middleware. Added 23-test route suite with in-memory LibSQL (97.92% line coverage). Verified with 22-check manual script.
+
+### Phase 4: Regression & Quality Gate (1 implementation commit, 2026-02-25) ✅ COMPLETE [checkpoint: c9856f1]
+
+Implemented the full Phase 4 regression gate for duel assembly and duel APIs. Added new route-level regression tests for positive page handling, multi-duel-per-day retrieval, and strict error-envelope validation. Added ai-gen CLI regression that proves a generation run plus assembly persists duel rows. Added a hard coverage-gate script (`coverage:phase4`) enforcing module and package thresholds for `@sanctuary/api` and `@sanctuary/ai-gen`, plus a dedicated manual verification runner script for the full Phase 4 flow. Phase 4 tasks were recorded and checkpointed in the conductor plan with a verification note attached to the checkpoint commit.
 
 ---
 
@@ -445,6 +449,65 @@ None
 
 ---
 
+## Phase 4: Regression & Quality Gate
+
+### Overview
+
+- **Commits**: 1 implementation commit + 3 conductor/plan bookkeeping commits
+- **Lines Changed**: +485, -18 (across all Phase 4 commits)
+- **Files Affected**: 6 files
+- **Test Coverage**: 1/1 implementation commits ✅ (100%)
+- **Migrations**: 0
+
+### Implementation Commits
+
+**520d823** — test(duel-api): implement phase 4 regression and quality gates  
+**Impact**: +467/-0 lines, 5 files
+
+- **API regression tests** (`apps/api/src/routes/duels.test.ts`):
+  - Added positive page validation (`page=2`) coverage.
+  - Added explicit multi-duel-per-day serving validation using `GET /duels` + `GET /duels/:id`.
+  - Added grouped error-envelope regression assertions covering `INVALID_PAGE`, `ENDPOINT_NOT_FOUND`, and `DUEL_NOT_FOUND` paths with strict `{ error, code }` shape checks.
+- **AI generation regression test** (`packages/ai-gen/src/cli.test.ts`):
+  - Added integration-style test using in-memory SQLite to verify that running the generation flow with `assembleAfterRun` actually persists duel rows.
+  - Verifies resulting duel topic and poem IDs, and that assembly logging is emitted.
+- **Coverage CI gate** (`scripts/check-phase4-coverage-gate.mjs`):
+  - New script runs `bun test --coverage --coverage-reporter=lcov` for `@sanctuary/api` and `@sanctuary/ai-gen`.
+  - Parses `lcov.info` and enforces:
+    - `apps/api/src/routes/duels.ts` >=85 (line/function; branch if available)
+    - `packages/ai-gen/src/duel-assembly.ts` >=90 (line/function; branch if available)
+    - package `src/` floor >=80 for both packages.
+  - Handles Bun branch-metric omission (`BRF/BRH`) by warning and enforcing function coverage as proxy.
+- **Manual verification runner** (`scripts/run-manual-verification-phase-4-duel-assembly-api-updates.sh`):
+  - Added single entry-point script to run coverage gate, lint, format check, route regressions, and ai-gen duel regression tests with timestamped logs.
+- **Script wiring** (`package.json`):
+  - Added `coverage:phase4` and `quality:phase4` scripts.
+  - Left root `test` unchanged (`pnpm -r --if-present test`) so existing e2e baseline behavior is preserved.
+
+### Conductor / Bookkeeping Commits
+
+**ca8c767** — conductor(plan): Mark Phase 4 Regression & Quality Gate tasks as complete
+
+- Recorded `(520d823)` against all Phase 4 task lines in `conductor/tracks/duel_assembly_api_updates_20260224/plan.md`.
+
+**c9856f1** — conductor(checkpoint): Checkpoint end of Phase 4 — Regression & Quality Gate
+
+- Created Phase 4 checkpoint commit and attached a detailed verification report as a git note (coverage gate outputs, manual verification commands, and user confirmation).
+
+**a693260** — conductor(plan): Mark phase 'Phase 4: Regression & Quality Gate' as complete
+
+- Updated Phase 4 heading with `[checkpoint: c9856f1]` in `plan.md`.
+
+### Breaking Changes
+
+None
+
+### Technical Debt Introduced
+
+None
+
+---
+
 ## Database Evolution
 
 ### Schema Changes
@@ -461,10 +524,10 @@ None
 
 Most modified files across all commits (excluding documentation-only):
 
-- `conductor/tracks/duel_assembly_api_updates_20260224/plan.md`: 18 commits (Phase 0 + Phase 1 + Phase 2 + Phase 3 bookkeeping)
+- `conductor/tracks/duel_assembly_api_updates_20260224/plan.md`: 20 commits (Phase 0 + Phase 1 + Phase 2 + Phase 3 + Phase 4 bookkeeping)
 - `conductor/tracks/duel_assembly_api_updates_20260224/spec.md`: 7 commits (Phase 0)
 - `apps/api/src/routes/duels.ts`: 2 commits (Phase 3) — full rewrite + graceful degradation fix
-- `apps/api/src/routes/duels.test.ts`: 2 commits (Phase 3) — new file + featured_duels absence test
+- `apps/api/src/routes/duels.test.ts`: 3 commits (Phase 3 + Phase 4) — initial suite, featured_duels absence test, and regression gate expansions
 - `scripts/verify-phase3-api-updates.ts`: 2 commits (Phase 3) — new script + pass/fail fix
 - `packages/ai-gen/src/duel-assembly.test.ts`: 2 commits (Phase 2) — test file upgraded in fix
 - `packages/ai-gen/src/duel-assembly.ts`: 2 commits (Phase 2) — new file + rowsAffected fix
@@ -473,12 +536,14 @@ Most modified files across all commits (excluding documentation-only):
 - `packages/db/src/schema.ts`: 1 commit (Phase 1) — core schema change
 - `packages/db/src/schema.test.ts`: 1 commit (Phase 1)
 - `packages/ai-gen/src/cli.ts`: 1 commit (Phase 2) — assembleAfterRun hook
-- `packages/ai-gen/src/cli.test.ts`: 1 commit (Phase 2) — 3 new integration tests
+- `packages/ai-gen/src/cli.test.ts`: 2 commits (Phase 2 + Phase 4) — assembleAfterRun integration tests + DB-persistence regression
 - `scripts/verify-phase1-duel-assembly.ts`: 1 commit (Phase 1, new file)
 - `docs/backend/featured-duels-schema.md`: 1 commit (Phase 1, new file)
 - `docs/plans/001-data-pipeline-plan.md`: 1 commit (Phase 0 docs alignment)
 - `apps/api/src/errors.ts`: 1 commit (Phase 3) — new error hierarchy
 - `apps/api/src/index.ts`: 1 commit (Phase 3) — factory mount + app-level onError
+- `scripts/check-phase4-coverage-gate.mjs`: 1 commit (Phase 4) — hard coverage gate
+- `scripts/run-manual-verification-phase-4-duel-assembly-api-updates.sh`: 1 commit (Phase 4) — end-to-end Phase 4 runner
 
 ---
 
@@ -487,6 +552,11 @@ Most modified files across all commits (excluding documentation-only):
 **Phase 2 → pre-existing schema**: `packages/ai-gen/src/duel-assembly.ts` reads `poems`, `poem_topics`, `topics`, and writes `duels` — all tables predating this track.
 
 **Phase 3 → Phase 1**: `GET /duels/:id` in `apps/api/src/routes/duels.ts` INSERTs into `featured_duels` (added in Phase 1) on every successful call. Graceful degradation (`isMissingFeaturedDuelsTableError`) was added to handle pre-migration deployments.
+
+**Phase 4 → Phase 2 & 3**: Regression gate tests extend and exercise components delivered earlier:
+
+- `packages/ai-gen/src/cli.test.ts` validates Phase 2 duel-assembly persistence via generation flow.
+- `apps/api/src/routes/duels.test.ts` adds Phase 3 API regression checks for multi-duel serving and standardized error envelopes.
 
 ---
 
@@ -509,11 +579,29 @@ Most modified files across all commits (excluding documentation-only):
 - `apps/api/src/routes/duels.test.ts` — 23 route-level unit tests using in-memory LibSQL SQLite; covers topicMeta join + fallback, INVALID_PAGE (0/-1/1.5/abc), ENDPOINT_NOT_FOUND for `/today`, DUEL_NOT_FOUND for missing duel/poem, featured_duels logging (2 rows after 2 calls), graceful degradation without featured_duels table, sourceInfo structure (primary + provenances), provenances DESC sort, humanWinRate, avgReadingTime
 - `duels.ts` coverage: 97.92% lines / 100% functions (threshold: 85%); `@sanctuary/api` package overall: 90.92% lines
 
-**Overall**: 5/5 implementation commits (100%) ✅
+**Phase 4**: 1/1 implementation commits (100%) ✅
+
+- `apps/api/src/routes/duels.test.ts` extended with regression checks for positive page input, multi-duel-per-day retrieval, and strict `{ error, code }` envelope validation across in-scope failures.
+- `packages/ai-gen/src/cli.test.ts` extended with generation+assembly persistence regression using in-memory SQLite.
+- `scripts/check-phase4-coverage-gate.mjs` enforces hard coverage thresholds:
+  - `apps/api/src/routes/duels.ts`: 98.05% lines / 100.00% functions (>=85 target)
+  - `packages/ai-gen/src/duel-assembly.ts`: 100.00% lines / 95.65% functions (>=90 target)
+  - package floors: `@sanctuary/api` 98.26% lines / 100.00% functions, `@sanctuary/ai-gen` 92.27% lines / 95.16% functions (>=80 target)
+  - branch note: Bun lcov omitted BRF/BRH in this environment; gate warns and uses function coverage as branch proxy.
+
+**Overall**: 6/6 implementation commits (100%) ✅
 
 ---
 
 ## Rollback Commands
+
+To rollback Phase 4:
+
+```bash
+git revert 520d823^..a693260
+```
+
+Note: This reverts the Phase 4 regression tests, coverage-gate tooling, and Phase 4 conductor bookkeeping commits.
 
 To rollback Phase 3:
 
@@ -550,16 +638,16 @@ turso db shell <db-name> "DROP TABLE IF EXISTS featured_duels;"
 
 | Metric                 | Value                                                                |
 | ---------------------- | -------------------------------------------------------------------- |
-| Total commits          | 30 (10 docs, 3 feat, 3 test, 5 fix, 9 conductor)                     |
-| Implementation commits | 6 (Phase 1: 2, Phase 2: 2, Phase 3: 2)                               |
-| Lines added            | +3,640                                                               |
-| Lines removed          | -460                                                                 |
-| Files touched          | 35                                                                   |
+| Total commits          | 34 (10 docs, 3 feat, 4 test, 5 fix, 12 conductor)                    |
+| Implementation commits | 7 (Phase 1: 2, Phase 2: 2, Phase 3: 2, Phase 4: 1)                   |
+| Lines added            | +4,125                                                               |
+| Lines removed          | -478                                                                 |
+| Files touched          | 38                                                                   |
 | New tables             | 1 (`featured_duels`)                                                 |
 | New indexes            | 2                                                                    |
 | New modules            | 2 (`packages/ai-gen/src/duel-assembly.ts`, `apps/api/src/errors.ts`) |
 | Test coverage          | 100%                                                                 |
-| Phases completed       | 3 of 5                                                               |
+| Phases completed       | 4 of 5                                                               |
 | Track start            | 2026-02-25                                                           |
 | Last commit            | 2026-02-25                                                           |
 
@@ -570,11 +658,11 @@ turso db shell <db-name> "DROP TABLE IF EXISTS featured_duels;"
 ```json
 {
   "metadata": {
-    "last_commit": "74a8a16",
-    "audit_date": "2026-02-25",
-    "total_phases": 3,
-    "total_commits": 30,
-    "implementation_commits": 6
+    "last_commit": "a693260",
+    "audit_date": "2026-02-26",
+    "total_phases": 4,
+    "total_commits": 34,
+    "implementation_commits": 7
   },
   "phases": [
     {
@@ -807,6 +895,31 @@ turso db shell <db-name> "DROP TABLE IF EXISTS featured_duels;"
         }
       ],
       "stats": { "commits": 4, "files_changed": 5, "migrations": 0, "test_coverage": 1.0 }
+    },
+    {
+      "number": 4,
+      "name": "Regression & Quality Gate",
+      "status": "complete",
+      "checkpoint": "c9856f1",
+      "commits": [
+        {
+          "hash": "520d823",
+          "message": "test(duel-api): implement phase 4 regression and quality gates",
+          "files_changed": [
+            "apps/api/src/routes/duels.test.ts",
+            "packages/ai-gen/src/cli.test.ts",
+            "package.json",
+            "scripts/check-phase4-coverage-gate.mjs",
+            "scripts/run-manual-verification-phase-4-duel-assembly-api-updates.sh"
+          ],
+          "lines_added": 467,
+          "lines_removed": 0,
+          "has_tests": true,
+          "breaking_changes": false,
+          "technical_debt": []
+        }
+      ],
+      "stats": { "commits": 1, "files_changed": 5, "migrations": 0, "test_coverage": 1.0 }
     }
   ],
   "database": {
@@ -825,6 +938,12 @@ turso db shell <db-name> "DROP TABLE IF EXISTS featured_duels;"
       "to_phase": 1,
       "tables": ["featured_duels"],
       "notes": "GET /duels/:id INSERTs into featured_duels; graceful degradation added for pre-migration environments"
+    },
+    {
+      "from_phase": 4,
+      "to_phase": [2, 3],
+      "files": ["packages/ai-gen/src/cli.test.ts", "apps/api/src/routes/duels.test.ts"],
+      "notes": "Regression coverage hardens Phase 2 duel assembly flow and Phase 3 duel API contracts"
     }
   ]
 }
