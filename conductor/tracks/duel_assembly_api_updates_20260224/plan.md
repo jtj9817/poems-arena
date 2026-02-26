@@ -76,7 +76,7 @@
     - [x] Map fallback values for missing topic joins and missing scrape rows.
 - [x] Task: Conductor - User Manual Verification 'Phase 3: API Updates' (Protocol in workflow.md) (b54d90c)
 
-## Phase 4: Regression & Quality Gate
+## Phase 4: Regression & Quality Gate [checkpoint: c9856f1]
 
 - [x] Task: Coverage and Regression Verification (520d823)
   - [x] Add route-level unit tests in `apps/api` for `duels` routes (`GET /duels`, `GET /duels/:id`, `GET /duels/:id/stats`) and removed `GET /duels/today`.
