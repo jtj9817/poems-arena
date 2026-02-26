@@ -15,7 +15,7 @@ A digital "blind taste test" for poetry designed to challenge readers to disting
 
 ## Key Features
 
-- **The Foyer:** A minimalist landing page featuring the daily duel and providing an entry point to the experience.
+- **The Foyer:** A minimalist landing page featuring a selected duel and providing an entry point to the experience.
 - **The Reading Room:** A distraction-free, side-by-side comparison interface where two poems are labeled only "A" and "B," focusing entirely on the reading experience.
 - **The Verdict:** A post-vote reveal screen showing the author identities, win rates, and community statistics to provide immediate feedback and context.
 - **The Anthology:** A filterable grid archive of past duels, allowing users to browse history by theme or topic.

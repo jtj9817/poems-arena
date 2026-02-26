@@ -30,6 +30,14 @@ Classicist's Sanctuary is built as a TypeScript-first monorepo using pnpm worksp
 - **Libraries:** Cheerio, p-limit
 - **Purpose:** Specialized poetry scraping and parsing for multiple sources (Gutenberg, LOC, Poets.org).
 
+## ETL (@sanctuary/etl)
+
+- **Purpose:** Cleans, deduplicates, tags, and loads scraped poems into the database.
+
+## AI Generation (@sanctuary/ai-gen)
+
+- **Purpose:** Generates matched AI counterparts for human poems and assembles them into duels.
+
 ## E2E Testing (@sanctuary/e2e)
 
 - **Framework:** Playwright
