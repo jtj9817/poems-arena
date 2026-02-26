@@ -56,6 +56,12 @@ export interface PersistenceDb {
 // ---------------------------------------------------------------------------
 
 const DEFAULT_MAX_FAN_OUT = 10;
+const SQLITE_MAX_BIND_PARAMS = 999;
+const DUEL_INSERT_PARAM_COUNT = 5;
+const DUEL_INSERT_CHUNK_SIZE = Math.max(
+  1,
+  Math.floor(SQLITE_MAX_BIND_PARAMS / DUEL_INSERT_PARAM_COUNT),
+);
 
 // ---------------------------------------------------------------------------
 // Pure helpers
@@ -125,7 +131,7 @@ function assignPositions(
  * - Many-duels-per-poem: one HUMAN poem may pair with multiple AI poems.
  * - Unordered pair uniqueness: (A,B) and (B,A) produce the same duel ID.
  * - Bounded fan-out: at most `maxFanOut` AI poems per HUMAN poem, selected
- *   deterministically by sorted AI poem ID.
+ *   deterministically via seeded rank to avoid static lexicographic skew.
  * - Topic selection: when multiple shared topics exist the choice is seeded by
  *   the poem pair to avoid alphabetical skew.
  * - Idempotency: pairs whose deterministic ID is in `existingDuelIds` are skipped.
@@ -169,8 +175,12 @@ export function assemblePairs(options: AssemblePairsOptions): DuelCandidate[] {
 
     if (eligibleMap.size === 0) continue;
 
-    // Sort deterministically by AI poem ID and cap at maxFanOut.
-    const eligible = [...eligibleMap.values()].sort((a, b) => a.id.localeCompare(b.id));
+    const eligible = [...eligibleMap.values()].sort((a, b) => {
+      const rankA = seedFromPoemIds(human.id, a.id);
+      const rankB = seedFromPoemIds(human.id, b.id);
+      if (rankA !== rankB) return rankA - rankB;
+      return a.id.localeCompare(b.id);
+    });
     const capped = eligible.slice(0, maxFanOut);
 
     for (const ai of capped) {
@@ -277,11 +287,21 @@ export async function persistDuelCandidates(
   if (candidates.length === 0) return 0;
 
   let insertedCount = 0;
-  for (const candidate of candidates) {
+  for (let i = 0; i < candidates.length; i += DUEL_INSERT_CHUNK_SIZE) {
+    const chunk = candidates.slice(i, i + DUEL_INSERT_CHUNK_SIZE);
+    const placeholders = chunk.map(() => '(?, ?, ?, ?, ?)').join(', ');
+    const params = chunk.flatMap((candidate) => [
+      candidate.id,
+      candidate.topic,
+      candidate.topicId,
+      candidate.poemAId,
+      candidate.poemBId,
+    ]);
+
     const result = await db.execute(
       `INSERT OR IGNORE INTO duels (id, topic, topic_id, poem_a_id, poem_b_id)
-       VALUES (?, ?, ?, ?, ?)`,
-      [candidate.id, candidate.topic, candidate.topicId, candidate.poemAId, candidate.poemBId],
+       VALUES ${placeholders}`,
+      params,
     );
 
     if (typeof result.rowsAffected === 'number' && Number.isFinite(result.rowsAffected)) {
@@ -292,18 +312,11 @@ export async function persistDuelCandidates(
   return insertedCount;
 }
 
-/**
- * Full orchestration: fetch poems + existing duels, assemble pairs, persist.
- * Returns counts for logging.
- */
 export async function assembleAndPersistDuels(
   db: PersistenceDb,
   options?: { maxFanOut?: number },
 ): Promise<{ totalCandidates: number; newDuels: number }> {
-  const [poems, existingDuelIds] = await Promise.all([
-    fetchPoemsWithTopics(db),
-    fetchExistingDuelIds(db),
-  ]);
+  const poems = await fetchPoemsWithTopics(db);
 
   const humanPoems = poems.filter((p) => p.type === 'HUMAN');
   const aiPoems = poems.filter((p) => p.type === 'AI');
@@ -311,7 +324,6 @@ export async function assembleAndPersistDuels(
   const candidates = assemblePairs({
     humanPoems,
     aiPoems,
-    existingDuelIds,
     maxFanOut: options?.maxFanOut,
   });
 

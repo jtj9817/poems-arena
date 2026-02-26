@@ -2,6 +2,7 @@
 
 **Issue Type:** Technical Debt / Performance
 **Severity:** High
+**Status:** Resolved
 **Component:** Backend (`apps/api`), AI Generator (`packages/ai-gen`)
 
 ## Description
@@ -40,3 +41,30 @@ A comprehensive architectural review of the Phase 5 "Duel Assembly & API Updates
 2. **Push Idempotency to DB:** Remove the in-memory `existingDuelIds` Set. Either rely entirely on the database's `UNIQUE` constraints via `INSERT OR IGNORE`, or compute candidate hashes first and query the DB with a `WHERE id IN (...)` clause.
 3. **Deterministic Shuffling:** Use the existing `seedFromPoemIds` helper to pseudo-randomly shuffle or offset the AI candidate slice. This ensures fair exposure of AI poems while remaining deterministic across reruns.
 4. **Materialized Views/Columns:** For `GET /duels`, introduce materialized columns (e.g., `total_votes`, `human_votes`) on the `duels` table that are updated asynchronously or via triggers, removing the need for on-the-fly `LEFT JOIN` aggregations.
+
+## Resolution
+
+**Resolved on:** 2026-02-26
+
+### Changes Made
+
+- **`packages/ai-gen/src/duel-assembly.ts`**
+  - Replaced sequential per-candidate inserts with bind-safe batched multi-row `INSERT OR IGNORE` chunks.
+  - Removed orchestration-time full-table duel ID preload from `assembleAndPersistDuels`.
+  - Replaced lexicographic fan-out slicing with deterministic seeded ranking to keep deterministic behavior without static exposure skew.
+- **`packages/ai-gen/src/duel-assembly.test.ts`**
+  - Updated coverage for batched inserts, chunk splitting behavior, fan-out selection invariants, and orchestration call flow.
+- **`apps/api/src/routes/duels.ts`**
+  - Reworked `GET /duels` to page duel rows first, then aggregate vote stats only for those page duel IDs.
+
+### Verification
+
+- `pnpm --filter @sanctuary/ai-gen test src/duel-assembly.test.ts` — passes
+- `pnpm --filter @sanctuary/api test src/routes/duels.test.ts` — passes
+- `pnpm --filter @sanctuary/api test` — passes
+- `pnpm --filter @sanctuary/scraper test` — passes
+- `pnpm --filter @sanctuary/etl test` — passes
+- `pnpm test` — passes
+- `pnpm lint` — passes
+- `pnpm format:check` — passes
+- `pnpm build` — passes

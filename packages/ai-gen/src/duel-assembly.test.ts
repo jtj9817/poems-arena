@@ -230,11 +230,18 @@ describe('assemblePairs', () => {
     const result2 = assemblePairs({ humanPoems: [human], aiPoems, maxFanOut: 2 });
 
     expect(result1.map((d) => d.id)).toEqual(result2.map((d) => d.id));
-    // Should pick the first 2 by sorted AI poem ID: ai-a, ai-m (not ai-z)
     const pairedAiIds = result1.map((d) => (d.poemAId.startsWith('ai-') ? d.poemAId : d.poemBId));
-    expect(pairedAiIds).toContain('ai-a');
-    expect(pairedAiIds).toContain('ai-m');
-    expect(pairedAiIds).not.toContain('ai-z');
+    expect(pairedAiIds).toHaveLength(2);
+    expect(new Set(pairedAiIds).size).toBe(2);
+
+    const otherHuman = humanPoem('human-2', [topicNature]);
+    const resultOther = assemblePairs({ humanPoems: [otherHuman], aiPoems, maxFanOut: 2 });
+    const pairedAiIdsOther = resultOther.map((d) =>
+      d.poemAId.startsWith('ai-') ? d.poemAId : d.poemBId,
+    );
+
+    expect(resultOther).toHaveLength(2);
+    expect(pairedAiIdsOther).toHaveLength(2);
   });
 
   test('handles multiple HUMAN poems each independently', () => {
@@ -315,7 +322,7 @@ describe('fetchPoemsWithTopics', () => {
 // ---------------------------------------------------------------------------
 
 describe('persistDuelCandidates', () => {
-  test('inserts each candidate using INSERT OR IGNORE', async () => {
+  test('inserts candidates using batched INSERT OR IGNORE', async () => {
     const candidates: DuelCandidate[] = [
       {
         id: 'duel-abc',
@@ -327,19 +334,15 @@ describe('persistDuelCandidates', () => {
       { id: 'duel-def', poemAId: 'ai-2', poemBId: 'human-2', topic: 'Love', topicId: 'topic-love' },
     ];
 
-    const db = createMockDb([
-      { rows: [], rowsAffected: 1 },
-      { rows: [], rowsAffected: 1 },
-    ]);
+    const db = createMockDb([{ rows: [], rowsAffected: 2 }]);
     const count = await persistDuelCandidates(db, candidates);
 
-    expect(db.execute).toHaveBeenCalledTimes(2);
+    expect(db.execute).toHaveBeenCalledTimes(1);
     expect(count).toBe(2);
 
-    for (let i = 0; i < 2; i++) {
-      const call = db.execute.mock.calls[i];
-      expect(call?.[0]).toContain('INSERT OR IGNORE INTO duels');
-    }
+    const [query] = db.execute.mock.calls[0]!;
+    expect(query).toContain('INSERT OR IGNORE INTO duels');
+    expect(query).toContain('VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)');
   });
 
   test('returns 0 when candidates list is empty', async () => {
@@ -387,13 +390,31 @@ describe('persistDuelCandidates', () => {
       },
     ];
 
-    const db = createMockDb([
-      { rows: [], rowsAffected: 1 },
-      { rows: [], rowsAffected: 0 },
-    ]);
+    const db = createMockDb([{ rows: [], rowsAffected: 1 }]);
     const count = await persistDuelCandidates(db, candidates);
 
+    expect(db.execute).toHaveBeenCalledTimes(1);
     expect(count).toBe(1);
+  });
+
+  test('splits inserts across multiple batches when candidate count exceeds SQLite bind limit', async () => {
+    const candidates: DuelCandidate[] = Array.from({ length: 200 }, (_, index) => ({
+      id: `duel-${index}`,
+      poemAId: `human-${index}`,
+      poemBId: `ai-${index}`,
+      topic: 'Nature',
+      topicId: 'topic-nature',
+    }));
+
+    const db = createMockDb([
+      { rows: [], rowsAffected: 199 },
+      { rows: [], rowsAffected: 1 },
+    ]);
+
+    const count = await persistDuelCandidates(db, candidates);
+
+    expect(db.execute).toHaveBeenCalledTimes(2);
+    expect(count).toBe(200);
   });
 });
 
@@ -438,24 +459,21 @@ describe('fetchExistingDuelIds', () => {
 // ---------------------------------------------------------------------------
 
 describe('assembleAndPersistDuels', () => {
-  test('fetches poems and existing duels, assembles pairs, and persists them', async () => {
+  test('fetches poems, assembles pairs, and persists them', async () => {
     // fetchPoemsWithTopics call → 1 human + 1 AI poem sharing topic-nature
     const poemRows = [
       { id: 'h1', type: 'HUMAN', topic_id: 'topic-nature', topic_label: 'Nature' },
       { id: 'a1', type: 'AI', topic_id: 'topic-nature', topic_label: 'Nature' },
     ];
-    // fetchExistingDuelIds call → no existing duels
-    const duelIdRows: Array<Record<string, unknown>> = [];
     // persistDuelCandidates → INSERT call (returns empty rows)
-    const db = createMockDb([poemRows, duelIdRows, { rows: [], rowsAffected: 1 }]);
+    const db = createMockDb([poemRows, { rows: [], rowsAffected: 1 }]);
     const result = await assembleAndPersistDuels(db);
 
     // 1 pair assembled and persisted
     expect(result.totalCandidates).toBe(1);
     expect(result.newDuels).toBe(1);
 
-    // execute was called 3 times: fetchPoemsWithTopics, fetchExistingDuelIds, INSERT
-    expect(db.execute).toHaveBeenCalledTimes(3);
+    expect(db.execute).toHaveBeenCalledTimes(2);
   });
 
   test('returns zero counts when no eligible pairs exist', async () => {
@@ -464,36 +482,25 @@ describe('assembleAndPersistDuels', () => {
       { id: 'h1', type: 'HUMAN', topic_id: 'topic-nature', topic_label: 'Nature' },
       { id: 'a1', type: 'AI', topic_id: 'topic-love', topic_label: 'Love' },
     ];
-    const duelIdRows: Array<Record<string, unknown>> = [];
-
-    const db = createMockDb([poemRows, duelIdRows]);
+    const db = createMockDb([poemRows]);
     const result = await assembleAndPersistDuels(db);
 
     expect(result.totalCandidates).toBe(0);
     expect(result.newDuels).toBe(0);
-    // No INSERT call since there are no candidates
-    expect(db.execute).toHaveBeenCalledTimes(2);
+    expect(db.execute).toHaveBeenCalledTimes(1);
   });
 
-  test('skips pairs that already exist in the database', async () => {
+  test('counts candidates while INSERT OR IGNORE prevents duplicate duel rows', async () => {
     const poemRows = [
       { id: 'h1', type: 'HUMAN', topic_id: 'topic-nature', topic_label: 'Nature' },
       { id: 'a1', type: 'AI', topic_id: 'topic-nature', topic_label: 'Nature' },
     ];
-    // Simulate the duel already existing — generate its ID via assemblePairs first
-    const { assemblePairs: ap } = await import('./duel-assembly');
-    const [existingDuel] = ap({
-      humanPoems: [{ id: 'h1', type: 'HUMAN', topics: [{ id: 'topic-nature', label: 'Nature' }] }],
-      aiPoems: [{ id: 'a1', type: 'AI', topics: [{ id: 'topic-nature', label: 'Nature' }] }],
-    });
-    const duelIdRows = [{ id: existingDuel!.id }];
-
-    const db = createMockDb([poemRows, duelIdRows]);
+    const db = createMockDb([poemRows, { rows: [], rowsAffected: 0 }]);
     const result = await assembleAndPersistDuels(db);
 
-    expect(result.totalCandidates).toBe(0);
+    expect(result.totalCandidates).toBe(1);
     expect(result.newDuels).toBe(0);
-    expect(db.execute).toHaveBeenCalledTimes(2); // no INSERT
+    expect(db.execute).toHaveBeenCalledTimes(2);
   });
 
   test('passes maxFanOut option through to assemblePairs', async () => {
@@ -504,17 +511,11 @@ describe('assembleAndPersistDuels', () => {
       { id: 'a2', type: 'AI', topic_id: 'topic-nature', topic_label: 'Nature' },
       { id: 'a3', type: 'AI', topic_id: 'topic-nature', topic_label: 'Nature' },
     ];
-    const duelIdRows: Array<Record<string, unknown>> = [];
-    // 2 INSERT calls (maxFanOut = 2)
-    const db = createMockDb([
-      poemRows,
-      duelIdRows,
-      { rows: [], rowsAffected: 1 },
-      { rows: [], rowsAffected: 1 },
-    ]);
+    const db = createMockDb([poemRows, { rows: [], rowsAffected: 2 }]);
     const result = await assembleAndPersistDuels(db, { maxFanOut: 2 });
 
     expect(result.totalCandidates).toBe(2);
     expect(result.newDuels).toBe(2);
+    expect(db.execute).toHaveBeenCalledTimes(2);
   });
 });

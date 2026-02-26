@@ -21,24 +21,46 @@ export function createDuelsRouter(db: Db) {
         topicId: duels.topicId,
         topicLabel: topics.label,
         createdAt: duels.createdAt,
-        totalVotes: sql<number>`count(${votes.id})`,
-        humanVotes: sql<number>`sum(case when ${votes.isHuman} = 1 then 1 else 0 end)`,
       })
       .from(duels)
-      .leftJoin(votes, eq(votes.duelId, duels.id))
       .leftJoin(topics, eq(duels.topicId, topics.id))
-      .groupBy(duels.id)
       .limit(limit)
       .offset(offset);
 
-    const result = rows.map((r) => ({
-      id: r.id,
-      topic: r.topic,
-      topicMeta: buildTopicMeta(r.topicId, r.topicLabel, r.topic),
-      createdAt: r.createdAt,
-      humanWinRate: r.totalVotes > 0 ? Math.round((r.humanVotes / r.totalVotes) * 100) : 0,
-      avgReadingTime: '3m 30s',
-    }));
+    const duelIds = rows.map((r) => r.id);
+    const voteStats =
+      duelIds.length > 0
+        ? await db
+            .select({
+              duelId: votes.duelId,
+              totalVotes: sql<number>`count(${votes.id})`,
+              humanVotes: sql<number>`sum(case when ${votes.isHuman} = 1 then 1 else 0 end)`,
+            })
+            .from(votes)
+            .where(inArray(votes.duelId, duelIds))
+            .groupBy(votes.duelId)
+        : [];
+
+    const voteStatsByDuel = new Map<string, { totalVotes: number; humanVotes: number }>();
+    for (const stat of voteStats) {
+      voteStatsByDuel.set(stat.duelId, {
+        totalVotes: stat.totalVotes,
+        humanVotes: stat.humanVotes,
+      });
+    }
+
+    const result = rows.map((r) => {
+      const stats = voteStatsByDuel.get(r.id) ?? { totalVotes: 0, humanVotes: 0 };
+      return {
+        id: r.id,
+        topic: r.topic,
+        topicMeta: buildTopicMeta(r.topicId, r.topicLabel, r.topic),
+        createdAt: r.createdAt,
+        humanWinRate:
+          stats.totalVotes > 0 ? Math.round((stats.humanVotes / stats.totalVotes) * 100) : 0,
+        avgReadingTime: '3m 30s',
+      };
+    });
 
     return c.json(result);
   });
