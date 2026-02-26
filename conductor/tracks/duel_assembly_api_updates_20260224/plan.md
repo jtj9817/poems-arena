@@ -78,23 +78,23 @@
 
 ## Phase 4: Regression & Quality Gate
 
-- [ ] Task: Coverage and Regression Verification
-  - [ ] Add route-level unit tests in `apps/api` for `duels` routes (`GET /duels`, `GET /duels/:id`, `GET /duels/:id/stats`) and removed `GET /duels/today`.
-  - [ ] Add unit tests in `packages/ai-gen` for duel assembly policy, idempotency, and bounded fan-out behavior.
-  - [ ] Ensure `apps/api/src/routes/duels.ts` reaches >=85% statement and branch coverage.
-  - [ ] Ensure duel-assembly module in `@sanctuary/ai-gen` reaches >=90% statement and branch coverage.
-  - [ ] Ensure package-level coverage floor remains >=80% for both `@sanctuary/ai-gen` and `@sanctuary/api`.
-  - [ ] Enforce the coverage thresholds as a hard CI gate (pipeline fails when below threshold).
-  - [ ] Execute `pnpm lint` and `pnpm format:check`.
-- [ ] Task: Regression Checklist (Feature Behaviors)
-  - [ ] Verify that running the AI generator also successfully creates new duels in the database.
-  - [ ] Verify repeated calls to `GET /duels/:id` append records to `featured_duels` (including same-day duplicates).
-  - [ ] Verify `GET /duels` + `GET /duels/:id` support serving multiple duels per day.
-  - [ ] Verify API response edge cases:
-    - [ ] Missing `topic_id` still yields stable `topicMeta` fallback.
-    - [ ] AI poems return empty provenance arrays without failing stats payload.
-    - [ ] All error responses follow `{ error: string, code: string }` across in-scope endpoints.
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Regression & Quality Gate' (Protocol in workflow.md)
+- [x] Task: Coverage and Regression Verification (520d823)
+  - [x] Add route-level unit tests in `apps/api` for `duels` routes (`GET /duels`, `GET /duels/:id`, `GET /duels/:id/stats`) and removed `GET /duels/today`.
+  - [x] Add unit tests in `packages/ai-gen` for duel assembly policy, idempotency, and bounded fan-out behavior.
+  - [x] Ensure `apps/api/src/routes/duels.ts` reaches >=85% statement and branch coverage.
+  - [x] Ensure duel-assembly module in `@sanctuary/ai-gen` reaches >=90% statement and branch coverage.
+  - [x] Ensure package-level coverage floor remains >=80% for both `@sanctuary/ai-gen` and `@sanctuary/api`.
+  - [x] Enforce the coverage thresholds as a hard CI gate (pipeline fails when below threshold).
+  - [x] Execute `pnpm lint` and `pnpm format:check`.
+- [x] Task: Regression Checklist (Feature Behaviors) (520d823)
+  - [x] Verify that running the AI generator also successfully creates new duels in the database.
+  - [x] Verify repeated calls to `GET /duels/:id` append records to `featured_duels` (including same-day duplicates).
+  - [x] Verify `GET /duels` + `GET /duels/:id` support serving multiple duels per day.
+  - [x] Verify API response edge cases:
+    - [x] Missing `topic_id` still yields stable `topicMeta` fallback.
+    - [x] AI poems return empty provenance arrays without failing stats payload.
+    - [x] All error responses follow `{ error: string, code: string }` across in-scope endpoints.
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Regression & Quality Gate' (Protocol in workflow.md) (520d823)
 
 ## Phase 5: Documentation
 
