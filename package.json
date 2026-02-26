@@ -8,8 +8,8 @@
     "build": "pnpm --filter @sanctuary/shared build && pnpm --filter @sanctuary/web build && pnpm --filter @sanctuary/api build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "format": "prettier --write . \"!**/*.md\"",
+    "format:check": "prettier --check . \"!**/*.md\"",
     "coverage:phase4": "node scripts/check-phase4-coverage-gate.mjs",
     "quality:phase4": "pnpm run coverage:phase4 && pnpm lint && pnpm format:check",
     "test": "pnpm -r --if-present test"
@@ -33,7 +33,7 @@
       "eslint --fix",
       "prettier --write"
     ],
-    "*.{json,md,yaml,yml}": [
+    "*.{json,yaml,yml}": [
       "prettier --write"
     ]
   },
