@@ -4,6 +4,7 @@ import { logger } from 'hono/logger';
 import { db } from './db/client';
 import { ApiError } from './errors';
 import { createDuelsRouter } from './routes/duels';
+import { createTopicsRouter } from './routes/topics';
 import { votesRouter } from './routes/votes';
 
 const app = new Hono();
@@ -25,6 +26,7 @@ app.use(
 app.get('/health', (c) => c.json({ status: 'ok' }));
 
 app.route('/api/v1/duels', createDuelsRouter(db));
+app.route('/api/v1/topics', createTopicsRouter(db));
 app.route('/api/v1/votes', votesRouter);
 
 // Global error handler — catches ApiError subclasses thrown inside route handlers
