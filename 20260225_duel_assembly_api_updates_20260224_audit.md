@@ -1,10 +1,10 @@
 ---
 audit_file: 20260225_duel_assembly_api_updates_20260224_audit.md
 project_name: duel_assembly_api_updates_20260224
-last_audited_commit: 1d596bc
+last_audited_commit: 74a8a16
 last_audit_date: 2026-02-25
-total_phases: 2
-total_commits: 22
+total_phases: 3
+total_commits: 30
 ---
 
 # Phase Commit Audit — duel_assembly_api_updates_20260224
@@ -23,6 +23,10 @@ Follow-up hardening: manual verification now runs rollback-only inside an isolat
 ### Phase 2: Duel Assembly Logic (2 implementation commits, 2026-02-25) ✅ COMPLETE [checkpoint: 7e3baf5]
 
 Implemented full duel assembly system in `packages/ai-gen`: pure functional core (`assemblePairs`) and DB orchestration layer (`assembleAndPersistDuels`). Pairs HUMAN↔AI poems by shared topic with deterministic duel IDs (SHA-256 hash of sorted poem IDs, 12-char hex prefix), bounded fan-out (default 10), pseudo-random topic selection seeded by poem IDs, idempotent `INSERT OR IGNORE` persistence, and deterministic A/B position assignment. Integrated as optional `assembleAfterRun` hook in the AI generation CLI. Fixed `persistDuelCandidates` to report actual inserted row counts from `rowsAffected` rather than attempted candidate counts. Verified with 16-check manual script (Sections A–D).
+
+### Phase 3: API Updates (2 implementation commits, 2026-02-25) ✅ COMPLETE [checkpoint: 13c4f93]
+
+Refactored `apps/api/src/routes/duels.ts` into a `createDuelsRouter(db)` factory for testability. Added `apps/api/src/errors.ts` with `ApiError` base class and three subclasses (`DuelNotFoundError`, `InvalidPageError`, `EndpointNotFoundError`) producing stable `{ error, code }` JSON envelopes. Updated all three active duel endpoints: `GET /duels` adds `topicMeta` via topics JOIN with null fallback + `page` validation (400 INVALID_PAGE); `GET /duels/today` removed and replaced with 404 ENDPOINT_NOT_FOUND; `GET /duels/:id` logs every call to `featured_duels` with graceful degradation when the table is absent; `GET /duels/:id/stats` adds `topicMeta` and per-poem `sourceInfo` (primary + provenances from `scrape_sources` fetched in a single batch). Added router-level and app-level `onError` middleware. Added 23-test route suite with in-memory LibSQL (97.92% line coverage). Verified with 22-check manual script.
 
 ---
 
@@ -319,6 +323,128 @@ None
 
 ---
 
+## Phase 3: API Updates
+
+### Overview
+
+- **Commits**: 2 implementation commits + 1 manual verification script + 5 conductor/plan bookkeeping commits
+- **Lines Changed**: +854, -110 (net, across implementation commits only)
+- **Files Affected**: 5 files
+- **Test Coverage**: 2/2 implementation commits ✅ (100%)
+- **Migrations**: 0
+
+### Implementation Commits
+
+**58affa6** — feat(api): implement Phase 3 API updates — topicMeta, sourceInfo, featured_duels, error contracts
+**Impact**: +809/-104 lines, 4 files
+
+- **New file**: `apps/api/src/errors.ts`
+  - `ApiError` — base class: `constructor(message, code, statusCode)`; sets `this.name = 'ApiError'`
+  - `DuelNotFoundError extends ApiError` — message `'Duel not found'`, code `DUEL_NOT_FOUND`, status `404`
+  - `InvalidPageError extends ApiError` — message from caller, code `INVALID_PAGE`, status `400`
+  - `EndpointNotFoundError extends ApiError` — message `'Endpoint not found'`, code `ENDPOINT_NOT_FOUND`, status `404`
+
+- **Rewrite**: `apps/api/src/routes/duels.ts` → `createDuelsRouter(db: Db)` factory
+  - Module-level `duelsRouter` singleton replaced with exported factory function for test DB injection
+  - **`router.onError((err, c) => {...})`** inside the factory: catches `ApiError` subclasses → `c.json({ error, code }, statusCode)`; re-throws non-`ApiError` errors up to the app-level handler
+  - **`GET /`** (`GET /duels`):
+    - Added `LEFT JOIN topics ON duels.topic_id = topics.id` to Drizzle query
+    - Selects `topicId: duels.topicId`, `topicLabel: topics.label`
+    - Maps each row through `buildTopicMeta(topicId, topicLabel, duel.topic)` → `topicMeta: { id, label }`
+    - `parsePage(raw)` helper validates `page` query param: throws `InvalidPageError` for `0`, negative, non-integer (`1.5`), non-numeric (`abc`)
+  - **`GET /today`** (registered before `/:id` to take priority):
+    - Throws `EndpointNotFoundError()` — returns `404 { error: 'Endpoint not found', code: 'ENDPOINT_NOT_FOUND' }`
+  - **`GET /:id`**:
+    - Fetches duel row; throws `DuelNotFoundError` if not found
+    - Fetches both poem rows in `Promise.all`; throws `DuelNotFoundError` if either is absent
+    - Inserts row into `featured_duels` (`duelId`, `featuredOn = today`) on every successful call
+    - Returns anonymous payload: `{ id, topic, poemA: { id, title, content }, poemB: { id, title, content } }` — no `author` or `type`
+  - **`GET /:id/stats`**:
+    - Fetches duel row with `LEFT JOIN topics` for `topicMeta`
+    - Fetches both poem rows in `Promise.all`; throws `DuelNotFoundError` if either is absent
+    - Batch-fetches `scrape_sources` for both poem IDs in a single query: `WHERE poem_id IN (poemA.id, poemB.id) ORDER BY scraped_at DESC` — avoids N+1
+    - Groups scrape rows into `Map<poemId, ScrapeRow[]>` for O(1) per-poem lookup
+    - `buildSourceInfo(poem, sourcesByPoem)` helper: returns `{ primary: { source, sourceUrl }, provenances: [{ source, sourceUrl, scrapedAt, isPublicDomain }] }`
+    - `computeAvgReadingTime(contentA, contentB)` helper: splits combined content on whitespace, applies 200 wpm rate: `${m}m ${s}s`
+    - Returns `{ humanWinRate, avgReadingTime, duel: { id, topic, topicMeta, poemA: { id, title, content, author, type, year, sourceInfo }, poemB: {...} } }`
+  - **Helpers added**:
+    - `parsePage(raw): number` — returns `1` if undefined; throws `InvalidPageError` for invalid values
+    - `buildTopicMeta(topicId, topicLabel, duelTopic)` — returns `{ id: topicId, label: topicLabel }` on join hit; `{ id: null, label: duelTopic }` on miss
+    - `buildSourceInfo(poem, sourcesByPoem)` — constructs primary + provenances struct
+    - `computeAvgReadingTime(contentA, contentB)` — computes reading time from word count
+    - `isMissingFeaturedDuelsTableError(error)` — added in follow-up commit **d64da75** (see below)
+
+- **Modified**: `apps/api/src/index.ts`
+  - Import: replaced `duelsRouter` with `{ createDuelsRouter }` and added `{ db }` and `{ ApiError }`
+  - Route mount: `app.route('/api/v1/duels', createDuelsRouter(db))`
+  - Added `app.onError((err, c) => {...})`: formats `ApiError` subclasses as `{ error, code }` JSON; logs and returns `500 { error: 'Internal server error', code: 'INTERNAL_ERROR' }` for all others
+
+- **New file**: `apps/api/src/routes/duels.test.ts` — 22 route-level unit tests
+  - Test setup: `createTestApp(db)` mounts the router on a bare `new Hono()` for isolated testing
+  - `createTestDb(opts?)` utility: spins up anonymous in-memory LibSQL SQLite (`file::memory:`), runs DDL for all tables including optional `featured_duels` via `db.$client.execute()`
+  - Tests by section:
+    - `GET /duels` (5 tests): topicMeta join present, topicMeta fallback on null topic_id, 400 INVALID_PAGE for page=0/-1/1.5/abc
+    - `GET /duels/today` (1 test): 404 ENDPOINT_NOT_FOUND
+    - `GET /duels/:id` (5 tests): 200 with anonymous payload (no author/type), 404 DUEL_NOT_FOUND on missing duel, 404 DUEL_NOT_FOUND on missing poem, featured_duels logging (2 calls → 2 rows), FK PRAGMA OFF workaround for poem deletion
+    - `GET /duels/:id/stats` (9 tests): 404 DUEL_NOT_FOUND on missing duel, 404 DUEL_NOT_FOUND on missing poem, topicMeta join, empty AI provenances, sourceInfo.primary from poems.source, provenances count, provenances DESC sort order, humanWinRate, avgReadingTime
+    - Missing featured_duels table (1 test): added in **d64da75** below
+  - Coverage: `duels.ts` 97.92% lines / 100% functions (threshold: 85%); `@sanctuary/api` package 90.92% lines overall
+
+**d64da75** — fix(api): keep duel reads resilient without log table
+**Impact**: +45/-6 lines, 2 files
+
+- **Bug fix** (`apps/api/src/routes/duels.ts`):
+  - Wrapped `featured_duels` INSERT in `try/catch` inside `GET /:id` handler
+  - Added `isMissingFeaturedDuelsTableError(error): boolean` helper:
+    - Returns `false` if `error` is not an `Error` instance
+    - Extracts `error.cause.message` (or string cause) into `causeMessage`
+    - Returns `true` if `combinedMessage` includes both `'no such table'` and `'featured_duels'` (case-insensitive)
+  - On catch: re-throws unless error matches `isMissingFeaturedDuelsTableError` — allows forward-compatibility when deploying API before `featured_duels` migration runs
+
+- **Test** (`apps/api/src/routes/duels.test.ts`):
+  - Added `includeFeaturedDuelsTable` option to `createTestDb` helper
+  - New test: `'still returns duel payload when featured_duels table does not exist'` — creates DB without `featured_duels`, asserts `GET /:id` returns `200` with correct `id`
+  - Total test count after this commit: 23
+
+### Conductor / Bookkeeping Commits
+
+**b54d90c** — test(scripts): add Phase 3 API updates manual verification script
+**Impact**: +794 lines, 1 file
+
+- **Script** (`scripts/verify-phase3-api-updates.ts`): 22-check manual verification script (Sections A–F)
+  - Pattern: matches Phase 1/2 verification convention (`runCheck`, `TestLogger`/`TestAssertion` helpers, timestamped log file)
+  - Uses `createDb` from `packages/db/src/client` (avoids direct `@libsql/client` import; pnpm strict workspace isolation)
+  - Uses `createDuelsRouter(db).fetch(new Request(...))` — Hono routers expose `.fetch()` directly without needing `new Hono()` at the script level
+  - In-memory DBs via `createDb({ url: 'file::memory:' })` — each connection is already isolated; no `?cache=` suffix needed
+  - Section A (4 checks): `errors.ts` exists, `duels.ts` exists, `duels.test.ts` exists, `createDuelsRouter` is a function
+  - Section B (6 checks): `GET /duels` topicMeta join, topicMeta null fallback, INVALID_PAGE for page=0/-1/1.5/abc
+  - Section C (1 check): `GET /duels/today` → 404 ENDPOINT_NOT_FOUND
+  - Section D (5 checks): anonymous payload (no author/type), featured_duels logging (2 rows after 2 calls), DUEL_NOT_FOUND for missing duel, DUEL_NOT_FOUND when poem row deleted, graceful degradation without featured_duels table
+  - Section E (5 checks): DUEL_NOT_FOUND for unknown stats id, topicMeta in stats, sourceInfo.primary + provenances, provenances DESC sort (newest first), DUEL_NOT_FOUND when poem deleted for stats
+  - Section F (1 check): `pnpm --filter @sanctuary/api test` exits 0 with `CI=true`
+
+**74a8a16** — fix(scripts): fail phase3 verify on check errors
+**Impact**: +10/-2 lines, 1 file
+
+- **`main()` result logic** (`scripts/verify-phase3-api-updates.ts`):
+  - Split `TestAssertion.summary()` result into `assertionsPassed` and added `checksPassed = failed === 0`
+  - `allPassed = assertionsPassed && checksPassed` — prevents false-pass when a check throws before reaching any assertion
+  - Updated result line: `✗ N CHECKS FAILED` with optional `(assertions)` suffix when assertion totals also fail
+
+**e99fe8c** — conductor(plan): Mark Phase 3 API Update tasks as complete
+**13c4f93** — conductor(checkpoint): Checkpoint end of Phase 3 — API Updates
+**9ee71b5** — conductor(plan): Mark phase 'Phase 3: API Updates' as complete
+
+### Breaking Changes
+
+None
+
+### Technical Debt Introduced
+
+None
+
+---
+
 ## Database Evolution
 
 ### Schema Changes
@@ -335,8 +461,11 @@ None
 
 Most modified files across all commits (excluding documentation-only):
 
-- `conductor/tracks/duel_assembly_api_updates_20260224/plan.md`: 15 commits (Phase 0 + Phase 1 + Phase 2 bookkeeping)
+- `conductor/tracks/duel_assembly_api_updates_20260224/plan.md`: 18 commits (Phase 0 + Phase 1 + Phase 2 + Phase 3 bookkeeping)
 - `conductor/tracks/duel_assembly_api_updates_20260224/spec.md`: 7 commits (Phase 0)
+- `apps/api/src/routes/duels.ts`: 2 commits (Phase 3) — full rewrite + graceful degradation fix
+- `apps/api/src/routes/duels.test.ts`: 2 commits (Phase 3) — new file + featured_duels absence test
+- `scripts/verify-phase3-api-updates.ts`: 2 commits (Phase 3) — new script + pass/fail fix
 - `packages/ai-gen/src/duel-assembly.test.ts`: 2 commits (Phase 2) — test file upgraded in fix
 - `packages/ai-gen/src/duel-assembly.ts`: 2 commits (Phase 2) — new file + rowsAffected fix
 - `packages/ai-gen/src/index.ts`: 2 commits (Phase 2) — exports + adapter fix
@@ -348,6 +477,8 @@ Most modified files across all commits (excluding documentation-only):
 - `scripts/verify-phase1-duel-assembly.ts`: 1 commit (Phase 1, new file)
 - `docs/backend/featured-duels-schema.md`: 1 commit (Phase 1, new file)
 - `docs/plans/001-data-pipeline-plan.md`: 1 commit (Phase 0 docs alignment)
+- `apps/api/src/errors.ts`: 1 commit (Phase 3) — new error hierarchy
+- `apps/api/src/index.ts`: 1 commit (Phase 3) — factory mount + app-level onError
 
 ---
 
@@ -355,11 +486,7 @@ Most modified files across all commits (excluding documentation-only):
 
 **Phase 2 → pre-existing schema**: `packages/ai-gen/src/duel-assembly.ts` reads `poems`, `poem_topics`, `topics`, and writes `duels` — all tables predating this track.
 
-`featured_duels` table (Phase 1) is self-contained and not yet consumed by Phase 2.
-
-Upcoming dependencies (from spec):
-
-- Phase 3 (API Updates) → Phase 1: `GET /duels/:id` will INSERT into `featured_duels` on each call
+**Phase 3 → Phase 1**: `GET /duels/:id` in `apps/api/src/routes/duels.ts` INSERTs into `featured_duels` (added in Phase 1) on every successful call. Graceful degradation (`isMissingFeaturedDuelsTableError`) was added to handle pre-migration deployments.
 
 ---
 
@@ -377,11 +504,24 @@ Upcoming dependencies (from spec):
 - `packages/ai-gen/src/cli.test.ts` — 3 new integration tests for the assembleAfterRun hook
 - `duel-assembly.ts` coverage: 100% lines / 95.65% functions; package overall: 94.34%
 
-**Overall**: 3/3 implementation commits (100%) ✅
+**Phase 3**: 2/2 implementation commits (100%) ✅
+
+- `apps/api/src/routes/duels.test.ts` — 23 route-level unit tests using in-memory LibSQL SQLite; covers topicMeta join + fallback, INVALID_PAGE (0/-1/1.5/abc), ENDPOINT_NOT_FOUND for `/today`, DUEL_NOT_FOUND for missing duel/poem, featured_duels logging (2 rows after 2 calls), graceful degradation without featured_duels table, sourceInfo structure (primary + provenances), provenances DESC sort, humanWinRate, avgReadingTime
+- `duels.ts` coverage: 97.92% lines / 100% functions (threshold: 85%); `@sanctuary/api` package overall: 90.92% lines
+
+**Overall**: 5/5 implementation commits (100%) ✅
 
 ---
 
 ## Rollback Commands
+
+To rollback Phase 3:
+
+```bash
+git revert 58affa6^..74a8a16
+```
+
+Note: Phase 3 has no schema changes. Reverting restores the old `duelsRouter` singleton and removes the error class hierarchy, `createDuelsRouter` factory, and all route-level tests.
 
 To rollback Phase 2:
 
@@ -408,20 +548,20 @@ turso db shell <db-name> "DROP TABLE IF EXISTS featured_duels;"
 
 ## Statistics
 
-| Metric                 | Value                                           |
-| ---------------------- | ----------------------------------------------- |
-| Total commits          | 22 (9 docs, 2 feat, 2 test, 3 fix, 6 conductor) |
-| Implementation commits | 4 (Phase 1: 2, Phase 2: 2)                      |
-| Lines added            | +1,977                                          |
-| Lines removed          | -246                                            |
-| Files touched          | 29                                              |
-| New tables             | 1 (`featured_duels`)                            |
-| New indexes            | 2                                               |
-| New modules            | 1 (`packages/ai-gen/src/duel-assembly.ts`)      |
-| Test coverage          | 100%                                            |
-| Phases completed       | 2 of 5                                          |
-| Track start            | 2026-02-25                                      |
-| Last commit            | 2026-02-25                                      |
+| Metric                 | Value                                                                |
+| ---------------------- | -------------------------------------------------------------------- |
+| Total commits          | 30 (10 docs, 3 feat, 3 test, 5 fix, 9 conductor)                     |
+| Implementation commits | 6 (Phase 1: 2, Phase 2: 2, Phase 3: 2)                               |
+| Lines added            | +3,640                                                               |
+| Lines removed          | -460                                                                 |
+| Files touched          | 35                                                                   |
+| New tables             | 1 (`featured_duels`)                                                 |
+| New indexes            | 2                                                                    |
+| New modules            | 2 (`packages/ai-gen/src/duel-assembly.ts`, `apps/api/src/errors.ts`) |
+| Test coverage          | 100%                                                                 |
+| Phases completed       | 3 of 5                                                               |
+| Track start            | 2026-02-25                                                           |
+| Last commit            | 2026-02-25                                                           |
 
 ---
 
@@ -430,11 +570,11 @@ turso db shell <db-name> "DROP TABLE IF EXISTS featured_duels;"
 ```json
 {
   "metadata": {
-    "last_commit": "1d596bc",
+    "last_commit": "74a8a16",
     "audit_date": "2026-02-25",
-    "total_phases": 2,
-    "total_commits": 22,
-    "implementation_commits": 4
+    "total_phases": 3,
+    "total_commits": 30,
+    "implementation_commits": 6
   },
   "phases": [
     {
@@ -613,6 +753,60 @@ turso db shell <db-name> "DROP TABLE IF EXISTS featured_duels;"
         }
       ],
       "stats": { "commits": 4, "files_changed": 6, "migrations": 0, "test_coverage": 1.0 }
+    },
+    {
+      "number": 3,
+      "name": "API Updates",
+      "status": "complete",
+      "checkpoint": "13c4f93",
+      "commits": [
+        {
+          "hash": "58affa6",
+          "message": "feat(api): implement Phase 3 API updates — topicMeta, sourceInfo, featured_duels, error contracts",
+          "files_changed": [
+            "apps/api/src/errors.ts",
+            "apps/api/src/index.ts",
+            "apps/api/src/routes/duels.ts",
+            "apps/api/src/routes/duels.test.ts"
+          ],
+          "lines_added": 809,
+          "lines_removed": 104,
+          "has_tests": true,
+          "breaking_changes": false,
+          "technical_debt": []
+        },
+        {
+          "hash": "b54d90c",
+          "message": "test(scripts): add Phase 3 API updates manual verification script",
+          "files_changed": ["scripts/verify-phase3-api-updates.ts"],
+          "lines_added": 794,
+          "lines_removed": 0,
+          "has_tests": true,
+          "breaking_changes": false,
+          "technical_debt": []
+        },
+        {
+          "hash": "d64da75",
+          "message": "fix(api): keep duel reads resilient without log table",
+          "files_changed": ["apps/api/src/routes/duels.ts", "apps/api/src/routes/duels.test.ts"],
+          "lines_added": 45,
+          "lines_removed": 6,
+          "has_tests": true,
+          "breaking_changes": false,
+          "technical_debt": []
+        },
+        {
+          "hash": "74a8a16",
+          "message": "fix(scripts): fail phase3 verify on check errors",
+          "files_changed": ["scripts/verify-phase3-api-updates.ts"],
+          "lines_added": 10,
+          "lines_removed": 2,
+          "has_tests": true,
+          "breaking_changes": false,
+          "technical_debt": []
+        }
+      ],
+      "stats": { "commits": 4, "files_changed": 5, "migrations": 0, "test_coverage": 1.0 }
     }
   ],
   "database": {
@@ -625,6 +819,12 @@ turso db shell <db-name> "DROP TABLE IF EXISTS featured_duels;"
       "from_phase": 2,
       "to_phase": "pre-existing",
       "tables": ["poems", "poem_topics", "topics", "duels"]
+    },
+    {
+      "from_phase": 3,
+      "to_phase": 1,
+      "tables": ["featured_duels"],
+      "notes": "GET /duels/:id INSERTs into featured_duels; graceful degradation added for pre-migration environments"
     }
   ]
 }
