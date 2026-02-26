@@ -7,10 +7,10 @@
 - [x] Task: Create `GET /api/v1/topics` Route — f2979ba
   - [x] Create `apps/api/src/routes/topics.ts` returning all canonical topics from the `topics` table.
   - [x] Mount the topics router in `apps/api/src/index.ts`.
-- [ ] Task: Add `topic_id` Filter to `GET /api/v1/duels`
-  - [ ] Accept optional `topic_id` query parameter in `apps/api/src/routes/duels.ts`.
-  - [ ] Apply `.where(eq(duels.topicId, topicId))` when the parameter is present.
-  - [ ] Add test coverage for the new filter in `duels.test.ts`.
+- [x] Task: Add `topic_id` Filter to `GET /api/v1/duels` — 7e7a939
+  - [x] Accept optional `topic_id` query parameter in `apps/api/src/routes/duels.ts`.
+  - [x] Apply `.where(eq(duels.topicId, topicId))` when the parameter is present.
+  - [x] Add test coverage for the new filter in `duels.test.ts`.
 - [ ] Task: Add Shared Types for `TopicMeta` and `SourceInfo`
   - [ ] Add `TopicMeta` interface (`{ id: string | null; label: string }`) to `packages/shared/src/index.ts`.
   - [ ] Add `SourceInfo` interface (matching the API's `buildSourceInfo` shape) to `packages/shared/src/index.ts`.
