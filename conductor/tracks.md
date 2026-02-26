@@ -6,6 +6,9 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ## Active Tracks
 
+- [ ] **Track: Phase 6 - Frontend Integration**
+  *Link: [./tracks/frontend_integration_20260226/](./tracks/frontend_integration_20260226/)*
+
 ---
 
 ## Archived Tracks
