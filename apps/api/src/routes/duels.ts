@@ -7,10 +7,11 @@ import { ApiError, DuelNotFoundError, EndpointNotFoundError, InvalidPageError } 
 export function createDuelsRouter(db: Db) {
   const router = new Hono();
 
-  // GET /duels — paginated archive with topicMeta
+  // GET /duels — paginated archive with topicMeta; supports optional topic_id filter
   router.get('/', async (c) => {
     const rawPage = c.req.query('page');
     const page = parsePage(rawPage);
+    const topicId = c.req.query('topic_id');
     const limit = 12;
     const offset = (page - 1) * limit;
 
@@ -24,6 +25,7 @@ export function createDuelsRouter(db: Db) {
       })
       .from(duels)
       .leftJoin(topics, eq(duels.topicId, topics.id))
+      .where(topicId !== undefined ? eq(duels.topicId, topicId) : undefined)
       .orderBy(desc(duels.createdAt))
       .limit(limit)
       .offset(offset);

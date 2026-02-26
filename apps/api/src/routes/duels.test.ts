@@ -272,6 +272,79 @@ describe('GET /duels', () => {
   });
 });
 
+// ── GET /duels?topic_id=... — topic filtering ─────────────────────────────────
+
+describe('GET /duels?topic_id', () => {
+  let db: TestDb;
+  let app: ReturnType<typeof createTestApp>;
+
+  beforeEach(async () => {
+    db = await createTestDb();
+    app = createTestApp(db);
+    // Two topics
+    await db.insert(schema.topics).values([
+      { id: 'topic-nature', label: 'Nature' },
+      { id: 'topic-love', label: 'Love' },
+    ]);
+    // Four poems
+    await db.insert(schema.poems).values([
+      { id: 'p-h1', title: 'H1', content: 'c', author: 'A', type: 'HUMAN' },
+      { id: 'p-a1', title: 'A1', content: 'c', author: 'B', type: 'AI' },
+      { id: 'p-h2', title: 'H2', content: 'c', author: 'C', type: 'HUMAN' },
+      { id: 'p-a2', title: 'A2', content: 'c', author: 'D', type: 'AI' },
+    ]);
+    // One Nature duel, one Love duel
+    await db.insert(schema.duels).values([
+      {
+        id: 'duel-nature',
+        topic: 'Nature',
+        topicId: 'topic-nature',
+        poemAId: 'p-h1',
+        poemBId: 'p-a1',
+      },
+      { id: 'duel-love', topic: 'Love', topicId: 'topic-love', poemAId: 'p-h2', poemBId: 'p-a2' },
+    ]);
+  });
+
+  afterEach(async () => {
+    // @ts-expect-error – accessing internal client for cleanup
+    await db.$client.close();
+  });
+
+  test('returns only duels matching the given topic_id', async () => {
+    const res = await app.request('/?topic_id=topic-nature');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Array<{ id: string }>;
+    expect(body).toHaveLength(1);
+    expect(body[0].id).toBe('duel-nature');
+  });
+
+  test('returns empty array when no duels match the topic_id', async () => {
+    const res = await app.request('/?topic_id=topic-nonexistent');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as unknown[];
+    expect(body).toHaveLength(0);
+  });
+
+  test('returns all duels when topic_id is absent', async () => {
+    const res = await app.request('/');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Array<{ id: string }>;
+    expect(body).toHaveLength(2);
+  });
+
+  test('filtered result still includes topicMeta', async () => {
+    const res = await app.request('/?topic_id=topic-love');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Array<{
+      id: string;
+      topicMeta: { id: string; label: string };
+    }>;
+    expect(body[0].topicMeta.id).toBe('topic-love');
+    expect(body[0].topicMeta.label).toBe('Love');
+  });
+});
+
 // ── GET /duels/today — deprecated ────────────────────────────────────────────
 
 describe('GET /duels/today', () => {
