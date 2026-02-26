@@ -766,7 +766,9 @@ async function main(): Promise<void> {
   // Summary
   // =========================================================================
 
-  const allPassed = TestAssertion.summary();
+  const assertionsPassed = TestAssertion.summary();
+  const checksPassed = failed === 0;
+  const allPassed = assertionsPassed && checksPassed;
   const total = passed + failed;
 
   // Cleanup temp DB file if we created one
@@ -784,7 +786,13 @@ async function main(): Promise<void> {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log(`  Test ID  : ${testRunId}`);
   console.log(`  Checks   : ${passed}/${total} passed`);
-  console.log(`  Result   : ${allPassed ? '✓ ALL PASSED' : `✗ ${failed} FAILED`}`);
+  console.log(
+    `  Result   : ${
+      allPassed
+        ? '✓ ALL PASSED'
+        : `✗ ${failed} CHECKS FAILED${assertionsPassed ? '' : ' (assertions)'}`
+    }`,
+  );
   console.log(`  Logs     : ${logFile}`);
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
