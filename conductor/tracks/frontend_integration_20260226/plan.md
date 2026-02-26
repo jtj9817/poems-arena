@@ -4,9 +4,9 @@
 
 **Goal:** Add missing API endpoints and filtering required by the frontend.
 
-- [ ] Task: Create `GET /api/v1/topics` Route
-  - [ ] Create `apps/api/src/routes/topics.ts` returning all canonical topics from the `topics` table.
-  - [ ] Mount the topics router in `apps/api/src/index.ts`.
+- [x] Task: Create `GET /api/v1/topics` Route — f2979ba
+  - [x] Create `apps/api/src/routes/topics.ts` returning all canonical topics from the `topics` table.
+  - [x] Mount the topics router in `apps/api/src/index.ts`.
 - [ ] Task: Add `topic_id` Filter to `GET /api/v1/duels`
   - [ ] Accept optional `topic_id` query parameter in `apps/api/src/routes/duels.ts`.
   - [ ] Apply `.where(eq(duels.topicId, topicId))` when the parameter is present.
