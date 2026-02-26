@@ -10,8 +10,8 @@ const App: React.FC = () => {
   const [view, setView] = useState<ViewState>(ViewState.FOYER);
   const [activeDuelId, setActiveDuelId] = useState<string | null>(null);
 
-  const navigate = (newView: ViewState, duelId?: string) => {
-    if (duelId) setActiveDuelId(duelId);
+  const navigate = (newView: ViewState, duelId?: string | null) => {
+    if (duelId !== undefined) setActiveDuelId(duelId);
     setView(newView);
   };
 
@@ -20,7 +20,13 @@ const App: React.FC = () => {
       case ViewState.FOYER:
         return <Foyer onNavigate={navigate} />;
       case ViewState.READING_ROOM:
-        return <ReadingRoom duelId={activeDuelId} onNavigate={navigate} />;
+        return (
+          <ReadingRoom
+            key={activeDuelId || 'fallback'}
+            duelId={activeDuelId}
+            onNavigate={navigate}
+          />
+        );
       case ViewState.ANTHOLOGY:
         return <Anthology onNavigate={navigate} />;
       case ViewState.COLOPHON:

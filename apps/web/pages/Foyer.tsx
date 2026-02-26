@@ -18,6 +18,7 @@ export const Foyer: React.FC<FoyerProps> = ({ onNavigate }) => {
       .then((duels) => {
         if (duels.length > 0) setFeaturedDuel(duels[0]);
       })
+      .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
 
