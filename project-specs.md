@@ -97,8 +97,8 @@ Fonts must feel historical and authoritative. No system sans-serifs.
 **Key Elements:**
 
 - **Hero:** "Can you distinguish the soul from the synthesis?" centered, _Piazzolla_ 48px.
-- **Daily Duel Card:** A single card in the center.
-  - Top label: "Today's Topic: Melancholy"
+- **Featured Duel Card:** A single card in the center.
+  - Top label: "Featured Topic: Melancholy"
   - Action: "Enter the Reading Room" button.
 - **Nav:** Minimal header (logo left, "Archive" right). No sticky headers.
 

@@ -23,7 +23,7 @@ A blind taste test for the literary mind. Two anonymous poems on a shared topic 
 
 | Screen               | Description                                                          |
 | -------------------- | -------------------------------------------------------------------- |
-| **The Foyer**        | Minimalist landing with today's featured duel entry point            |
+| **The Foyer**        | Minimalist landing with a featured duel entry point                  |
 | **The Reading Room** | Distraction-free split-screen comparison — no author metadata        |
 | **The Verdict**      | Post-vote reveal: author identities, win rates, average reading time |
 | **The Anthology**    | Grid archive of past duels, filterable by topic                      |
