@@ -4,10 +4,11 @@ import { Button } from '../components/Button';
 import { api, type AnonymousDuel, type DuelStats } from '../lib/api';
 
 interface ReadingRoomProps {
-  onNavigate: (view: ViewState) => void;
+  duelId: string | null;
+  onNavigate: (view: ViewState, duelId?: string) => void;
 }
 
-export const ReadingRoom: React.FC<ReadingRoomProps> = ({ onNavigate }) => {
+export const ReadingRoom: React.FC<ReadingRoomProps> = ({ duelId, onNavigate }) => {
   const [duel, setDuel] = useState<AnonymousDuel | null>(null);
   const [stats, setStats] = useState<DuelStats | null>(null);
   const [selectedPoemId, setSelectedPoemId] = useState<string | null>(null);
@@ -16,14 +17,27 @@ export const ReadingRoom: React.FC<ReadingRoomProps> = ({ onNavigate }) => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api
-      .getTodaysDuel()
-      .then((d) => {
+    const loadDuel = async () => {
+      try {
+        let id = duelId;
+        if (!id) {
+          // Fallback: fetch duel list and pick the first one
+          const duels = await api.getDuels();
+          if (duels.length === 0) {
+            setError('No duels available. Please check back later.');
+            return;
+          }
+          id = duels[0].id;
+        }
+        const d = await api.getDuel(id);
         setDuel(d);
         setTimeout(() => setFadeIn(true), 100);
-      })
-      .catch(() => setError("Could not load today's duel. Please try again."));
-  }, []);
+      } catch {
+        setError('Could not load the duel. Please try again.');
+      }
+    };
+    loadDuel();
+  }, [duelId]);
 
   const handleVote = async (poemId: string) => {
     if (!duel) return;

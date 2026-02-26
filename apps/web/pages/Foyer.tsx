@@ -1,18 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ViewState } from '@sanctuary/shared';
 import { Button } from '../components/Button';
+import { api, type DuelListItem } from '../lib/api';
 
 interface FoyerProps {
-  onNavigate: (view: ViewState) => void;
+  onNavigate: (view: ViewState, duelId?: string) => void;
 }
 
 export const Foyer: React.FC<FoyerProps> = ({ onNavigate }) => {
   const [isExiting, setIsExiting] = useState(false);
+  const [featuredDuel, setFeaturedDuel] = useState<DuelListItem | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api
+      .getDuels()
+      .then((duels) => {
+        if (duels.length > 0) setFeaturedDuel(duels[0]);
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   const handleStart = () => {
+    if (!featuredDuel) return;
     setIsExiting(true);
     setTimeout(() => {
-      onNavigate(ViewState.READING_ROOM);
+      onNavigate(ViewState.READING_ROOM, featuredDuel.id);
     }, 600); // Match CSS transition
   };
 
@@ -43,19 +56,31 @@ export const Foyer: React.FC<FoyerProps> = ({ onNavigate }) => {
           {/* Card */}
           <div className="mx-auto w-full max-w-md bg-stock p-1 paper-shadow rounded-sm transform transition-transform hover:-translate-y-1 duration-500">
             <div className="border border-pencil/30 border-dashed p-10 bg-paper flex flex-col items-center gap-8">
-              <div className="text-center space-y-2">
-                <span className="font-sans text-[10px] tracking-widest uppercase text-pencil block">
-                  Today's Topic
-                </span>
-                <h3 className="text-3xl font-bold font-serif text-ink italic">Melancholy</h3>
-              </div>
+              {loading ? (
+                <p className="font-sans text-xs tracking-widest uppercase text-pencil animate-pulse">
+                  Loading...
+                </p>
+              ) : featuredDuel ? (
+                <>
+                  <div className="text-center space-y-2">
+                    <span className="font-sans text-[10px] tracking-widest uppercase text-pencil block">
+                      Featured Topic
+                    </span>
+                    <h3 className="text-3xl font-bold font-serif text-ink italic">
+                      {featuredDuel.topic}
+                    </h3>
+                  </div>
 
-              <Button onClick={handleStart} className="group">
-                <span className="mr-2">Enter Reading Room</span>
-                <span className="material-symbols-outlined text-lg group-hover:translate-x-1 transition-transform">
-                  arrow_forward
-                </span>
-              </Button>
+                  <Button onClick={handleStart} className="group">
+                    <span className="mr-2">Enter Reading Room</span>
+                    <span className="material-symbols-outlined text-lg group-hover:translate-x-1 transition-transform">
+                      arrow_forward
+                    </span>
+                  </Button>
+                </>
+              ) : (
+                <p className="font-serif text-pencil italic">No duels available yet.</p>
+              )}
             </div>
           </div>
         </div>

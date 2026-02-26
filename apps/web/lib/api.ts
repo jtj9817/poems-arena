@@ -44,10 +44,6 @@ export const api = {
     return request(`/duels?page=${page}`);
   },
 
-  getTodaysDuel(): Promise<AnonymousDuel> {
-    return request('/duels/today');
-  },
-
   getDuel(id: string): Promise<AnonymousDuel> {
     return request(`/duels/${id}`);
   },

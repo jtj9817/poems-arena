@@ -3,10 +3,10 @@ import { ViewState } from '@sanctuary/shared';
 import { api, type DuelListItem } from '../lib/api';
 
 interface AnthologyProps {
-  onNavigate: (view: ViewState) => void;
+  onNavigate: (view: ViewState, duelId?: string) => void;
 }
 
-export const Anthology: React.FC<AnthologyProps> = () => {
+export const Anthology: React.FC<AnthologyProps> = ({ onNavigate }) => {
   const [duels, setDuels] = useState<DuelListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const categories = ['All', 'Nature', 'Mortality', 'Love', 'Time', 'Spirit'];
@@ -65,6 +65,7 @@ export const Anthology: React.FC<AnthologyProps> = () => {
             {duels.map((duel) => (
               <div
                 key={duel.id}
+                onClick={() => onNavigate(ViewState.READING_ROOM, duel.id)}
                 className="group cursor-pointer break-inside-avoid relative bg-paper border border-border-pencil p-8 rounded-sm hover:-translate-y-1 hover:shadow-lg transition-all duration-300"
               >
                 <div className="flex justify-between items-start mb-4">

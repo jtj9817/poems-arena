@@ -2,6 +2,7 @@
 
 **Issue Type:** Bug / Regression
 **Severity:** Critical
+**Status:** Resolved
 **Component:** Frontend (`apps/web`), Tests (`packages/e2e`)
 
 ## Description
@@ -37,3 +38,23 @@ The frontend and E2E tests should be updated to rely on the new API design. Sinc
 
 1. **Frontend Update:** Update `apps/web/lib/api.ts` and `apps/web/pages/ReadingRoom.tsx` (and `Foyer.tsx` if applicable) to utilize `GET /duels` and `GET /duels/:id`.
 2. **E2E Test Update:** Ensure `packages/e2e` tests align with the new frontend logic.
+
+## Resolution
+
+**Resolved on:** 2026-02-26
+
+### Changes Made
+
+- **`apps/web/lib/api.ts`** — Removed dead `getTodaysDuel()` method.
+- **`apps/web/App.tsx`** — Added `activeDuelId` state and `navigate(view, duelId?)` to pass duel IDs through the view system.
+- **`apps/web/pages/Foyer.tsx`** — Fetches `GET /duels` on mount, displays first duel's real topic (replaced hardcoded "Melancholy"), passes duel ID on navigation. Includes loading state and empty-state fallback.
+- **`apps/web/pages/ReadingRoom.tsx`** — Accepts `duelId` prop, uses `api.getDuel(duelId)` instead of `api.getTodaysDuel()`. Falls back to fetching duel list if no ID provided.
+- **`apps/web/pages/Anthology.tsx`** — Duel cards are now clickable, navigating to the Reading Room with the selected duel's ID.
+- **`apps/web/tsconfig.json`** — Added `"vite/client"` to types (pre-existing build fix for `import.meta.env`).
+
+### Verification
+
+- `pnpm --filter @sanctuary/web build` — passes (tsc + vite)
+- `pnpm lint` — passes
+- `pnpm format:check` — passes on all changed files
+- `pnpm --filter @sanctuary/e2e test` — 22/22 passed (0 failures), including all UI tests (foyer, navigation, reading-room, anthology)
