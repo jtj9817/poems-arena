@@ -1,4 +1,5 @@
 import { describe, expect, mock, test } from 'bun:test';
+import { Database } from 'bun:sqlite';
 import {
   parseCliArgs,
   runGenerationCli,
@@ -7,6 +8,7 @@ import {
   type CliDependencies,
   type ProcessPoemResult,
 } from './cli';
+import { assembleAndPersistDuels, type PersistenceDb as DuelAssemblyDb } from './duel-assembly';
 import type { HumanPoemCandidate } from './persistence';
 
 describe('parseCliArgs', () => {
@@ -197,5 +199,116 @@ describe('runGenerationCli', () => {
     expect(summary.assemblyResult).toEqual({ totalCandidates: 0, newDuels: 0 });
     expect(logs.some((l) => l.includes('No unmatched human poems found'))).toBe(true);
     expect(logs.some((l) => l.includes('Running duel assembly'))).toBe(true);
+  });
+
+  test('running the generator with duel assembly creates a duel row in persistence', async () => {
+    const sqlite = new Database(':memory:');
+    const logs: string[] = [];
+
+    sqlite.exec(`
+      CREATE TABLE topics (
+        id TEXT PRIMARY KEY NOT NULL,
+        label TEXT NOT NULL
+      );
+
+      CREATE TABLE poems (
+        id TEXT PRIMARY KEY NOT NULL,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        author TEXT NOT NULL,
+        type TEXT NOT NULL
+      );
+
+      CREATE TABLE poem_topics (
+        poem_id TEXT NOT NULL REFERENCES poems(id),
+        topic_id TEXT NOT NULL REFERENCES topics(id)
+      );
+
+      CREATE TABLE duels (
+        id TEXT PRIMARY KEY NOT NULL,
+        topic TEXT NOT NULL,
+        topic_id TEXT,
+        poem_a_id TEXT NOT NULL REFERENCES poems(id),
+        poem_b_id TEXT NOT NULL REFERENCES poems(id)
+      );
+    `);
+
+    sqlite.run(`INSERT INTO topics (id, label) VALUES (?, ?)`, ['topic-nature', 'Nature']);
+    sqlite.run(`INSERT INTO poems (id, title, content, author, type) VALUES (?, ?, ?, ?, ?)`, [
+      'human-1',
+      'Human One',
+      'one\ntwo\nthree\nfour',
+      'Human Author',
+      'HUMAN',
+    ]);
+    sqlite.run(`INSERT INTO poem_topics (poem_id, topic_id) VALUES (?, ?)`, [
+      'human-1',
+      'topic-nature',
+    ]);
+
+    const persistenceDb: DuelAssemblyDb = {
+      execute: async (query: string, params: unknown[] = []) => {
+        const statement = sqlite.query(query);
+        const isReadQuery = /^\s*(SELECT|WITH|PRAGMA)/i.test(query);
+
+        if (isReadQuery) {
+          return { rows: statement.all(...params) as Array<Record<string, unknown>> };
+        }
+
+        const runResult = statement.run(...params) as { changes?: number };
+        return {
+          rows: [],
+          rowsAffected: typeof runResult.changes === 'number' ? runResult.changes : 0,
+        };
+      },
+    };
+
+    const dependencies: CliDependencies = {
+      fetchPoems: async () => [
+        { id: 'human-1', title: 'Human One', content: 'one\ntwo\nthree\nfour' },
+      ],
+      processPoem: async (poem): Promise<ProcessPoemResult> => {
+        const aiPoemId = `ai-${poem.id}`;
+        sqlite.run(`INSERT INTO poems (id, title, content, author, type) VALUES (?, ?, ?, ?, ?)`, [
+          aiPoemId,
+          'AI Counterpart',
+          'one\ntwo\nthree\nfour',
+          'AI Author',
+          'AI',
+        ]);
+        sqlite.run(`INSERT INTO poem_topics (poem_id, topic_id) VALUES (?, ?)`, [
+          aiPoemId,
+          'topic-nature',
+        ]);
+        return { poemId: poem.id, status: 'stored', storedPoemId: aiPoemId };
+      },
+      assembleAfterRun: async () => assembleAndPersistDuels(persistenceDb),
+      log: (line) => logs.push(line),
+    };
+
+    const config: CliConfig = {
+      topic: undefined,
+      limit: undefined,
+      model: 'gemini-3-flash-preview',
+      concurrency: 1,
+      maxRetries: 1,
+    };
+
+    try {
+      const summary = await runGenerationCli(config, dependencies);
+      expect(summary.assemblyResult).toEqual({ totalCandidates: 1, newDuels: 1 });
+
+      const duelRows = sqlite
+        .query(`SELECT topic_id AS topicId, poem_a_id AS poemAId, poem_b_id AS poemBId FROM duels`)
+        .all() as Array<{ topicId: string; poemAId: string; poemBId: string }>;
+
+      expect(duelRows).toHaveLength(1);
+      expect(duelRows[0]?.topicId).toBe('topic-nature');
+      expect([duelRows[0]?.poemAId, duelRows[0]?.poemBId]).toContain('human-1');
+      expect([duelRows[0]?.poemAId, duelRows[0]?.poemBId]).toContain('ai-human-1');
+      expect(logs.some((line) => line.includes('Running duel assembly'))).toBe(true);
+    } finally {
+      sqlite.close();
+    }
   });
 });

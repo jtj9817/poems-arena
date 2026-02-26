@@ -10,6 +10,8 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "coverage:phase4": "node scripts/check-phase4-coverage-gate.mjs",
+    "quality:phase4": "pnpm run coverage:phase4 && pnpm lint && pnpm format:check",
     "test": "pnpm -r --if-present test"
   },
   "devDependencies": {

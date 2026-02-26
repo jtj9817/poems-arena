@@ -227,6 +227,49 @@ describe('GET /duels', () => {
     const res = await app.request('/');
     expect(res.status).toBe(200);
   });
+
+  test('accepts positive integer page query values', async () => {
+    const res = await app.request('/?page=2');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as unknown[];
+    expect(Array.isArray(body)).toBe(true);
+  });
+
+  test('serves multiple duel IDs in the same day via GET /duels and GET /duels/:id', async () => {
+    await db.insert(schema.poems).values({
+      id: 'poem-human-2',
+      title: 'Another Human',
+      content: 'line one\nline two',
+      author: 'Human Author',
+      type: 'HUMAN',
+    });
+    await db.insert(schema.poems).values({
+      id: 'poem-ai-2',
+      title: 'Another AI',
+      content: 'line one\nline two',
+      author: 'AI Author',
+      type: 'AI',
+    });
+    await db.insert(schema.duels).values({
+      id: 'duel-002',
+      topic: 'Nature',
+      topicId: 'topic-nature',
+      poemAId: 'poem-human-2',
+      poemBId: 'poem-ai-2',
+    });
+
+    const listRes = await app.request('/');
+    expect(listRes.status).toBe(200);
+    const listBody = (await listRes.json()) as Array<{ id: string }>;
+    const ids = listBody.map((item) => item.id);
+    expect(ids).toContain('duel-001');
+    expect(ids).toContain('duel-002');
+
+    const duel1Res = await app.request('/duel-001');
+    const duel2Res = await app.request('/duel-002');
+    expect(duel1Res.status).toBe(200);
+    expect(duel2Res.status).toBe(200);
+  });
 });
 
 // ── GET /duels/today — deprecated ────────────────────────────────────────────
@@ -531,5 +574,39 @@ describe('GET /duels/:id/stats', () => {
     };
     expect(body.humanWinRate).toBe(100);
     expect(typeof body.avgReadingTime).toBe('string');
+  });
+});
+
+describe('duels API error envelope', () => {
+  let db: TestDb;
+  let app: ReturnType<typeof createTestApp>;
+
+  beforeEach(async () => {
+    db = await createTestDb();
+    app = createTestApp(db);
+  });
+
+  afterEach(async () => {
+    // @ts-expect-error – accessing internal client for cleanup
+    await db.$client.close();
+  });
+
+  test('returns stable { error, code } for in-scope error paths', async () => {
+    const scenarios: Array<{ path: string; status: number; code: string }> = [
+      { path: '/?page=abc', status: 400, code: 'INVALID_PAGE' },
+      { path: '/today', status: 404, code: 'ENDPOINT_NOT_FOUND' },
+      { path: '/missing-duel-id', status: 404, code: 'DUEL_NOT_FOUND' },
+      { path: '/missing-duel-id/stats', status: 404, code: 'DUEL_NOT_FOUND' },
+    ];
+
+    for (const scenario of scenarios) {
+      const res = await app.request(scenario.path);
+      expect(res.status).toBe(scenario.status);
+
+      const body = (await res.json()) as { error: unknown; code: unknown };
+      expect(Object.keys(body).sort()).toEqual(['code', 'error']);
+      expect(typeof body.error).toBe('string');
+      expect(body.code).toBe(scenario.code);
+    }
   });
 });
