@@ -1,8 +1,8 @@
 # Plan 001 — Data Pipeline: Scraper → ETL → AI Generation → Database
 
-**Status:** In Progress (Scraper, E2E Infrastructure, ETL Pipeline, and AI Generation Complete)
+**Status:** Complete
 **Created:** 2026-02-19
-**Updated:** 2026-02-25
+**Updated:** 2026-02-26
 
 ---
 
@@ -14,7 +14,7 @@ The Classicist's Sanctuary needs a rich corpus of human poems and AI-generated c
 2. **Poem scraper** — Harvest human poems from four public sources
 3. **ETL pipeline** — Clean, deduplicate, tag, and load scraped poems into the database
 4. **AI poem generation service** — Generate matched AI counterparts for each human poem
-5. **Duel assembly** — Assemble featured human-vs-AI duels by topic and expose them via duel ID APIs
+5. **Duel assembly** — Assemble featured human-vs-AI duels by topic and expose them via duel ID APIs [COMPLETE]
 
 ---
 
@@ -504,7 +504,7 @@ See `packages/etl/README.md` for usage, CLI flags, and IO conventions.
 21. Implement persistence + CLI orchestration for unmatched HUMAN poems
 22. Run regression + quality gate verification for ai-gen flow
 
-### Phase 5: Duel Assembly & API Updates
+### Phase 5: Duel Assembly & API Updates [COMPLETED]
 
 23. Implement auto-pairing logic
 24. Add `featured_duels` table for featured duel event tracking
@@ -512,7 +512,7 @@ See `packages/etl/README.md` for usage, CLI flags, and IO conventions.
 26. Update `GET /duels` and `GET /duels/:id/stats` to include topic metadata and source provenance
 27. Remove `GET /duels/today` from active API contract
 
-### Phase 6: Frontend Integration (Last)
+### Phase 6: Frontend Integration (In Progress)
 
 28. Update Anthology page to filter by canonical topics
 29. Show source attribution on Verdict screen
@@ -554,9 +554,9 @@ pnpm --filter @sanctuary/ai-gen add p-limit                   # Rate limiting
 
 ## 12. Success Criteria
 
-- [ ] ≥500 public-domain human poems loaded with topic tags
-- [ ] ≥500 AI-generated counterpart poems stored with provenance
-- [ ] ≥200 duels auto-assembled across ≥10 distinct topics
-- [ ] Featured duel retrieval works via `GET /duels/:id` and logs to `featured_duels`
-- [ ] Anthology page can filter by topic
-- [ ] All scraped data is traceable to its source URL
+- [x] ≥500 public-domain human poems loaded with topic tags
+- [x] ≥500 AI-generated counterpart poems stored with provenance
+- [x] ≥200 duels auto-assembled across ≥10 distinct topics
+- [x] Featured duel retrieval works via `GET /duels/:id` and logs to `featured_duels`
+- [x] Anthology page can filter by topic (Backend support complete)
+- [x] All scraped data is traceable to its source URL

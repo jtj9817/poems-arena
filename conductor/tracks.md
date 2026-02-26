@@ -6,7 +6,7 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ## Active Tracks
 
-- [ ] **Track: Phase 5 - Duel Assembly & API Updates**
+- [x] **Track: Phase 5 - Duel Assembly & API Updates**
       _Link: [./tracks/duel_assembly_api_updates_20260224/](./tracks/duel_assembly_api_updates_20260224/)_
 
 ---

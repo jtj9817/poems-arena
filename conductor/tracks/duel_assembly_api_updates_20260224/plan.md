@@ -98,8 +98,8 @@
 
 ## Phase 5: Documentation
 
-- [ ] Task: Documentation Update
-  - [ ] Update `docs/plans/001-data-pipeline-plan.md` to reflect Phase 5 completion.
-  - [ ] Document the new `featured_duels` schema contract and append-only global tracking behavior.
-  - [ ] Document `GET /duels/:id` as the canonical duel retrieval endpoint and `GET /duels/today` deprecation/removal.
-- [ ] Task: Conductor - User Manual Verification 'Phase 5: Documentation' (Protocol in workflow.md)
+- [x] Task: Documentation Update
+  - [x] Update `docs/plans/001-data-pipeline-plan.md` to reflect Phase 5 completion.
+  - [x] Document the new `featured_duels` schema contract and append-only global tracking behavior.
+  - [x] Document `GET /duels/:id` as the canonical duel retrieval endpoint and `GET /duels/today` deprecation/removal.
+- [x] Task: Conductor - User Manual Verification 'Phase 5: Documentation' (Protocol in workflow.md) (approved)
