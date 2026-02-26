@@ -61,10 +61,23 @@ let cleanupDbFile: string | null = null;
 
 type CheckFn = () => void | Promise<void>;
 
+function getAssertionFailureCount(): number {
+  const assertionState = TestAssertion as unknown as { failed?: number };
+  return typeof assertionState.failed === 'number' ? assertionState.failed : 0;
+}
+
 async function runCheck(name: string, fn: CheckFn): Promise<boolean> {
   TestLogger.startPhase(name);
   try {
+    const failuresBefore = getAssertionFailureCount();
     await fn();
+    const failuresAfter = getAssertionFailureCount();
+    if (failuresAfter > failuresBefore) {
+      TestLogger.error(`FAIL: ${name}`, {
+        assertionFailures: failuresAfter - failuresBefore,
+      });
+      return false;
+    }
     TestLogger.endPhase(name);
     return true;
   } catch (error) {
@@ -522,21 +535,23 @@ async function main(): Promise<void> {
 
   tally(
     await runCheck(
-      'D3: basic pairing — assembleAndPersistDuels creates 1 duel for human-A + ai-A',
+      'D3: basic pairing — assembleAndPersistDuels creates all 3 expected seeded duels',
       async () => {
         if (!tx) throw new Error('Skipped — D1 did not complete');
 
-        // At this point only human-A and ai-A share NATURE (ai-B shares too, but we check count ≥ 1)
+        const expectedDuelCount = 3;
         const { totalCandidates, newDuels } = await assembleAndPersistDuels(persistenceDb);
 
         TestLogger.info('D3 assembly result', { totalCandidates, newDuels });
-        TestAssertion.assertTrue(
-          totalCandidates >= 1,
-          `At least 1 candidate expected (human-A↔ai-A + human-A↔ai-B + human-X↔ai-X), got ${totalCandidates}`,
+        TestAssertion.assertEquals(
+          expectedDuelCount,
+          totalCandidates,
+          `Expected ${expectedDuelCount} candidates (human-A↔ai-A + human-A↔ai-B + human-X↔ai-X), got ${totalCandidates}`,
         );
-        TestAssertion.assertTrue(
-          newDuels >= 1,
-          `At least 1 new duel row expected, got ${newDuels}`,
+        TestAssertion.assertEquals(
+          expectedDuelCount,
+          newDuels,
+          `Expected ${expectedDuelCount} new duel rows on first run, got ${newDuels}`,
         );
 
         // Verify rows exist in DB
@@ -545,7 +560,11 @@ async function main(): Promise<void> {
           args: [],
         });
         const dbCount = Number((countResult.rows[0] as Record<string, unknown>).cnt ?? 0);
-        TestAssertion.assertTrue(dbCount >= 1, `duels table must have ≥ 1 row, got ${dbCount}`);
+        TestAssertion.assertEquals(
+          expectedDuelCount,
+          dbCount,
+          `duels table must contain exactly ${expectedDuelCount} rows after first assembly run, got ${dbCount}`,
+        );
         TestLogger.info('D3 duels in DB', { count: dbCount });
       },
     ),
