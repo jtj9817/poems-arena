@@ -175,13 +175,17 @@ export function assemblePairs(options: AssemblePairsOptions): DuelCandidate[] {
 
     if (eligibleMap.size === 0) continue;
 
-    const eligible = [...eligibleMap.values()].sort((a, b) => {
-      const rankA = seedFromPoemIds(human.id, a.id);
-      const rankB = seedFromPoemIds(human.id, b.id);
-      if (rankA !== rankB) return rankA - rankB;
-      return a.id.localeCompare(b.id);
+    const eligibleWithRanks = [...eligibleMap.values()].map((ai) => ({
+      ai,
+      rank: seedFromPoemIds(human.id, ai.id),
+    }));
+
+    eligibleWithRanks.sort((a, b) => {
+      if (a.rank !== b.rank) return a.rank - b.rank;
+      return a.ai.id.localeCompare(b.ai.id);
     });
-    const capped = eligible.slice(0, maxFanOut);
+
+    const capped = eligibleWithRanks.slice(0, maxFanOut).map((e) => e.ai);
 
     for (const ai of capped) {
       // Find shared topic IDs between this human and AI poem.

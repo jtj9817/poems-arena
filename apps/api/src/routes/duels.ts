@@ -24,6 +24,7 @@ export function createDuelsRouter(db: Db) {
       })
       .from(duels)
       .leftJoin(topics, eq(duels.topicId, topics.id))
+      .orderBy(desc(duels.createdAt))
       .limit(limit)
       .offset(offset);
 
