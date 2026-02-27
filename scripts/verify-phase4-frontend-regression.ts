@@ -81,6 +81,11 @@ async function runCommand(
   return { exitCode: proc.exitCode ?? 1, stdout, stderr };
 }
 
+function stripAnsi(input: string): string {
+  // eslint-disable-next-line no-control-regex
+  return input.replace(/\u001b\[[0-9;]*m/g, '');
+}
+
 /** Returns true if the API server is reachable, false otherwise. */
 async function isApiReachable(): Promise<boolean> {
   try {
@@ -242,15 +247,15 @@ async function main(): Promise<void> {
         const source = await Bun.file(
           path.join(repoRoot, 'packages/e2e/tests/ui/reading-room.spec.ts'),
         ).text();
-        // beforeEach should NOT have waitForTimeout(1000) anymore
+        // beforeEach should NOT contain any hard waitForTimeout(...) calls.
         const beforeEachMatch = source.match(/test\.beforeEach[\s\S]*?}\);/);
         if (beforeEachMatch) {
           TestAssertion.assertTrue(
-            !beforeEachMatch[0].includes('waitForTimeout(1000)'),
-            'beforeEach must not use waitForTimeout(1000) — should wait for a real locator',
+            !/\bwaitForTimeout\s*\(/.test(beforeEachMatch[0]),
+            'beforeEach must not use waitForTimeout(...) — should wait for a real locator',
           );
         }
-        // Should use waitForTimeout inside beforeEach replaced with locator wait
+        // Hard wait in beforeEach should be replaced with locator-based wait.
         TestAssertion.assertTrue(
           source.includes("getByText('Subject')") || source.includes('getByText("Subject")'),
           "reading-room.spec.ts beforeEach must wait for 'Subject' text as a reliable signal",
@@ -353,12 +358,22 @@ async function main(): Promise<void> {
       const { exitCode, stdout, stderr } = await runCommand(['pnpm', 'lint']);
       TestLogger.info('C2 lint output', { exitCode, stdout: stdout.trim().slice(-600) });
       if (stderr.trim()) TestLogger.info('C2 stderr', { output: stderr.trim().slice(-400) });
-      // ESLint exits 1 for errors but also for warnings with --max-warnings 0.
-      // The project allows the pre-existing bun-test.d.ts any warning, so exit code 0 or 1
-      // from warnings only is acceptable. Key is: no new errors.
-      const hasErrors = stdout.includes(' error ') || stderr.includes(' error ');
-      TestAssertion.assertTrue(!hasErrors, 'pnpm lint must report 0 errors (warnings tolerated)');
-      TestLogger.info('C2 lint passed', { exitCode, hasErrors });
+      const lintOutput = stripAnsi(`${stdout}\n${stderr}`);
+      const hasErrorCount = /\b[1-9]\d*\s+errors?\b/i.test(lintOutput);
+      const isWarningOnlySummary = /\b0\s+errors?,\s*[1-9]\d*\s+warnings?\b/i.test(lintOutput);
+      const lintPassed =
+        exitCode === 0 || (exitCode !== 0 && !hasErrorCount && isWarningOnlySummary);
+
+      TestAssertion.assertTrue(
+        lintPassed,
+        'pnpm lint must exit 0, or non-zero must explicitly be warning-only (0 errors, N warnings)',
+      );
+      TestLogger.info('C2 lint evaluation', {
+        exitCode,
+        hasErrorCount,
+        isWarningOnlySummary,
+        lintPassed,
+      });
     }),
   );
 
