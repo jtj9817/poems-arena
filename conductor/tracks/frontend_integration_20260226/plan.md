@@ -65,18 +65,18 @@
 
 **Goal:** Display detailed poem provenance and refine the "Digital Letterpress" aesthetic.
 
-- [ ] Task: Update `DuelStats` Frontend Type
-  - [ ] Update `DuelStats` interface in `apps/web/lib/api.ts` so `duel.poemA` and `duel.poemB` include `sourceInfo` (matching the API's `GET /duels/:id/stats` response shape).
-- [ ] Task: Implement `SourceInfo` Component
-  - [ ] Create `apps/web/components/SourceInfo.tsx`.
-  - [ ] Consume `sourceInfo` from the stats payload via the updated `DuelStats` type.
-  - [ ] Format human attributions (Author + Source) and AI attributions (Model name).
-- [ ] Task: Update `Foyer.tsx` to Use `topicMeta`
-  - [ ] Replace `featuredDuel.topic` with `featuredDuel.topicMeta.label` for display.
-- [ ] Task: Final Aesthetic Pass
-  - [ ] Audit all screens for Alabaster/Ink consistency.
-  - [ ] Optimize typography (line heights, kerning) for reading focus.
-  - [ ] Refine mobile touch targets for topic chips (44x44px).
+- [x] Task: Update `DuelStats` Frontend Type — 91f8a22
+  - [x] Update `DuelStats` interface in `apps/web/lib/api.ts` so `duel.poemA` and `duel.poemB` include `sourceInfo` (matching the API's `GET /duels/:id/stats` response shape).
+- [x] Task: Implement `SourceInfo` Component — 91f8a22
+  - [x] Create `apps/web/components/SourceInfo.tsx`.
+  - [x] Consume `sourceInfo` from the stats payload via the updated `DuelStats` type.
+  - [x] Format human attributions (Author + Source) and AI attributions (Model name).
+- [x] Task: Update `Foyer.tsx` to Use `topicMeta` — 91f8a22
+  - [x] Replace `featuredDuel.topic` with `featuredDuel.topicMeta.label` for display.
+- [x] Task: Final Aesthetic Pass — 91f8a22
+  - [x] Audit all screens for Alabaster/Ink consistency.
+  - [x] Optimize typography (line heights, kerning) for reading focus.
+  - [x] Refine mobile touch targets for topic chips (44x44px).
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Source Attribution & Final UI Polishing' (Protocol in workflow.md)
 
 ## Phase 4: Regression & Quality Gate
