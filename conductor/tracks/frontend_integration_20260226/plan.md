@@ -39,7 +39,7 @@
   - [x] Display `topicMeta.label` on `DuelCard` components instead of the raw `topic` string.
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Topic Filtering Infrastructure' (Protocol in workflow.md) — 1e44ac6
 
-## Phase 2: Verdict Pop-Up & Swipe Transitions
+## Phase 2: Verdict Pop-Up & Swipe Transitions [checkpoint: 198c278]
 
 **Goal:** Implement the Verdict as a pop-up overlay and add "swipe-like" transitions for continuous duel flow.
 
@@ -59,7 +59,7 @@
 - [x] Task: Update `ReadingRoom.tsx` for New Flow — 3891b28
   - [x] Wire up the `VerdictPopup` + `SwipeContainer` for the full cycle: Vote → Pop-up → Acknowledge → Swipe → Next Duel.
   - [x] Replace the "Next Duel" button that navigates to Anthology with one that loads the next pre-fetched duel.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Verdict Pop-Up & Swipe Transitions' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Verdict Pop-Up & Swipe Transitions' (Protocol in workflow.md) — 198c278
 
 ## Phase 3: Source Attribution & Final UI Polishing
 
