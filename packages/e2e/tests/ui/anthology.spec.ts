@@ -64,9 +64,11 @@ test.describe('Anthology page', () => {
       timeout: 10_000,
     });
 
-    // Wait for topics to load — check if any non-All chips exist
-    await page.waitForTimeout(1500);
-    const topicButtons = page.getByRole('button').filter({ hasNotText: /^All$/ });
+    // Scope to the desktop TopicBar chip row to avoid matching header nav buttons.
+    const allChip = page.getByRole('button', { name: 'All' }).first();
+    await expect(allChip).toBeVisible({ timeout: 5_000 });
+    const topicChipRow = allChip.locator('xpath=..');
+    const topicButtons = topicChipRow.getByRole('button').filter({ hasNotText: /^All$/ });
     const count = await topicButtons.count();
 
     if (count === 0) {
@@ -76,11 +78,13 @@ test.describe('Anthology page', () => {
 
     // Click the first non-All topic chip
     const firstTopic = topicButtons.first();
-    const topicLabel = await firstTopic.textContent();
+    const topicLabel = (await firstTopic.textContent())?.trim() ?? '';
     await firstTopic.click();
 
-    // After selecting, the mobile filter trigger should reflect the active topic
-    await expect(page.getByText(topicLabel ?? '')).toBeVisible({ timeout: 5_000 });
+    // Selected chip should become active while All is no longer active.
+    await expect(firstTopic).toHaveClass(/bg-ink/);
+    await expect(topicChipRow.getByRole('button', { name: 'All' })).not.toHaveClass(/bg-ink/);
+    await expect(topicChipRow.getByRole('button', { name: topicLabel })).toBeVisible();
   });
 
   test('clicking All resets the topic filter', async ({ page }) => {

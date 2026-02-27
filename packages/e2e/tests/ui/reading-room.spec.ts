@@ -77,6 +77,13 @@ test.describe('Reading Room page', () => {
     page,
   }) => {
     await expect(page.getByText('Exhibit A')).toBeVisible({ timeout: 10_000 });
+    const duelPanels = page.locator('.prose');
+    const initialDuelPanels = await duelPanels.allInnerTexts();
+    const swipeContainer = page
+      .locator(
+        '[data-animation-state="idle"], [data-animation-state="swipe-out"], [data-animation-state="swipe-in"]',
+      )
+      .first();
 
     // Vote
     await page
@@ -88,13 +95,36 @@ test.describe('Reading Room page', () => {
     // Click Next Duel — with reducedMotion animations collapse to end state immediately
     await page.getByRole('button', { name: /Next Duel/i }).click();
 
-    // SwipeContainer should settle back to idle (or navigate to Anthology if queue empty)
-    // Wait for either the next duel content or the Anthology heading
-    await expect(
-      page
-        .getByText('Subject')
-        .or(page.getByRole('heading', { name: 'The Anthology' }))
-        .or(page.getByText('Exhibit A')),
-    ).toBeVisible({ timeout: 10_000 });
+    // Verify real progression: either queue is exhausted (Anthology) or duel content changes.
+    await expect
+      .poll(
+        async () => {
+          const inAnthology = await page
+            .getByRole('heading', { name: 'The Anthology' })
+            .isVisible()
+            .catch(() => false);
+          if (inAnthology) return 'anthology';
+
+          const verdictVisible = await page
+            .getByText('The Verdict')
+            .isVisible()
+            .catch(() => false);
+          if (verdictVisible) return null;
+
+          const animationState = await swipeContainer.getAttribute('data-animation-state');
+          if (animationState !== 'idle') return null;
+
+          const currentDuelPanels = await duelPanels.allInnerTexts();
+          if (currentDuelPanels.length !== initialDuelPanels.length) return null;
+
+          return currentDuelPanels.some(
+            (panelText, index) => panelText.trim() !== initialDuelPanels[index]?.trim(),
+          )
+            ? 'advanced'
+            : null;
+        },
+        { timeout: 10_000 },
+      )
+      .toMatch(/anthology|advanced/);
   });
 });
