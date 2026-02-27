@@ -216,24 +216,36 @@ docker compose up sanctuary-api --build
 
 All routes are prefixed `/api/v1/`.
 
-| Method | Path               | Description                              |
-| ------ | ------------------ | ---------------------------------------- |
-| GET    | `/health`          | Health check (Cloud Run probe)           |
-| GET    | `/duels`           | Paginated duel archive (`?page=N`)       |
-| GET    | `/duels/today`     | Today's featured duel (anonymous)        |
-| GET    | `/duels/:id`       | Single duel (anonymous)                  |
-| POST   | `/votes`           | Cast a vote `{ duelId, selectedPoemId }` |
-| GET    | `/duels/:id/stats` | Full stats + author reveal after voting  |
+| Method | Path               | Description                                          |
+| ------ | ------------------ | ---------------------------------------------------- |
+| GET    | `/health`          | Health check (Cloud Run probe)                       |
+| GET    | `/topics`          | All canonical topics ordered by label                |
+| GET    | `/duels`           | Paginated duel archive (`?page=N&topic_id=<id>`)     |
+| GET    | `/duels/:id`       | Single duel (anonymous — no author info)             |
+| POST   | `/votes`           | Cast a vote `{ duelId, selectedPoemId }`             |
+| GET    | `/duels/:id/stats` | Full stats + author reveal after voting              |
+
+> `GET /duels/today` was removed in Phase 5. Returns `404 ENDPOINT_NOT_FOUND`.
 
 ### Response Examples
 
-**GET /duels** (paginated archive):
+**GET /topics**:
+
+```json
+[
+  { "id": "nature", "label": "Nature" },
+  { "id": "love", "label": "Love" }
+]
+```
+
+**GET /duels** (paginated archive; `?topic_id=nature` to filter):
 
 ```json
 [
   {
     "id": "duel-123",
     "topic": "The Moon",
+    "topicMeta": { "id": "nature", "label": "Nature" },
     "createdAt": "2024-01-15T10:30:00.000Z",
     "humanWinRate": 67,
     "avgReadingTime": "3m 30s"
@@ -241,7 +253,7 @@ All routes are prefixed `/api/v1/`.
 ]
 ```
 
-**GET /duels/today** and **GET /duels/:id** (anonymous, no author info):
+**GET /duels/:id** (anonymous, no author info):
 
 ```json
 {
@@ -271,20 +283,26 @@ All routes are prefixed `/api/v1/`.
   "duel": {
     "id": "duel-123",
     "topic": "The Moon",
+    "topicMeta": { "id": "nature", "label": "Nature" },
     "poemA": {
       "id": "p1",
       "title": "...",
       "content": "...",
       "author": "Emily Dickinson",
       "type": "HUMAN",
-      "year": "1890"
+      "year": "1890",
+      "sourceInfo": {
+        "primary": { "source": "poets.org", "sourceUrl": "https://poets.org/poem/..." },
+        "provenances": [{ "source": "poets.org", "sourceUrl": "...", "scrapedAt": "...", "isPublicDomain": true }]
+      }
     },
     "poemB": {
       "id": "p2",
       "title": "...",
       "content": "...",
-      "author": "Claude 3 Opus",
-      "type": "AI"
+      "author": "gemini-3-flash-preview",
+      "type": "AI",
+      "sourceInfo": { "primary": { "source": null, "sourceUrl": null }, "provenances": [] }
     }
   }
 }
@@ -300,22 +318,46 @@ export enum AuthorType {
   AI = 'AI',
 }
 
+export interface TopicMeta {
+  id: string | null;
+  label: string;
+}
+
+export interface SourceProvenance {
+  source: string;
+  sourceUrl: string;
+  scrapedAt: string;
+  isPublicDomain: boolean;
+}
+
+export interface SourceInfo {
+  primary: { source: string | null; sourceUrl: string | null };
+  provenances: SourceProvenance[];
+}
+
 export interface Poem {
   id: string;
   title: string;
   content: string;
-  author: string; // "Emily Dickinson" or "Claude 3 Opus"
+  author: string; // "Emily Dickinson" or "gemini-3-flash-preview"
   type: AuthorType;
   year?: string;
+  source?: string;
+  sourceUrl?: string;
+  form?: string;
+  prompt?: string;          // AI generation prompt (null for human)
+  parentPoemId?: string;    // AI poem's human counterpart
+  sourceInfo?: SourceInfo;  // Populated in GET /duels/:id/stats only
 }
 
 export interface Duel {
   id: string;
   topic: string;
+  topicId?: string;
   poemA: Poem;
   poemB: Poem;
-  humanWinRate: number;
-  avgReadingTime: string;
+  humanWinRate: number;    // Integer percentage 0–100
+  avgReadingTime: string;  // e.g., "3m 30s"
 }
 
 export enum ViewState {

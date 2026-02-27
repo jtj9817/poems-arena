@@ -59,17 +59,19 @@ Returns a paginated list of duel cards for the Anthology/Archive view.
 - **Response `400 Bad Request`:**
   - `{ "error": "Invalid page number", "code": "INVALID_PAGE" }`
 
+**Pagination:** 12 duels per page. When `topic_id` is supplied and no matches exist, returns `[]` with `200 OK`.
+
 #### `DuelCard` Object
 ```typescript
 {
   id: string;
-  topic: string;              // Legacy display string
+  topic: string;              // Raw duel topic string (legacy)
   topicMeta: {
-    id: string | null;
-    label: string;
+    id: string | null;        // null when the duel has no linked topic row
+    label: string;            // Falls back to raw topic string when id is null
   };
-  humanWinRate: number;       // 0-1
-  avgReadingTime: number;     // seconds
+  humanWinRate: number;       // Integer percentage 0–100 (0 when no votes cast)
+  avgReadingTime: string;     // Hardcoded "3m 30s" in list view
   createdAt: string;          // ISO 8601
 }
 ```
@@ -88,12 +90,18 @@ Calling this endpoint logs a "featured" event in the `featured_duels` table for 
 
 ### 4. `GET /duels/:id/stats`
 
-Returns reveal metadata, statistics, and source provenance for a completed duel.
+Returns reveal metadata, statistics, and source provenance for a completed duel. Consumed by `VerdictPopup` after the user votes.
 
 - **URL Parameters:**
   - `id`: The unique ID of the duel.
 - **Response `200 OK`:**
-  - Stats payload including `sourceInfo` with `primary` and `provenances` (sorted by `scrapedAt` descending).
+  - `{ humanWinRate, avgReadingTime, duel }` where `duel` includes full poem reveal and `sourceInfo`.
+  - `humanWinRate`: integer percentage 0–100.
+  - `avgReadingTime`: dynamically computed from combined word count at ~200 wpm (e.g. `"3m 30s"`).
+  - `duel.topicMeta`: same shape as in `DuelCard` — includes `id` and `label`.
+  - `duel.poemA / poemB`: full `Poem` including `author`, `type`, `year`, and `sourceInfo`.
+  - `sourceInfo.primary`: `{ source: string | null, sourceUrl: string | null }` — from `poems.source` / `poems.source_url`.
+  - `sourceInfo.provenances`: array of `scrape_sources` rows sorted by `scrapedAt` descending.
 - **Response `404 Not Found`:**
   - `{ "error": "Duel not found", "code": "DUEL_NOT_FOUND" }`
 

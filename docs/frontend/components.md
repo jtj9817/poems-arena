@@ -28,7 +28,7 @@ interface TopicBarProps {
 - Horizontal overflow scrolls without a visible scrollbar (`no-scrollbar` utility class).
 - Selecting "All" calls `onSelect(null)`.
 
-**Usage:** Rendered in `Anthology.tsx` on desktop screens. On mobile, `BottomSheetFilter` is used instead.
+**Usage:** Rendered in `Anthology.tsx` at `md` breakpoint and above (`hidden md:block`). On smaller screens, `BottomSheetFilter` is used instead (triggered by a "Filter" button in the sticky mobile header).
 
 ---
 
@@ -123,10 +123,10 @@ interface SwipeContainerProps {
 | `swipePhase` | CSS Animation | Duration |
 |---|---|---|
 | `idle` | none | — |
-| `swipe-out` | `swipeOutLeft` (translate X 0→-100%, fade out) | 0.35s ease-in |
-| `swipe-in` | `swipeInRight` (translate X 100%→0, fade in) | 0.35s ease-out |
+| `swipe-out` | `swipeOutLeft` (translateX 0→-60px + opacity 1→0) | 0.35s ease-in |
+| `swipe-in` | `swipeInRight` (translateX 60px→0 + opacity 0→1) | 0.35s ease-out |
 
-Keyframes are defined in `apps/web/index.html`'s `<style>` block.
+Keyframes are defined in `apps/web/index.html`'s `<style>` block. The intentional use of `60px` (not `100%`) gives a subtle directional nudge rather than a full viewport slide.
 
 **Callbacks:** Fired via `onAnimationEnd`. `ReadingRoom.tsx` uses these to:
 1. `onSwipeOutComplete` → swap duel content from the pre-fetch cache, then trigger `swipe-in`.
@@ -197,6 +197,13 @@ interface DuelQueueState {
 | `queueAppendPage(state, newIds, isLastPage)` | Merges a new page; bumps `currentPage`; sets `hasMore=false` on last page |
 | `queueNeedsMoreIds(state, prefetchCount)` | `true` when remaining IDs ≤ `prefetchCount` and `hasMore` is still true |
 
+**Constants in `ReadingRoom.tsx`:**
+
+| Constant | Value | Purpose |
+|---|---|---|
+| `PAGE_SIZE` | `10` | Threshold for last-page detection (`ids.length < PAGE_SIZE → isLastPage`). Note: the API returns 12 per page; using 10 means the last-page flag may trigger one page early — a conservative safe guard. |
+| `PREFETCH_COUNT` | `2` | Number of upcoming duels pre-fetched into the in-memory cache while the user reads the current duel. |
+
 **Integration in `ReadingRoom.tsx`:**
 
 ```
@@ -218,6 +225,31 @@ User clicks "Next Duel"
      └─ pre-fetch queueNextIds(queue, 2) into cache
      └─ if queueNeedsMoreIds → fetchMoreIds (next page)
 ```
+
+---
+
+---
+
+## Page Updates
+
+### `Foyer.tsx`
+
+Updated in Phase 6 to use `topicMeta.label` instead of the raw `topic` string for the featured duel card.
+
+- Fetches the first page of duels via `api.getDuels()` on mount.
+- Displays `duels[0].topicMeta.label` as "Featured Topic" in the landing card.
+- Navigates to `ReadingRoom` with the featured duel's ID on "Enter Reading Room".
+- The 600ms `setTimeout` before navigation matches the CSS `opacity` exit transition.
+
+### `Anthology.tsx`
+
+Updated in Phase 6 to support dynamic topic filtering.
+
+- Fetches `GET /topics` once on mount into `topics` state.
+- Re-fetches `GET /duels(page=1, topicId)` whenever `activeTopicId` changes. Uses a `isCurrent` flag to discard stale responses from concurrent fetches.
+- Duel cards display `duel.topicMeta.label` in the topic chip and in the "On {label}" heading.
+- Desktop (`md+`): renders `TopicBar` in a sticky `bg-paper/95 backdrop-blur-sm` header.
+- Mobile (`< md`): shows the active topic label and a "Filter" button that opens `BottomSheetFilter`.
 
 ---
 
@@ -254,10 +286,10 @@ Defined in `apps/web/index.html` `<style>` block. Applied via inline `animation`
 
 | Keyframe | Used by | Effect |
 |---|---|---|
-| `swipeOutLeft` | `SwipeContainer` | Translates X 0→-100% + fades out |
-| `swipeInRight` | `SwipeContainer` | Translates X 100%→0 + fades in |
-| `verdictIn` | `VerdictPopup` | Scale + fade entrance for the modal card |
-| `fadeIn` | General | Opacity 0→1 helper |
+| `swipeOutLeft` | `SwipeContainer` | `translateX(0)→translateX(-60px)` + `opacity 1→0` |
+| `swipeInRight` | `SwipeContainer` | `translateX(60px)→translateX(0)` + `opacity 0→1` |
+| `verdictIn` | `VerdictPopup` | `translateY(-12px) scale(0.97)→normal` + `opacity 0→1` |
+| `fadeIn` | `ReadingRoom` initial load | `opacity 0→1` |
 
 **E2E compatibility:** `packages/e2e/playwright.config.ts` sets `reducedMotion: 'reduce'` globally, collapsing all keyframe animations to their end state so tests can assert final conditions without timing dependencies.
 
@@ -269,24 +301,27 @@ From `@sanctuary/shared`:
 
 ```typescript
 interface TopicMeta {
-  id: string | null;
-  label: string;
+  id: string | null;   // null when duel has no linked topic row
+  label: string;       // Falls back to raw duel topic string when id is null
+}
+
+interface SourceProvenance {
+  source: string;
+  sourceUrl: string;
+  scrapedAt: string;
+  isPublicDomain: boolean;
 }
 
 interface SourceInfo {
   primary: {
-    source: string;
-    sourceUrl: string | null;
+    source: string | null;      // from poems.source column; null for AI poems
+    sourceUrl: string | null;   // from poems.source_url column; null for AI poems
   };
-  provenances: Array<{
-    source: string;
-    sourceUrl: string | null;
-    scrapedAt: string;
-  }>;
+  provenances: SourceProvenance[];  // scrape_sources rows, sorted by scrapedAt desc
 }
 ```
 
-`SourceInfo` is an optional field on `Poem` — populated in the `GET /duels/:id/stats` response only.
+`SourceInfo` is an optional field on `Poem` — populated in the `GET /duels/:id/stats` response only. It is absent from `GET /duels/:id` (anonymous view).
 
 ---
 
