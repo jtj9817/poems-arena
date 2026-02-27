@@ -86,6 +86,28 @@
       .letterpress-scroll::-webkit-scrollbar-thumb:hover {
         background-color: #8c8781;
       }
+
+      /* Swipe transition keyframes for SwipeContainer */
+      @keyframes swipeOutLeft {
+        from { transform: translateX(0); opacity: 1; }
+        to   { transform: translateX(-60px); opacity: 0; }
+      }
+      @keyframes swipeInRight {
+        from { transform: translateX(60px); opacity: 0; }
+        to   { transform: translateX(0); opacity: 1; }
+      }
+
+      /* Verdict pop-up entrance */
+      @keyframes verdictIn {
+        from { opacity: 0; transform: translateY(-12px) scale(0.97); }
+        to   { opacity: 1; transform: translateY(0) scale(1); }
+      }
+
+      /* Fade-in used by ReadingRoom initial load */
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+      }
     </style>
   </head>
   <body class="antialiased font-body bg-paper selection:bg-ink selection:text-paper">

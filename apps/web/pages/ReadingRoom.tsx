@@ -1,7 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AuthorType, ViewState } from '@sanctuary/shared';
 import { Button } from '../components/Button';
+import { VerdictPopup } from '../components/VerdictPopup';
+import { SwipeContainer, type SwipePhase } from '../components/SwipeContainer';
 import { api, type AnonymousDuel, type DuelStats } from '../lib/api';
+import {
+  createQueue,
+  queueAppendPage,
+  queueAdvance,
+  queueCurrentId,
+  queueNextIds,
+  queueNeedsMoreIds,
+  type DuelQueueState,
+} from '../lib/duelQueue';
+
+/** Expected page size from GET /duels — used to detect last page. */
+const PAGE_SIZE = 10;
+/** Number of upcoming duels to pre-fetch while user reads the current one. */
+const PREFETCH_COUNT = 2;
 
 interface ReadingRoomProps {
   duelId: string | null;
@@ -12,23 +28,72 @@ export const ReadingRoom: React.FC<ReadingRoomProps> = ({ duelId, onNavigate }) 
   const [duel, setDuel] = useState<AnonymousDuel | null>(null);
   const [stats, setStats] = useState<DuelStats | null>(null);
   const [selectedPoemId, setSelectedPoemId] = useState<string | null>(null);
-  const [revealed, setRevealed] = useState(false);
+  const [hasVoted, setHasVoted] = useState(false);
+  const [showPopup, setShowPopup] = useState(false);
   const [fadeIn, setFadeIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [swipePhase, setSwipePhase] = useState<SwipePhase>('idle');
+
+  // Sliding window queue — held in a ref to avoid stale closures in async callbacks
+  const queueRef = useRef<DuelQueueState>(createQueue());
+  // Cache of pre-fetched full duel objects keyed by duel ID
+  const prefetchCacheRef = useRef<Map<string, AnonymousDuel>>(new Map());
+  // Guard against concurrent page fetches
+  const isFetchingMoreRef = useRef(false);
+
+  /** Pre-fetch the next PREFETCH_COUNT duels into the cache. Non-fatal on failure. */
+  const prefetchUpcoming = (queue: DuelQueueState) => {
+    const toFetch = queueNextIds(queue, PREFETCH_COUNT).filter(
+      (id) => !prefetchCacheRef.current.has(id),
+    );
+    for (const id of toFetch) {
+      api
+        .getDuel(id)
+        .then((d) => prefetchCacheRef.current.set(id, d))
+        .catch(() => {
+          /* pre-fetch failure is non-fatal */
+        });
+    }
+  };
+
+  /** Fetch the next page of duel IDs when approaching the end of the queue. */
+  const maybeFetchMoreIds = async (queue: DuelQueueState) => {
+    if (isFetchingMoreRef.current || !queueNeedsMoreIds(queue, PREFETCH_COUNT)) return;
+    isFetchingMoreRef.current = true;
+    try {
+      const items = await api.getDuels(queue.currentPage);
+      const newIds = items.map((item) => item.id);
+      const isLastPage = newIds.length < PAGE_SIZE;
+      const nextQueue = queueAppendPage(queue, newIds, isLastPage);
+      queueRef.current = nextQueue;
+      prefetchUpcoming(nextQueue);
+    } catch {
+      /* non-fatal — user can still view cached duels */
+    } finally {
+      isFetchingMoreRef.current = false;
+    }
+  };
 
   useEffect(() => {
-    const loadDuel = async () => {
+    const loadInitial = async () => {
       try {
         let id = duelId;
+
         if (!id) {
-          // Fallback: fetch duel list and pick the first one
-          const duels = await api.getDuels();
-          if (duels.length === 0) {
+          // No specific duel requested — fetch the list and start a queue
+          const items = await api.getDuels(1);
+          if (items.length === 0) {
             setError('No duels available. Please check back later.');
             return;
           }
-          id = duels[0].id;
+          const ids = items.map((item) => item.id);
+          const isLastPage = ids.length < PAGE_SIZE;
+          const initialQueue = queueAppendPage(createQueue(), ids, isLastPage);
+          queueRef.current = initialQueue;
+          id = queueCurrentId(initialQueue)!;
+          prefetchUpcoming(initialQueue);
         }
+
         const d = await api.getDuel(id);
         setDuel(d);
         setTimeout(() => setFadeIn(true), 100);
@@ -36,20 +101,63 @@ export const ReadingRoom: React.FC<ReadingRoomProps> = ({ duelId, onNavigate }) 
         setError('Could not load the duel. Please try again.');
       }
     };
-    loadDuel();
+    loadInitial();
   }, [duelId]);
 
   const handleVote = async (poemId: string) => {
-    if (!duel) return;
+    if (!duel || hasVoted) return;
     setSelectedPoemId(poemId);
+    setHasVoted(true);
     try {
       await api.vote(duel.id, poemId);
       const duelStats = await api.getDuelStats(duel.id);
       setStats(duelStats);
     } catch {
-      // Show reveal anyway with no stats
+      // Show popup even if stats fetch fails
     }
-    setRevealed(true);
+    setShowPopup(true);
+  };
+
+  /** User clicked "Next Duel" in the VerdictPopup. */
+  const handleContinue = () => {
+    setShowPopup(false);
+    setSwipePhase('swipe-out');
+  };
+
+  /** Swipe-out animation finished — swap to next duel and start swipe-in. */
+  const handleSwipeOutComplete = async () => {
+    const nextQueue = queueAdvance(queueRef.current);
+    queueRef.current = nextQueue;
+
+    const nextId = queueCurrentId(nextQueue);
+    if (!nextId) {
+      // Queue exhausted — fall back to Anthology
+      onNavigate(ViewState.ANTHOLOGY);
+      return;
+    }
+
+    // Load from pre-fetch cache if available, otherwise fetch now
+    const cached = prefetchCacheRef.current.get(nextId);
+    const nextDuel = cached ?? (await api.getDuel(nextId).catch(() => null));
+
+    if (!nextDuel) {
+      setError('Could not load the next duel. Please try again.');
+      return;
+    }
+
+    // Reset voting state for the new duel
+    setDuel(nextDuel);
+    setStats(null);
+    setSelectedPoemId(null);
+    setHasVoted(false);
+    setSwipePhase('swipe-in');
+
+    prefetchUpcoming(nextQueue);
+    maybeFetchMoreIds(nextQueue);
+  };
+
+  const handleSwipeInComplete = () => {
+    setSwipePhase('idle');
   };
 
   if (error) {
@@ -70,89 +178,61 @@ export const ReadingRoom: React.FC<ReadingRoomProps> = ({ duelId, onNavigate }) 
     );
   }
 
-  const selectedPoem = stats?.duel
-    ? selectedPoemId === stats.duel.poemA.id
-      ? stats.duel.poemA
-      : stats.duel.poemB
-    : null;
-
-  const isHumanWinner = revealed && selectedPoem && selectedPoem.type === AuthorType.HUMAN;
-
-  const verdictMessage = isHumanWinner ? 'You recognized the Human.' : 'You chose the Machine.';
-
   return (
-    <div
-      className={`flex flex-col w-full h-full transition-opacity duration-1000 overflow-y-auto lg:overflow-hidden no-scrollbar ${fadeIn ? 'opacity-100' : 'opacity-0'}`}
-    >
-      {/* Header Info */}
-      <div className="w-full text-center py-6 border-b border-stock/30 shrink-0">
-        <p className="font-sans text-xs tracking-[0.2em] uppercase text-pencil">Subject</p>
-        <p className="font-serif text-2xl italic text-ink mt-1">{duel.topic}</p>
-      </div>
+    <>
+      <VerdictPopup
+        isOpen={showPopup}
+        selectedPoemId={selectedPoemId}
+        stats={stats}
+        onContinue={handleContinue}
+        onReviewPoems={() => setShowPopup(false)}
+      />
 
-      {/* Split Screen Container */}
-      <div className="flex-grow flex flex-col lg:flex-row relative min-h-0">
-        {/* Divider (Desktop) */}
-        <div className="hidden lg:block absolute left-1/2 top-0 bottom-0 w-px bg-border-pencil z-10"></div>
-
-        {/* Verdict Overlay */}
-        {revealed && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none px-4">
-            <div className="bg-paper paper-shadow border border-ink p-8 md:p-12 max-w-xl w-full text-center animate-[fadeIn_1s_ease-out_forwards] pointer-events-auto">
-              <p className="font-sans text-xs tracking-[0.2em] uppercase text-pencil mb-4">
-                The Verdict
-              </p>
-              <h2 className="text-4xl md:text-5xl font-serif text-ink mb-6">{verdictMessage}</h2>
-              {stats && (
-                <div className="flex justify-center gap-8 mb-8 font-sans text-xs tracking-wider border-y border-stock py-4">
-                  <div className="text-center">
-                    <span className="block text-xl font-serif font-bold text-ink">
-                      {stats.humanWinRate}%
-                    </span>
-                    <span className="text-pencil">Recog. Human</span>
-                  </div>
-                  <div className="text-center">
-                    <span className="block text-xl font-serif font-bold text-ink">
-                      {stats.avgReadingTime}
-                    </span>
-                    <span className="text-pencil">Avg. Read Time</span>
-                  </div>
-                </div>
-              )}
-              <div className="flex gap-4 justify-center">
-                <Button variant="ghost" onClick={() => setRevealed(false)}>
-                  Review Poems
-                </Button>
-                <Button onClick={() => onNavigate(ViewState.ANTHOLOGY)}>Next Duel</Button>
-              </div>
-            </div>
+      <SwipeContainer
+        swipePhase={swipePhase}
+        onSwipeOutComplete={handleSwipeOutComplete}
+        onSwipeInComplete={handleSwipeInComplete}
+      >
+        <div
+          className={`flex flex-col w-full h-full transition-opacity duration-1000 overflow-y-auto lg:overflow-hidden no-scrollbar ${fadeIn ? 'opacity-100' : 'opacity-0'}`}
+        >
+          {/* Header Info */}
+          <div className="w-full text-center py-6 border-b border-stock/30 shrink-0">
+            <p className="font-sans text-xs tracking-[0.2em] uppercase text-pencil">Subject</p>
+            <p className="font-serif text-2xl italic text-ink mt-1">{duel.topic}</p>
           </div>
-        )}
 
-        {/* Poem A */}
-        <PoemColumn
-          poem={duel.poemA}
-          revealedPoem={stats?.duel.poemA ?? null}
-          label="Exhibit A"
-          revealed={revealed}
-          isSelected={selectedPoemId === duel.poemA.id}
-          onSelect={() => handleVote(duel.poemA.id)}
-          disabled={revealed}
-          isLeft={true}
-        />
+          {/* Split Screen Container */}
+          <div className="flex-grow flex flex-col lg:flex-row relative min-h-0">
+            {/* Divider (Desktop) */}
+            <div className="hidden lg:block absolute left-1/2 top-0 bottom-0 w-px bg-border-pencil z-10"></div>
 
-        {/* Poem B */}
-        <PoemColumn
-          poem={duel.poemB}
-          revealedPoem={stats?.duel.poemB ?? null}
-          label="Exhibit B"
-          revealed={revealed}
-          isSelected={selectedPoemId === duel.poemB.id}
-          onSelect={() => handleVote(duel.poemB.id)}
-          disabled={revealed}
-        />
-      </div>
-    </div>
+            {/* Poem A */}
+            <PoemColumn
+              poem={duel.poemA}
+              revealedPoem={stats?.duel.poemA ?? null}
+              label="Exhibit A"
+              revealed={showPopup}
+              isSelected={selectedPoemId === duel.poemA.id}
+              onSelect={() => handleVote(duel.poemA.id)}
+              disabled={hasVoted}
+              isLeft={true}
+            />
+
+            {/* Poem B */}
+            <PoemColumn
+              poem={duel.poemB}
+              revealedPoem={stats?.duel.poemB ?? null}
+              label="Exhibit B"
+              revealed={showPopup}
+              isSelected={selectedPoemId === duel.poemB.id}
+              onSelect={() => handleVote(duel.poemB.id)}
+              disabled={hasVoted}
+            />
+          </div>
+        </div>
+      </SwipeContainer>
+    </>
   );
 };
 
