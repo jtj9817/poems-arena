@@ -43,22 +43,22 @@
 
 **Goal:** Implement the Verdict as a pop-up overlay and add "swipe-like" transitions for continuous duel flow.
 
-- [ ] Task: Refactor Verdict into Pop-Up Component
-  - [ ] Extract the existing Verdict overlay from `ReadingRoom.tsx` into a dedicated `apps/web/components/VerdictPopup.tsx`.
-  - [ ] Display Verdict as a centered pop-up modal after vote submission.
-  - [ ] Include an "Acknowledge" action (e.g., "Continue" button) that dismisses the pop-up.
-- [ ] Task: Implement `SwipeContainer` Component
-  - [ ] Create `apps/web/components/SwipeContainer.tsx` using CSS Keyframes for swipe animations.
-  - [ ] Trigger the swipe-out transition for the current duel **after** the user acknowledges the Verdict pop-up.
-  - [ ] Trigger a swipe-in transition for the next duel.
-- [ ] Task: Implement Sliding Window Pre-Fetching
-  - [ ] On first duel entry, fetch the ordered duel ID list via `getDuels()` and store as a queue in client state.
-  - [ ] Pre-fetch the next 1–2 full duels (`getDuel(id)`) while the user reads the current duel.
-  - [ ] On "Next Duel" acknowledgment, advance the queue and pre-fetch the next duel.
-  - [ ] When approaching the end of the current page of IDs, fetch `getDuels(nextPage)` for more.
-- [ ] Task: Update `ReadingRoom.tsx` for New Flow
-  - [ ] Wire up the `VerdictPopup` + `SwipeContainer` for the full cycle: Vote → Pop-up → Acknowledge → Swipe → Next Duel.
-  - [ ] Replace the "Next Duel" button that navigates to Anthology with one that loads the next pre-fetched duel.
+- [x] Task: Refactor Verdict into Pop-Up Component — 3891b28
+  - [x] Extract the existing Verdict overlay from `ReadingRoom.tsx` into a dedicated `apps/web/components/VerdictPopup.tsx`.
+  - [x] Display Verdict as a centered pop-up modal after vote submission.
+  - [x] Include an "Acknowledge" action (e.g., "Continue" button) that dismisses the pop-up.
+- [x] Task: Implement `SwipeContainer` Component — 3891b28
+  - [x] Create `apps/web/components/SwipeContainer.tsx` using CSS Keyframes for swipe animations.
+  - [x] Trigger the swipe-out transition for the current duel **after** the user acknowledges the Verdict pop-up.
+  - [x] Trigger a swipe-in transition for the next duel.
+- [x] Task: Implement Sliding Window Pre-Fetching — 3891b28
+  - [x] On first duel entry, fetch the ordered duel ID list via `getDuels()` and store as a queue in client state.
+  - [x] Pre-fetch the next 1–2 full duels (`getDuel(id)`) while the user reads the current duel.
+  - [x] On "Next Duel" acknowledgment, advance the queue and pre-fetch the next duel.
+  - [x] When approaching the end of the current page of IDs, fetch `getDuels(nextPage)` for more.
+- [x] Task: Update `ReadingRoom.tsx` for New Flow — 3891b28
+  - [x] Wire up the `VerdictPopup` + `SwipeContainer` for the full cycle: Vote → Pop-up → Acknowledge → Swipe → Next Duel.
+  - [x] Replace the "Next Duel" button that navigates to Anthology with one that loads the next pre-fetched duel.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Verdict Pop-Up & Swipe Transitions' (Protocol in workflow.md)
 
 ## Phase 3: Source Attribution & Final UI Polishing
