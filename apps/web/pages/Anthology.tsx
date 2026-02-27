@@ -20,11 +20,22 @@ export const Anthology: React.FC<AnthologyProps> = ({ onNavigate }) => {
   }, []);
 
   useEffect(() => {
+    let isCurrent = true;
     setLoading(true);
     api
       .getDuels(1, activeTopicId ?? undefined)
-      .then(setDuels)
-      .finally(() => setLoading(false));
+      .then((nextDuels) => {
+        if (!isCurrent) return;
+        setDuels(nextDuels);
+      })
+      .finally(() => {
+        if (!isCurrent) return;
+        setLoading(false);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
   }, [activeTopicId]);
 
   const activeLabel =
