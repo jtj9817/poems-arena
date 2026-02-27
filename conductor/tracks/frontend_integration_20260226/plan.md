@@ -79,7 +79,7 @@
   - [x] Refine mobile touch targets for topic chips (44x44px).
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Source Attribution & Final UI Polishing' (Protocol in workflow.md) — 35e9c35
 
-## Phase 4: Regression & Quality Gate
+## Phase 4: Regression & Quality Gate [checkpoint: 871a6cc]
 
 **Goal:** Ensure full-stack correctness and performance across all screens.
 
@@ -98,7 +98,7 @@
   - [x] Update `packages/e2e/tests/ui/` to reflect new navigation, pop-up, and topic filtering.
   - [x] Add specific tests for topic filtering in the Anthology.
   - [x] See `docs/tickets/E2E-ANIMATION-TESTING.md` for animation-specific testing guidance.
-- [~] Task: Conductor - User Manual Verification 'Phase 4: Regression & Quality Gate' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Regression & Quality Gate' (Protocol in workflow.md) — 871a6cc
 
 ## Phase 5: Documentation
 
