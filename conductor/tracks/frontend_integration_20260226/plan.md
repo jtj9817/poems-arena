@@ -83,22 +83,22 @@
 
 **Goal:** Ensure full-stack correctness and performance across all screens.
 
-- [ ] Task: Coverage and Regression Verification
-  - [ ] Execute `pnpm --filter @sanctuary/web build`.
-  - [ ] Execute `pnpm lint`.
-  - [ ] Execute `pnpm format:check`.
-- [ ] Task: Regression Checklist (Feature Behaviors)
-  - [ ] Verify `GET /topics` returns canonical topics.
-  - [ ] Verify `GET /duels?topic_id=...` filters correctly.
-  - [ ] Verify topic filtering works on both desktop and mobile.
-  - [ ] Confirm Verdict pop-up appears after vote and swipe-out animates after acknowledgment.
-  - [ ] Confirm sliding window pre-fetching delivers instant "Next Duel" transitions.
-  - [ ] Ensure source attribution correctly identifies Human vs AI poems.
-- [ ] Task: E2E Test Suite Update
-  - [ ] Update `packages/e2e/tests/ui/` to reflect new navigation, pop-up, and topic filtering.
-  - [ ] Add specific tests for topic filtering in the Anthology.
-  - [ ] See `docs/tickets/E2E-ANIMATION-TESTING.md` for animation-specific testing guidance.
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Regression & Quality Gate' (Protocol in workflow.md)
+- [x] Task: Coverage and Regression Verification — dc1e85c
+  - [x] Execute `pnpm --filter @sanctuary/web build`.
+  - [x] Execute `pnpm lint`.
+  - [x] Execute `pnpm format:check`.
+- [x] Task: Regression Checklist (Feature Behaviors) — dc1e85c
+  - [x] Verify `GET /topics` returns canonical topics.
+  - [x] Verify `GET /duels?topic_id=...` filters correctly.
+  - [x] Verify topic filtering works on both desktop and mobile.
+  - [x] Confirm Verdict pop-up appears after vote and swipe-out animates after acknowledgment.
+  - [x] Confirm sliding window pre-fetching delivers instant "Next Duel" transitions.
+  - [x] Ensure source attribution correctly identifies Human vs AI poems.
+- [x] Task: E2E Test Suite Update — dc1e85c
+  - [x] Update `packages/e2e/tests/ui/` to reflect new navigation, pop-up, and topic filtering.
+  - [x] Add specific tests for topic filtering in the Anthology.
+  - [x] See `docs/tickets/E2E-ANIMATION-TESTING.md` for animation-specific testing guidance.
+- [~] Task: Conductor - User Manual Verification 'Phase 4: Regression & Quality Gate' (Protocol in workflow.md)
 
 ## Phase 5: Documentation
 
