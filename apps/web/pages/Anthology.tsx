@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ViewState } from '@sanctuary/shared';
+import { ViewState, type TopicMeta } from '@sanctuary/shared';
 import { api, type DuelListItem } from '../lib/api';
+import { TopicBar } from '../components/TopicBar';
+import { BottomSheetFilter } from '../components/BottomSheetFilter';
 
 interface AnthologyProps {
   onNavigate: (view: ViewState, duelId?: string) => void;
@@ -9,14 +11,24 @@ interface AnthologyProps {
 export const Anthology: React.FC<AnthologyProps> = ({ onNavigate }) => {
   const [duels, setDuels] = useState<DuelListItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const categories = ['All', 'Nature', 'Mortality', 'Love', 'Time', 'Spirit'];
+  const [topics, setTopics] = useState<TopicMeta[]>([]);
+  const [activeTopicId, setActiveTopicId] = useState<string | null>(null);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   useEffect(() => {
+    api.getTopics().then(setTopics);
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
     api
-      .getDuels()
+      .getDuels(1, activeTopicId ?? undefined)
       .then(setDuels)
       .finally(() => setLoading(false));
-  }, []);
+  }, [activeTopicId]);
+
+  const activeLabel =
+    activeTopicId === null ? 'All' : (topics.find((t) => t.id === activeTopicId)?.label ?? 'All');
 
   return (
     <div className="h-full w-full overflow-y-auto no-scrollbar bg-paper">
@@ -35,22 +47,23 @@ export const Anthology: React.FC<AnthologyProps> = ({ onNavigate }) => {
           </p>
         </div>
 
-        {/* Filter Bar */}
-        <div className="sticky top-0 z-30 bg-paper/95 backdrop-blur-sm py-4 mb-10 border-b border-stock">
-          <div className="flex flex-wrap justify-center gap-2 md:gap-4">
-            {categories.map((cat, i) => (
-              <button
-                key={cat}
-                className={`px-4 py-2 text-sm font-sans font-medium rounded-full transition-all ${
-                  i === 0
-                    ? 'bg-ink text-paper shadow-md'
-                    : 'text-ink/60 hover:bg-stock hover:text-ink border border-transparent hover:border-border-pencil'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
+        {/* Topic Bar — desktop (md+) */}
+        <div className="hidden md:block sticky top-0 z-30 bg-paper/95 backdrop-blur-sm py-4 mb-10 border-b border-stock">
+          <TopicBar topics={topics} activeTopicId={activeTopicId} onSelect={setActiveTopicId} />
+        </div>
+
+        {/* Filter trigger — mobile */}
+        <div className="flex md:hidden sticky top-0 z-30 bg-paper/95 backdrop-blur-sm py-3 mb-8 border-b border-stock justify-between items-center">
+          <span className="text-xs font-sans font-medium uppercase tracking-widest text-pencil">
+            Topic: <span className="text-ink">{activeLabel}</span>
+          </span>
+          <button
+            onClick={() => setIsFilterOpen(true)}
+            className="flex items-center gap-1.5 text-xs font-sans font-medium text-ink border border-border-pencil px-3 py-1.5 rounded-full"
+          >
+            <span className="material-symbols-outlined text-base">tune</span>
+            Filter
+          </button>
         </div>
 
         {/* Grid */}
@@ -70,7 +83,7 @@ export const Anthology: React.FC<AnthologyProps> = ({ onNavigate }) => {
               >
                 <div className="flex justify-between items-start mb-4">
                   <span className="text-xs font-bold font-sans tracking-widest uppercase text-seal-red">
-                    {duel.topic}
+                    {duel.topicMeta.label}
                   </span>
                   <span className="text-xs font-medium font-sans text-pencil">
                     {new Date(duel.createdAt).toLocaleDateString('en-US', {
@@ -81,7 +94,7 @@ export const Anthology: React.FC<AnthologyProps> = ({ onNavigate }) => {
                 </div>
 
                 <h3 className="text-3xl font-serif font-bold text-ink mb-2 group-hover:text-seal-red transition-colors">
-                  On {duel.topic}
+                  On {duel.topicMeta.label}
                 </h3>
 
                 <div className="h-px w-8 bg-pencil/20 my-4"></div>
@@ -103,6 +116,15 @@ export const Anthology: React.FC<AnthologyProps> = ({ onNavigate }) => {
           </div>
         )}
       </div>
+
+      {/* Mobile bottom sheet */}
+      <BottomSheetFilter
+        topics={topics}
+        activeTopicId={activeTopicId}
+        onSelect={setActiveTopicId}
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+      />
     </div>
   );
 };

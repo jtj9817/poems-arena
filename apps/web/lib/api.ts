@@ -1,4 +1,4 @@
-import type { Duel } from '@sanctuary/shared';
+import type { Duel, TopicMeta } from '@sanctuary/shared';
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? '/api/v1';
 
@@ -16,6 +16,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export interface DuelListItem {
   id: string;
   topic: string;
+  topicMeta: TopicMeta;
   humanWinRate: number;
   avgReadingTime: string;
   createdAt: string;
@@ -40,8 +41,14 @@ export interface VoteResponse {
 }
 
 export const api = {
-  getDuels(page = 1): Promise<DuelListItem[]> {
-    return request(`/duels?page=${page}`);
+  getTopics(): Promise<TopicMeta[]> {
+    return request('/topics');
+  },
+
+  getDuels(page = 1, topicId?: string): Promise<DuelListItem[]> {
+    const params = new URLSearchParams({ page: String(page) });
+    if (topicId !== undefined) params.set('topic_id', topicId);
+    return request(`/duels?${params}`);
   },
 
   getDuel(id: string): Promise<AnonymousDuel> {
