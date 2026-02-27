@@ -21,22 +21,22 @@
 
 **Goal:** Implement the data fetching and state management for canonical topics on the Anthology page.
 
-- [ ] Task: Update `apps/web/lib/api.ts` for Topic Support
-  - [ ] Add `getTopics()` to fetch `GET /api/v1/topics`.
-  - [ ] Update `getDuels(page, topicId?)` to support optional `topic_id` query parameter.
-  - [ ] Update `DuelListItem` to include `topicMeta: TopicMeta` (matching the API response shape).
-- [ ] Task: Implement `TopicBar` Component
-  - [ ] Create `apps/web/components/TopicBar.tsx`.
-  - [ ] Implement sticky horizontal scroll for topic chips.
-  - [ ] Support active/inactive states for single-select.
-- [ ] Task: Implement `BottomSheetFilter` for Mobile
-  - [ ] Create `apps/web/components/BottomSheetFilter.tsx` (using vanilla CSS transitions).
-  - [ ] Integrate with `TopicBar` for mobile-specific rendering.
-- [ ] Task: Integrate Filtering into `Anthology.tsx`
-  - [ ] Remove hardcoded `categories` array and replace with dynamic topics from `getTopics()`.
-  - [ ] Fetch topics on mount.
-  - [ ] Update duel list when a topic is selected (using `getDuels(page, topicId)`).
-  - [ ] Display `topicMeta.label` on `DuelCard` components instead of the raw `topic` string.
+- [x] Task: Update `apps/web/lib/api.ts` for Topic Support — 39eff5a
+  - [x] Add `getTopics()` to fetch `GET /api/v1/topics`.
+  - [x] Update `getDuels(page, topicId?)` to support optional `topic_id` query parameter.
+  - [x] Update `DuelListItem` to include `topicMeta: TopicMeta` (matching the API response shape).
+- [x] Task: Implement `TopicBar` Component — 39eff5a
+  - [x] Create `apps/web/components/TopicBar.tsx`.
+  - [x] Implement sticky horizontal scroll for topic chips.
+  - [x] Support active/inactive states for single-select.
+- [x] Task: Implement `BottomSheetFilter` for Mobile — 39eff5a
+  - [x] Create `apps/web/components/BottomSheetFilter.tsx` (using vanilla CSS transitions).
+  - [x] Integrate with `TopicBar` for mobile-specific rendering.
+- [x] Task: Integrate Filtering into `Anthology.tsx` — 39eff5a
+  - [x] Remove hardcoded `categories` array and replace with dynamic topics from `getTopics()`.
+  - [x] Fetch topics on mount.
+  - [x] Update duel list when a topic is selected (using `getDuels(page, topicId)`).
+  - [x] Display `topicMeta.label` on `DuelCard` components instead of the raw `topic` string.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Topic Filtering Infrastructure' (Protocol in workflow.md)
 
 ## Phase 2: Verdict Pop-Up & Swipe Transitions
