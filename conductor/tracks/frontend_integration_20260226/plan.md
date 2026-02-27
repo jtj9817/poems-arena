@@ -11,10 +11,10 @@
   - [x] Accept optional `topic_id` query parameter in `apps/api/src/routes/duels.ts`.
   - [x] Apply `.where(eq(duels.topicId, topicId))` when the parameter is present.
   - [x] Add test coverage for the new filter in `duels.test.ts`.
-- [ ] Task: Add Shared Types for `TopicMeta` and `SourceInfo`
-  - [ ] Add `TopicMeta` interface (`{ id: string | null; label: string }`) to `packages/shared/src/index.ts`.
-  - [ ] Add `SourceInfo` interface (matching the API's `buildSourceInfo` shape) to `packages/shared/src/index.ts`.
-  - [ ] Extend the shared `Poem` type with an optional `sourceInfo?: SourceInfo` field.
+- [x] Task: Add Shared Types for `TopicMeta` and `SourceInfo` — b78f6e2
+  - [x] Add `TopicMeta` interface (`{ id: string | null; label: string }`) to `packages/shared/src/index.ts`.
+  - [x] Add `SourceInfo` interface (matching the API's `buildSourceInfo` shape) to `packages/shared/src/index.ts`.
+  - [x] Extend the shared `Poem` type with an optional `sourceInfo?: SourceInfo` field.
 - [ ] Task: Conductor - User Manual Verification 'Phase 0: Backend Prerequisites' (Protocol in workflow.md)
 
 ## Phase 1: Topic Filtering Infrastructure
