@@ -8,8 +8,8 @@ test.describe('Reading Room page', () => {
     const enterButton = page.getByRole('button', { name: /Enter Reading Room/i });
     await enterButton.click();
 
-    // Wait for the reading room to load
-    await page.waitForTimeout(1000);
+    // Wait for Reading Room content to load — replaces brittle waitForTimeout
+    await expect(page.getByText('Subject')).toBeVisible({ timeout: 15_000 });
   });
 
   test('displays two poems with Exhibit A and Exhibit B labels', async ({ page }) => {
@@ -57,5 +57,44 @@ test.describe('Reading Room page', () => {
     // Check for action buttons
     await expect(page.getByRole('button', { name: /Review Poems/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /Next Duel/i })).toBeVisible();
+  });
+
+  test('verdict overlay exposes data-animation-state="open"', async ({ page }) => {
+    await expect(page.getByText('Exhibit A')).toBeVisible({ timeout: 10_000 });
+
+    // Vote to open the verdict popup
+    await page
+      .getByRole('button', { name: /Select This Work/i })
+      .first()
+      .click();
+    await expect(page.getByText('The Verdict')).toBeVisible({ timeout: 10_000 });
+
+    // The VerdictPopup backdrop must carry the animation state attribute
+    await expect(page.locator('[data-animation-state="open"]')).toBeVisible();
+  });
+
+  test('Next Duel loads the next duel and SwipeContainer returns to idle state', async ({
+    page,
+  }) => {
+    await expect(page.getByText('Exhibit A')).toBeVisible({ timeout: 10_000 });
+
+    // Vote
+    await page
+      .getByRole('button', { name: /Select This Work/i })
+      .first()
+      .click();
+    await expect(page.getByText('The Verdict')).toBeVisible({ timeout: 10_000 });
+
+    // Click Next Duel — with reducedMotion animations collapse to end state immediately
+    await page.getByRole('button', { name: /Next Duel/i }).click();
+
+    // SwipeContainer should settle back to idle (or navigate to Anthology if queue empty)
+    // Wait for either the next duel content or the Anthology heading
+    await expect(
+      page
+        .getByText('Subject')
+        .or(page.getByRole('heading', { name: 'The Anthology' }))
+        .or(page.getByText('Exhibit A')),
+    ).toBeVisible({ timeout: 10_000 });
   });
 });

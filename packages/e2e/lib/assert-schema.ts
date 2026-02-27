@@ -1,5 +1,10 @@
 import { expect } from '@playwright/test';
 
+export interface TopicShape {
+  id: string | null;
+  label: string;
+}
+
 export interface DuelListItemShape {
   id: string;
   topic: string;
@@ -29,6 +34,15 @@ export interface DuelStatsShape {
 export interface VoteResponseShape {
   success: boolean;
   isHuman: boolean;
+}
+
+/**
+ * Asserts that an object has the shape of a Topic.
+ */
+export function assertTopic(obj: unknown): asserts obj is TopicShape {
+  const topic = obj as Record<string, unknown>;
+  expect(topic.id === null || typeof topic.id === 'string').toBe(true);
+  expect(typeof topic.label).toBe('string');
 }
 
 /**

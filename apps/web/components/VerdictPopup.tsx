@@ -34,6 +34,7 @@ export const VerdictPopup: React.FC<VerdictPopupProps> = ({
     <div
       className="fixed inset-0 z-50 flex items-center justify-center px-4"
       style={{ backgroundColor: 'rgba(44, 41, 37, 0.6)' }}
+      data-animation-state="open"
     >
       <div className="bg-paper paper-shadow border border-ink p-8 md:p-12 max-w-xl w-full text-center animate-[verdictIn_0.4s_ease-out_forwards]">
         <p className="font-sans text-xs tracking-[0.2em] uppercase text-pencil mb-4">The Verdict</p>

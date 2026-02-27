@@ -35,6 +35,8 @@ export default defineConfig({
   use: {
     headless: true,
     trace: 'on-first-retry',
+    // Collapse CSS animations to their end state for reliable assertions
+    reducedMotion: 'reduce',
   },
 
   projects: [
