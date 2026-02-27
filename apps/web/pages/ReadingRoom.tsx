@@ -64,7 +64,8 @@ export const ReadingRoom: React.FC<ReadingRoomProps> = ({ duelId, onNavigate }) 
       const items = await api.getDuels(queue.currentPage);
       const newIds = items.map((item) => item.id);
       const isLastPage = newIds.length < PAGE_SIZE;
-      const nextQueue = queueAppendPage(queue, newIds, isLastPage);
+      const latestQueue = queueRef.current;
+      const nextQueue = queueAppendPage(latestQueue, newIds, isLastPage);
       queueRef.current = nextQueue;
       prefetchUpcoming(nextQueue);
     } catch {
@@ -92,6 +93,23 @@ export const ReadingRoom: React.FC<ReadingRoomProps> = ({ duelId, onNavigate }) 
           queueRef.current = initialQueue;
           id = queueCurrentId(initialQueue)!;
           prefetchUpcoming(initialQueue);
+        } else {
+          // Specific duel requested — initialize queue so swipe/next flow still works
+          const items = await api.getDuels(1).catch(() => null);
+          if (items && items.length > 0) {
+            const ids = items.map((item) => item.id);
+            const isLastPage = ids.length < PAGE_SIZE;
+            const requestedIndex = ids.indexOf(id);
+            const queueIds = requestedIndex >= 0 ? ids : [id, ...ids];
+            const initialQueue = {
+              ...queueAppendPage(createQueue(), queueIds, isLastPage),
+              currentIndex: requestedIndex >= 0 ? requestedIndex : 0,
+            };
+            queueRef.current = initialQueue;
+            prefetchUpcoming(initialQueue);
+          } else {
+            queueRef.current = { ...createQueue(), ids: [id], hasMore: false };
+          }
         }
 
         const d = await api.getDuel(id);
