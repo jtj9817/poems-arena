@@ -18,4 +18,12 @@ This directory contains all project documentation for Classicist's Sanctuary.
 
 | Plan                                                                   | Status                                                                                                                |
 | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| [`plans/001-data-pipeline-plan.md`](./plans/001-data-pipeline-plan.md) | Phases 1-4 complete (Schema, Scraper, ETL, AI Generation with Gemini). Duel assembly and frontend integration remain. |
+| [`plans/001-data-pipeline-plan.md`](./plans/001-data-pipeline-plan.md) | **COMPLETE** — All 6 phases done: Schema, Scraper, ETL, AI Generation, Duel Assembly & API, Frontend Integration. |
+
+## Key Docs
+
+| Document | Description |
+| --- | --- |
+| [`backend/api-reference.md`](./backend/api-reference.md) | Full API route reference including `/topics`, `/duels`, `/duels/:id`, and `/duels/:id/stats` |
+| [`frontend/components.md`](./frontend/components.md) | Frontend component API and interaction patterns (Phase 6) |
+| [`domain/duel-assembly.md`](./domain/duel-assembly.md) | Duel pairing logic and topic resolution rules |

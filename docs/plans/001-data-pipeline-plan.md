@@ -1,8 +1,8 @@
 # Plan 001 — Data Pipeline: Scraper → ETL → AI Generation → Database
 
-**Status:** IN-PROGRESS
+**Status:** COMPLETE
 **Created:** 2026-02-19
-**Updated:** 2026-02-26
+**Updated:** 2026-02-27
 
 ---
 
@@ -512,11 +512,24 @@ See `packages/etl/README.md` for usage, CLI flags, and IO conventions.
 26. Update `GET /duels` and `GET /duels/:id/stats` to include topic metadata and source provenance
 27. Remove `GET /duels/today` from active API contract
 
-### Phase 6: Frontend Integration (In Progress)
+### Phase 6: Frontend Integration [COMPLETED]
 
-28. Update Anthology page to filter by canonical topics
-29. Show source attribution on Verdict screen
-30. Display topic tags on duel cards
+28. Add `GET /api/v1/topics` endpoint returning canonical topics ordered by label
+29. Extend `GET /api/v1/duels` with optional `topic_id` query parameter for filtered listing
+30. Add `TopicMeta` and `SourceInfo` shared types to `@sanctuary/shared`
+31. Implement `TopicBar` component — sticky horizontal chip bar for desktop topic filtering
+32. Implement `BottomSheetFilter` — mobile bottom sheet for topic selection (vanilla CSS transitions)
+33. Update Anthology to fetch topics dynamically and display `topicMeta.label` on duel cards
+34. Implement `VerdictPopup` component — post-vote modal with source attribution and community stats
+35. Implement `SwipeContainer` component — CSS-keyframe duel-to-duel swipe transition wrapper
+36. Implement `duelQueue` module — pure immutable sliding-window pre-fetch queue (23 unit tests)
+37. Refactor `ReadingRoom.tsx` — integrate VerdictPopup + SwipeContainer + pre-fetch queue
+38. Implement `SourceInfo` component — renders human/AI provenance in the Verdict popup
+39. Update Foyer to use `topicMeta.label` for featured duel display
+40. Add `data-animation-state` testability hooks to `SwipeContainer` and `VerdictPopup`
+41. Expand E2E suite: `topics.spec.ts` (API), `anthology.spec.ts` (topic filter UI), `reading-room.spec.ts` (animation state + Next Duel flow)
+
+See `docs/frontend/components.md` for component API reference and interaction patterns.
 
 ---
 
@@ -558,5 +571,9 @@ pnpm --filter @sanctuary/ai-gen add p-limit                   # Rate limiting
 - [x] ≥500 AI-generated counterpart poems stored with provenance
 - [x] ≥200 duels auto-assembled across ≥10 distinct topics
 - [x] Featured duel retrieval works via `GET /duels/:id` and logs to `featured_duels`
-- [x] Anthology page can filter by topic (Backend support complete)
+- [x] Anthology page filters by canonical topic via `GET /duels?topic_id=`
 - [x] All scraped data is traceable to its source URL
+- [x] Verdict pop-up displays correct human/AI source attribution after voting
+- [x] Swipe transitions animate between duels using CSS keyframes (no animation library)
+- [x] Sliding-window pre-fetching delivers instant "Next Duel" transitions
+- [x] E2E suite covers topic filtering, animation states, and duel progression

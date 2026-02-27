@@ -1,6 +1,6 @@
-# API Reference — Duel Endpoints
+# API Reference
 
-This document outlines the canonical API endpoints for duels and the standardized error handling introduced in Phase 5.
+This document outlines the canonical API endpoints and the standardized error handling introduced in Phase 5. The `GET /topics` endpoint and the `topic_id` filter on `GET /duels` were added in Phase 6 (Frontend Integration).
 
 ## Base URL
 
@@ -29,12 +29,31 @@ All error responses follow a standardized JSON envelope:
 
 ## Endpoints
 
-### 1. `GET /duels`
+### 1. `GET /topics`
+
+Returns all canonical topics, ordered alphabetically by label. Used to populate the Anthology topic filter bar.
+
+- **Query Parameters:** none
+- **Response `200 OK`:**
+  - `Array<TopicMeta>`
+
+#### `TopicMeta` Object
+```typescript
+{
+  id: string | null;   // Canonical topic ID (e.g. 'nature', 'love')
+  label: string;       // Display name (e.g. "Nature", "Love")
+}
+```
+
+---
+
+### 2. `GET /duels`
 
 Returns a paginated list of duel cards for the Anthology/Archive view.
 
 - **Query Parameters:**
   - `page` (optional): Positive integer. Defaults to `1`.
+  - `topic_id` (optional): Canonical topic ID string. When present, filters results to duels whose `topic_id` matches. Returns an empty array for unknown IDs.
 - **Response `200 OK`:**
   - `Array<DuelCard>`
 - **Response `400 Bad Request`:**
@@ -55,7 +74,7 @@ Returns a paginated list of duel cards for the Anthology/Archive view.
 }
 ```
 
-### 2. `GET /duels/:id`
+### 3. `GET /duels/:id`
 
 **Canonical endpoint for duel retrieval.** Used when entering the Reading Room.
 Calling this endpoint logs a "featured" event in the `featured_duels` table for analytics.
@@ -67,7 +86,7 @@ Calling this endpoint logs a "featured" event in the `featured_duels` table for 
 - **Response `404 Not Found`:**
   - `{ "error": "Duel not found", "code": "DUEL_NOT_FOUND" }`
 
-### 3. `GET /duels/:id/stats`
+### 4. `GET /duels/:id/stats`
 
 Returns reveal metadata, statistics, and source provenance for a completed duel.
 
