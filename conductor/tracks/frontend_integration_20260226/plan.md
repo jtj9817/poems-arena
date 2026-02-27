@@ -17,7 +17,7 @@
   - [x] Extend the shared `Poem` type with an optional `sourceInfo?: SourceInfo` field.
 - [x] Task: Conductor - User Manual Verification 'Phase 0: Backend Prerequisites' (Protocol in workflow.md) — 7fe24fe
 
-## Phase 1: Topic Filtering Infrastructure
+## Phase 1: Topic Filtering Infrastructure [checkpoint: 1e44ac6]
 
 **Goal:** Implement the data fetching and state management for canonical topics on the Anthology page.
 
@@ -37,7 +37,7 @@
   - [x] Fetch topics on mount.
   - [x] Update duel list when a topic is selected (using `getDuels(page, topicId)`).
   - [x] Display `topicMeta.label` on `DuelCard` components instead of the raw `topic` string.
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Topic Filtering Infrastructure' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Topic Filtering Infrastructure' (Protocol in workflow.md) — 1e44ac6
 
 ## Phase 2: Verdict Pop-Up & Swipe Transitions
 
