@@ -61,7 +61,7 @@
   - [x] Replace the "Next Duel" button that navigates to Anthology with one that loads the next pre-fetched duel.
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Verdict Pop-Up & Swipe Transitions' (Protocol in workflow.md) — 198c278
 
-## Phase 3: Source Attribution & Final UI Polishing
+## Phase 3: Source Attribution & Final UI Polishing [checkpoint: 35e9c35]
 
 **Goal:** Display detailed poem provenance and refine the "Digital Letterpress" aesthetic.
 
@@ -77,7 +77,7 @@
   - [x] Audit all screens for Alabaster/Ink consistency.
   - [x] Optimize typography (line heights, kerning) for reading focus.
   - [x] Refine mobile touch targets for topic chips (44x44px).
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Source Attribution & Final UI Polishing' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Source Attribution & Final UI Polishing' (Protocol in workflow.md) — 35e9c35
 
 ## Phase 4: Regression & Quality Gate
 
