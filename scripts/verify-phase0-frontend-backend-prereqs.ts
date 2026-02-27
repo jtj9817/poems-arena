@@ -10,10 +10,10 @@
  * Run with: bun scripts/verify-phase0-frontend-backend-prereqs.ts
  *
  * Uses createDb from packages/db + direct router invocation via .fetch() so no
- * live server is required (same pattern as verify-phase3-api-updates.ts).
+ * live server is required, with explicit mount assertions in apps/api/src/index.ts.
  */
 
-import { existsSync } from 'node:fs';
+import { existsSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -264,6 +264,20 @@ async function main(): Promise<void> {
       TestAssertion.assertTrue(
         typeof createTopicsRouter === 'function',
         'createTopicsRouter must be a function',
+      );
+    }),
+  );
+
+  tally(
+    await runCheck('A5: apps/api/src/index.ts mounts duels/topics routes at /api/v1', async () => {
+      const apiIndexSource = await Bun.file(path.join(repoRoot, 'apps/api/src/index.ts')).text();
+      TestAssertion.assertTrue(
+        /app\.route\(['"]\/api\/v1\/duels['"],\s*createDuelsRouter\(db\)\);/.test(apiIndexSource),
+        "apps/api/src/index.ts must mount duels router at '/api/v1/duels'",
+      );
+      TestAssertion.assertTrue(
+        /app\.route\(['"]\/api\/v1\/topics['"],\s*createTopicsRouter\(db\)\);/.test(apiIndexSource),
+        "apps/api/src/index.ts must mount topics router at '/api/v1/topics'",
       );
     }),
   );
@@ -811,10 +825,9 @@ async function main(): Promise<void> {
 
   tally(
     await runCheck('F1: TopicMeta is exported from @sanctuary/shared', async () => {
-      // Import the module and check that the expected exports don't throw at
-      // import time (type-only exports are erased but structural check still applies).
+      // Runtime enum exports must resolve and type-only exports must compile
+      // from a synthetic consumer import.
       const shared = await import('../packages/shared/src/index');
-      // AuthorType and ViewState are runtime values — their presence confirms the module loads
       TestAssertion.assertTrue(
         typeof shared.AuthorType === 'object',
         'AuthorType enum must be exported from @sanctuary/shared',
@@ -823,25 +836,64 @@ async function main(): Promise<void> {
         typeof shared.ViewState === 'object',
         'ViewState enum must be exported from @sanctuary/shared',
       );
-      // The source file must contain the TopicMeta and SourceInfo identifiers
-      const sourceFile = Bun.file(path.join(repoRoot, 'packages/shared/src/index.ts'));
-      const source = await sourceFile.text();
-      TestAssertion.assertTrue(
-        source.includes('TopicMeta'),
-        'shared/index.ts must define TopicMeta',
+
+      const exportProbePath = path.join(
+        repoRoot,
+        `scripts/.tmp_phase0_shared_export_probe_${shortId}.ts`,
       );
-      TestAssertion.assertTrue(
-        source.includes('SourceInfo'),
-        'shared/index.ts must define SourceInfo',
+      await Bun.write(
+        exportProbePath,
+        `import type { Poem, SourceInfo, SourceProvenance, TopicMeta } from '../packages/shared/src/index';
+
+const topicMetaCheck: TopicMeta = { id: 'topic-1', label: 'Nature' };
+const sourceProvenanceCheck: SourceProvenance = {
+  source: 'Poetry Foundation',
+  sourceUrl: 'https://poetryfoundation.org/poem/road',
+  scrapedAt: '2024-01-01T00:00:00.000Z',
+  isPublicDomain: true,
+};
+const sourceInfoCheck: SourceInfo = {
+  primary: { source: null, sourceUrl: null },
+  provenances: [sourceProvenanceCheck],
+};
+type PoemSourceInfoField = Poem['sourceInfo'];
+const poemSourceInfoCheck: PoemSourceInfoField = sourceInfoCheck;
+
+void topicMetaCheck;
+void sourceInfoCheck;
+void poemSourceInfoCheck;
+`,
       );
-      TestAssertion.assertTrue(
-        source.includes('SourceProvenance'),
-        'shared/index.ts must define SourceProvenance',
-      );
-      TestAssertion.assertTrue(
-        source.includes('sourceInfo?:'),
-        'Poem interface must include optional sourceInfo field',
-      );
+      try {
+        const { exitCode, stdout, stderr } = await runCommand([
+          'pnpm',
+          'exec',
+          'tsc',
+          '--pretty',
+          'false',
+          '--noEmit',
+          '--strict',
+          '--skipLibCheck',
+          '--target',
+          'ES2022',
+          '--module',
+          'ESNext',
+          '--moduleResolution',
+          'bundler',
+          exportProbePath,
+        ]);
+        TestLogger.info('F1 export probe output', { exitCode, stdout: stdout.trim().slice(-400) });
+        if (stderr.trim()) {
+          TestLogger.info('F1 export probe stderr', { output: stderr.trim().slice(-400) });
+        }
+        TestAssertion.assertEquals(
+          0,
+          exitCode,
+          'Type-only imports for TopicMeta/SourceInfo/SourceProvenance/Poem must compile',
+        );
+      } finally {
+        rmSync(exportProbePath, { force: true });
+      }
       TestLogger.info('F1 shared type exports confirmed');
     }),
   );
