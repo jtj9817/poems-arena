@@ -1,6 +1,6 @@
 # Implementation Plan: Phase 6 - Frontend Integration
 
-## Phase 0: Backend Prerequisites
+## Phase 0: Backend Prerequisites [checkpoint: 7fe24fe]
 
 **Goal:** Add missing API endpoints and filtering required by the frontend.
 
@@ -15,7 +15,7 @@
   - [x] Add `TopicMeta` interface (`{ id: string | null; label: string }`) to `packages/shared/src/index.ts`.
   - [x] Add `SourceInfo` interface (matching the API's `buildSourceInfo` shape) to `packages/shared/src/index.ts`.
   - [x] Extend the shared `Poem` type with an optional `sourceInfo?: SourceInfo` field.
-- [ ] Task: Conductor - User Manual Verification 'Phase 0: Backend Prerequisites' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 0: Backend Prerequisites' (Protocol in workflow.md) — 7fe24fe
 
 ## Phase 1: Topic Filtering Infrastructure
 
