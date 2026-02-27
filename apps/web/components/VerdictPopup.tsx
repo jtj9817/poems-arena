@@ -1,6 +1,7 @@
 import React from 'react';
 import { AuthorType } from '@sanctuary/shared';
 import { Button } from './Button';
+import { SourceInfo } from './SourceInfo';
 import type { DuelStats } from '../lib/api';
 
 interface VerdictPopupProps {
@@ -37,6 +38,24 @@ export const VerdictPopup: React.FC<VerdictPopupProps> = ({
       <div className="bg-paper paper-shadow border border-ink p-8 md:p-12 max-w-xl w-full text-center animate-[verdictIn_0.4s_ease-out_forwards]">
         <p className="font-sans text-xs tracking-[0.2em] uppercase text-pencil mb-4">The Verdict</p>
         <h2 className="text-4xl md:text-5xl font-serif text-ink mb-6">{verdictMessage}</h2>
+
+        {/* Source attribution — revealed after vote */}
+        {stats?.duel && (
+          <div className="grid grid-cols-2 gap-6 mb-6 pt-4 border-t border-stock">
+            <SourceInfo
+              author={stats.duel.poemA.author}
+              type={stats.duel.poemA.type}
+              year={stats.duel.poemA.year}
+              sourceInfo={stats.duel.poemA.sourceInfo}
+            />
+            <SourceInfo
+              author={stats.duel.poemB.author}
+              type={stats.duel.poemB.type}
+              year={stats.duel.poemB.year}
+              sourceInfo={stats.duel.poemB.sourceInfo}
+            />
+          </div>
+        )}
 
         {stats && (
           <div className="flex justify-center gap-8 mb-8 font-sans text-xs tracking-wider border-y border-stock py-4">

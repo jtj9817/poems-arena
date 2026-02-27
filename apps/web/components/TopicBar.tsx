@@ -13,7 +13,7 @@ export const TopicBar: React.FC<TopicBarProps> = ({ topics, activeTopicId, onSel
       <div className="flex gap-2 px-1 pb-1" style={{ minWidth: 'max-content' }}>
         <button
           onClick={() => onSelect(null)}
-          className={`px-4 py-2 text-sm font-sans font-medium rounded-full transition-all whitespace-nowrap ${
+          className={`min-h-[44px] px-4 py-2 text-sm font-sans font-medium rounded-full transition-all whitespace-nowrap ${
             activeTopicId === null
               ? 'bg-ink text-paper shadow-md'
               : 'text-ink/60 hover:bg-stock hover:text-ink border border-transparent hover:border-pencil/20'
@@ -26,7 +26,7 @@ export const TopicBar: React.FC<TopicBarProps> = ({ topics, activeTopicId, onSel
           <button
             key={topic.id}
             onClick={() => onSelect(topic.id)}
-            className={`px-4 py-2 text-sm font-sans font-medium rounded-full transition-all whitespace-nowrap ${
+            className={`min-h-[44px] px-4 py-2 text-sm font-sans font-medium rounded-full transition-all whitespace-nowrap ${
               activeTopicId === topic.id
                 ? 'bg-ink text-paper shadow-md'
                 : 'text-ink/60 hover:bg-stock hover:text-ink border border-transparent hover:border-pencil/20'

@@ -68,7 +68,7 @@ export const Foyer: React.FC<FoyerProps> = ({ onNavigate }) => {
                       Featured Topic
                     </span>
                     <h3 className="text-3xl font-bold font-serif text-ink italic">
-                      {featuredDuel.topic}
+                      {featuredDuel.topicMeta.label}
                     </h3>
                   </div>
 
