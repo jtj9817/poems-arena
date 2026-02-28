@@ -7,6 +7,7 @@ import { runTagStage } from './stages/03-tag';
 import { runLoadStage } from './stages/04-load';
 import { resolveDbConfig } from '@sanctuary/db/config';
 import { createDb } from '@sanctuary/db/client';
+import { stageStart, stageEnd, pipelineSummary } from './logger';
 
 export type Stage = 'clean' | 'dedup' | 'tag' | 'load' | 'all';
 
@@ -54,6 +55,7 @@ export function parseCliArgs(argv: string[]): CliConfig {
 // --- Main entry point ---
 if (import.meta.main) {
   const config = parseCliArgs(process.argv.slice(2));
+  const pipelineStartMs = performance.now();
 
   console.log('@sanctuary/etl pipeline');
   console.log('─'.repeat(40));
@@ -68,31 +70,40 @@ if (import.meta.main) {
   const runAll = config.stage === 'all';
 
   if (runAll || config.stage === 'clean') {
-    console.log('\n▶ Running Stage 1: Clean');
+    stageStart(1, 'Clean');
     const summary = await runCleanStage(config);
-    console.log(
-      `✔ Clean complete: read=${summary.read} valid=${summary.valid} skipped=${summary.skipped} written=${summary.written}`,
-    );
+    stageEnd('Clean', {
+      read: summary.read,
+      valid: summary.valid,
+      skipped: summary.skipped,
+      written: summary.written,
+    });
   }
 
   if (runAll || config.stage === 'dedup') {
-    console.log('\n▶ Running Stage 2: Deduplicate');
+    stageStart(2, 'Deduplicate');
     const summary = await runDedupStage(config);
-    console.log(
-      `✔ Dedup complete: read=${summary.read} groups=${summary.groups} duplicatesDropped=${summary.duplicatesDropped} written=${summary.written}`,
-    );
+    stageEnd('Deduplicate', {
+      read: summary.read,
+      groups: summary.groups,
+      duplicatesDropped: summary.duplicatesDropped,
+      written: summary.written,
+    });
   }
 
   if (runAll || config.stage === 'tag') {
-    console.log('\n▶ Running Stage 3: Tag');
+    stageStart(3, 'Tag');
     const summary = await runTagStage(config);
-    console.log(
-      `✔ Tag complete: read=${summary.read} tagged=${summary.tagged} fallback=${summary.fallback} written=${summary.written}`,
-    );
+    stageEnd('Tag', {
+      read: summary.read,
+      tagged: summary.tagged,
+      fallback: summary.fallback,
+      written: summary.written,
+    });
   }
 
   if (runAll || config.stage === 'load') {
-    console.log('\n▶ Running Stage 4: Load');
+    stageStart(4, 'Load');
 
     // Load .env for database configuration
     loadEnv({ path: resolve(PKG_ROOT, '.env') });
@@ -100,8 +111,14 @@ if (import.meta.main) {
     const db = createDb(dbConfig);
 
     const summary = await runLoadStage(config, db);
-    console.log(
-      `✔ Load complete: read=${summary.read} loaded=${summary.loaded} skippedNonPd=${summary.skippedNonPd} topicsUpserted=${summary.topicsUpserted}`,
-    );
+    stageEnd('Load', {
+      read: summary.read,
+      loaded: summary.loaded,
+      skippedNonPd: summary.skippedNonPd,
+      topicsUpserted: summary.topicsUpserted,
+    });
   }
+
+  const totalElapsedMs = performance.now() - pipelineStartMs;
+  pipelineSummary(totalElapsedMs);
 }
