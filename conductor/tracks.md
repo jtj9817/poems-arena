@@ -6,12 +6,13 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ## Active Tracks
 
-- [ ] **Track: Phase 6 - Frontend Integration**
-  *Link: [./tracks/frontend_integration_20260226/](./tracks/frontend_integration_20260226/)*
-
 ---
 
 ## Archived Tracks
+
+- [x] **Track: Phase 6 - Frontend Integration**
+      _Link: [./archive/frontend_integration_20260226/](./archive/frontend_integration_20260226/)_
+
 
 - [x] **Track: Phase 5 - Duel Assembly & API Updates**
       _Link: [./archive/duel_assembly_api_updates_20260224/](./archive/duel_assembly_api_updates_20260224/)_
