@@ -76,6 +76,7 @@ export const ReadingRoom: React.FC<ReadingRoomProps> = ({ duelId, onNavigate }) 
   };
 
   useEffect(() => {
+    let isCurrent = true;
     const loadInitial = async () => {
       try {
         let id = duelId;
@@ -84,6 +85,7 @@ export const ReadingRoom: React.FC<ReadingRoomProps> = ({ duelId, onNavigate }) 
           // No specific duel requested — fetch the list and start a queue
           const items = await api.getDuels(1);
           if (items.length === 0) {
+            if (!isCurrent) return;
             setError('No duels available. Please check back later.');
             return;
           }
@@ -113,13 +115,18 @@ export const ReadingRoom: React.FC<ReadingRoomProps> = ({ duelId, onNavigate }) 
         }
 
         const d = await api.getDuel(id);
+        if (!isCurrent) return;
         setDuel(d);
         setTimeout(() => setFadeIn(true), 100);
       } catch {
+        if (!isCurrent) return;
         setError('Could not load the duel. Please try again.');
       }
     };
     loadInitial();
+    return () => {
+      isCurrent = false;
+    };
   }, [duelId]);
 
   const handleVote = async (poemId: string) => {
@@ -212,6 +219,7 @@ export const ReadingRoom: React.FC<ReadingRoomProps> = ({ duelId, onNavigate }) 
         onSwipeInComplete={handleSwipeInComplete}
       >
         <div
+          key={duel.id}
           className={`flex flex-col w-full h-full transition-opacity duration-1000 overflow-y-auto lg:overflow-hidden no-scrollbar ${fadeIn ? 'opacity-100' : 'opacity-0'}`}
         >
           {/* Header Info */}
