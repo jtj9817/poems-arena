@@ -166,6 +166,15 @@ The `data/` directory is gitignored (only `.gitkeep` files are committed). Overr
 
 ---
 
+## Internal Utilities
+
+| File                  | Purpose                                                                              |
+| --------------------- | ------------------------------------------------------------------------------------ |
+| `src/logger.ts`       | Lightweight pipeline logger. Exports `stageStart`, `stageEnd`, `pipelineSummary`, and `formatElapsed`. Called by `src/index.ts` to print per-stage elapsed times and a final summary table. |
+| `src/utils/id-gen.ts` | Deterministic SHA-256 poem ID generation used by the load stage for idempotency.    |
+
+---
+
 ## Development
 
 ```bash

@@ -53,6 +53,7 @@ classicist-sanctuary-proto/
 │   ├── etl/                    @sanctuary/etl — ETL pipeline (clean → dedup → tag → load)
 │   │   ├── src/
 │   │   │   ├── index.ts        # CLI entry point (parseCliArgs, stage orchestration)
+│   │   │   ├── logger.ts       # Pipeline logger: stageStart, stageEnd, pipelineSummary
 │   │   │   ├── stages/
 │   │   │   │   ├── 01-clean.ts # Unicode NFC, HTML strip, whitespace normalize, ≥4-line validation
 │   │   │   │   ├── 02-dedup.ts # Exact + fuzzy (title, author) dedup; source priority merge
@@ -88,6 +89,9 @@ classicist-sanctuary-proto/
 │   ├── tickets/                # Work items and tracked findings
 │   └── archived-plans/
 │
+├── scripts/
+│   ├── run-scrape.ts           # Scraper orchestration: Gutenberg, LOC 180, Poets.org → data/raw/
+│   └── ...                     # Phase audit and analysis scripts (see scripts/README.md)
 ├── package.json                # Root: workspace scripts, devDependencies
 ├── pnpm-workspace.yaml         # PNPM workspace configuration
 ├── pnpm-lock.yaml              # Lockfile
@@ -116,6 +120,35 @@ pnpm --filter @sanctuary/web dev   # http://localhost:3000
 
 The Vite dev server proxies `/api → http://localhost:4000`, so the frontend
 always calls `/api/v1/...` regardless of environment.
+
+## Scripts
+
+Utility scripts in `scripts/` are run directly with Bun (not via pnpm filter).
+
+### Scraper Orchestration — `scripts/run-scrape.ts`
+
+Calls the Gutenberg, LOC 180, and Poets.org scrapers in sequence and writes output to `packages/scraper/data/raw/`.
+
+```bash
+# Scrape all three sources (default)
+bun scripts/run-scrape.ts
+
+# Scrape specific sources
+bun scripts/run-scrape.ts --sources gutenberg
+bun scripts/run-scrape.ts --sources gutenberg,loc-180
+
+# Control Poets.org page depth (default: 3 pages)
+bun scripts/run-scrape.ts --sources poets-org --poets-org-pages 10
+```
+
+| Flag                  | Default                    | Description                                           |
+| --------------------- | -------------------------- | ----------------------------------------------------- |
+| `--sources <list>`    | `gutenberg,loc-180,poets-org` | Comma-separated scraper sources to run             |
+| `--poets-org-pages N` | `3`                        | Max pages to scrape from Poets.org                    |
+
+Output is written to `packages/scraper/data/raw/` as one NDJSON file per source. This directory is the default `--input-dir` for the ETL pipeline.
+
+---
 
 ## Database — Drizzle + Turso (LibSQL)
 
