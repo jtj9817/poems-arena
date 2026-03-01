@@ -1,10 +1,14 @@
 # [TASK] ETL Pipeline Activation — Full Data Run
 
 **Date:** 2026-02-28
-**Status:** Open
+**Status:** In Progress
 **Priority:** High
 **Assignee:** —
 **Labels:** `etl`, `scraper`, `ai-gen`, `pipeline`
+
+**Children:**
+- [`loc-scraper-rate-limit.md`](loc-scraper-rate-limit.md) — Improve LOC 180 scraper to avoid 429 throttling
+- [`ai-gen-deepseek-migration.md`](ai-gen-deepseek-migration.md) — Migrate AI generation from Gemini to DeepSeek
 
 ## Context
 
@@ -12,7 +16,7 @@ The ETL pipeline pre-flight is complete (see `etl-pipeline-preflight.md`). The s
 
 This ticket covers the full live activation: scraping all sources, running the ETL pipeline to load human poems, then running `@sanctuary/ai-gen` to generate AI counterparts and assemble duels. The ETL pipeline and AI generation are strictly separate processes — ETL must complete fully before AI generation begins.
 
-## Phase 1: Scrape All Sources
+## Phase 1: Scrape All Sources ✅ Complete (partial — see notes)
 
 **Command:**
 ```bash
@@ -28,7 +32,13 @@ Output written to `packages/scraper/data/raw/` as timestamped JSON files per sou
 
 **Validation:** Confirm all three JSON files exist and contain non-empty arrays. Check scrape summary for failures.
 
-## Phase 2: ETL Pipeline
+**Actual results (2026-03-01):**
+- Gutenberg: **224 poems** ✓
+- LOC Poetry 180: **65 of ~180 poems** — LOC servers returned 429 on the majority of concurrent requests. Existing rate limiter (`concurrency: 5, minDelay: 200ms`) was too aggressive. See child ticket [`loc-scraper-rate-limit.md`](loc-scraper-rate-limit.md).
+- Poets.org: **100 poems** ✓
+- Total: **389 poems across 3 files** — all files exist and are non-empty
+
+## Phase 2: ETL Pipeline ✅ Complete
 
 **Command:**
 ```bash
@@ -54,11 +64,20 @@ SELECT type, count(*) FROM poems GROUP BY type;
 SELECT t.label, count(*) FROM poem_topics pt JOIN topics t ON t.id = pt.topic_id GROUP BY t.label ORDER BY count(*) DESC;
 ```
 
-## Phase 3: AI Poem Generation
+**Actual results (2026-03-01):**
+- Clean: 389 in → 377 valid (12 skipped — Gutenberg headings/short entries)
+- Dedup: 377 → 362 (15 duplicates dropped)
+- Tag: 362 tagged (329 via keyword fallback)
+- Load: **362 poems loaded**, 20 topics upserted, 809 topic associations
+- DB state: HUMAN: 364, AI: 2 (pre-existing seeds)
+
+## Phase 3: AI Poem Generation ⚠️ Partially Complete
 
 **Prerequisite:** Phase 2 must be fully complete. The ETL pipeline and AI generation are separate processes — never run concurrently against the same database.
 
 **Required env:** `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) must be set. Already present in root `.env`.
+
+> **Note:** Full generation run is blocked pending migration to DeepSeek. See child ticket [`ai-gen-deepseek-migration.md`](ai-gen-deepseek-migration.md). Steps 8–9 below must be re-run after migration is complete.
 
 ### Rate Limiting Changes Required
 
@@ -115,16 +134,27 @@ JOIN poems pb ON pb.id = d.poem_b_id
 LIMIT 5;
 ```
 
+**Bugs found and fixed during activation run (2026-03-01):**
+1. `packages/ai-gen/src/index.ts` — Interface re-exports missing `type` keyword; caused Bun ESM linker failure at startup. Fixed by adding `type` modifier to all type-only re-exports.
+2. `packages/ai-gen/.env` — Missing env file; `LIBSQL_URL` not found when running via `pnpm --filter`. Created from root `.env` (mirrors `packages/etl/.env` pattern).
+3. `packages/ai-gen/src/persistence.ts` — `persistGeneratedPoem` did not copy parent poem's `poem_topics` rows to the AI poem, causing duel assembly to produce 0 candidates. Fixed by adding `INSERT OR IGNORE INTO poem_topics SELECT ?, topic_id FROM poem_topics WHERE poem_id = ?` after poem insert. Backfilled topics for 5 already-generated AI poems.
+
+**Actual results (batch run — 5 poems, 2026-03-01):**
+- 5/5 AI poems stored ✓
+- Rate limiter triggered (37s of 86s total wall time on rate-limit wait) ✓
+- Retry queue: 1 poem hit 429, retried successfully ✓
+- Duel assembly: pending re-run after topic backfill confirmation
+
 ## Execution Order
 
-1. Run scraper (`scripts/run-scrape.ts`)
-2. Validate scraper output (file existence, non-empty)
-3. Run ETL dry-run (`--dry-run --include-non-pd`)
-4. Run ETL for real (`--include-non-pd`)
-5. Validate DB state (poem counts, topic associations)
-6. ~~Implement ai-gen rate limiting and retry queue changes~~
-7. Run ai-gen with `--limit 5` to validate
-8. Run ai-gen full generation
-9. Validate AI counterparts and duel assembly
+1. ~~Run scraper (`scripts/run-scrape.ts`)~~ — ✅ Done (389 poems; LOC partial — see Phase 1 notes)
+2. ~~Validate scraper output (file existence, non-empty)~~ — ✅ Done
+3. ~~Run ETL dry-run (`--dry-run --include-non-pd`)~~ — ✅ Done
+4. ~~Run ETL for real (`--include-non-pd`)~~ — ✅ Done (362 poems loaded)
+5. ~~Validate DB state (poem counts, topic associations)~~ — ✅ Done (364 HUMAN, 809 topic associations)
+6. ~~Implement ai-gen rate limiting and retry queue changes~~ — ✅ Done
+7. ~~Run ai-gen with `--limit 5` to validate~~ — ✅ Done (5/5 stored; 3 bugs fixed during run)
+8. Run ai-gen full generation — ⏸ Blocked (pending DeepSeek migration)
+9. Validate AI counterparts and duel assembly — ⏸ Pending step 8
 
-Steps 1–5 can proceed immediately. Step 6 requires code changes to `@sanctuary/ai-gen` before steps 7–9.
+Steps 8–9 are blocked on [`ai-gen-deepseek-migration.md`](ai-gen-deepseek-migration.md). LOC re-scrape can be done independently via [`loc-scraper-rate-limit.md`](loc-scraper-rate-limit.md).
