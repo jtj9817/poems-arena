@@ -4,14 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun run --watch src/index.ts",
-    "start": "bun run src/index.ts",
+    "dev": "bun --env-file=../../.env run --watch src/index.ts",
+    "start": "bun --env-file=../../.env run src/index.ts",
     "build": "echo 'No build step — Bun runs TypeScript natively'",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:seed": "bun run src/db/seed.ts",
-    "test": "bun test"
+    "db:seed": "bun --env-file=../../.env run src/db/seed.ts",
+    "test": "bun --env-file=../../.env test"
   },
   "dependencies": {
     "@hono/zod-validator": "^0.4.3",
