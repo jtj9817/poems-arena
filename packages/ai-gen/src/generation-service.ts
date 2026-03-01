@@ -1,7 +1,7 @@
 import { buildPrompt } from './prompt-builder';
-import { generatePoem } from './deepseek-client';
+import { generatePoem, PoemGenerationError } from './deepseek-client';
 import { validateGeneratedPoemQuality } from './quality-validator';
-import { verifyPoem } from './verification-agent';
+import { verifyPoem, VerificationError } from './verification-agent';
 import type { HumanPoemCandidate, PersistedAiPoem, PersistenceDb } from './persistence';
 import { persistGeneratedPoem } from './persistence';
 
@@ -104,7 +104,17 @@ export async function generateCounterpartForPoem(
         storedPoem,
       };
     } catch (error) {
-      lastReason = error instanceof Error ? error.message : String(error);
+      // Only retry application-level failures (empty content, missing fields, invalid JSON).
+      // Network errors already carry a `.cause` from the SDK's own retry cycle — rethrow
+      // them immediately so they are not retried a second time at the application level.
+      if (
+        (error instanceof PoemGenerationError || error instanceof VerificationError) &&
+        !error.cause
+      ) {
+        lastReason = error.message;
+      } else {
+        throw error;
+      }
     }
   }
 
