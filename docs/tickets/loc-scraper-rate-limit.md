@@ -11,56 +11,48 @@
 
 During the Phase 1 scrape run (2026-03-01), the LOC Poetry 180 scraper retrieved only **65 of ~180 poems**. The remaining ~115 poem pages returned HTTP 429 (Too Many Requests) from LOC's servers.
 
-The scraper already uses `createRateLimiter` from `packages/scraper/src/utils/rate-limiter.ts`, configured at:
-
-```typescript
-// packages/scraper/src/scrapers/loc-180.ts
-const limit = createRateLimiter({ concurrency: 5, minDelay: 200 });
-```
-
-With 5 concurrent slots and 200ms minimum delay between requests, the effective throughput was too high for LOC's rate limit threshold. All 180 poem URLs were dispatched concurrently into `Promise.all(poemPromises)`, so even with the semaphore, bursts of requests fired faster than LOC permits.
+The scraper currently uses a basic queue-based rate limiter, which is insufficient for handling dynamic WAF rate limits or burst blocks. Instead of attempting to perfectly predict the rate limit with a sliding window, we need a reactive strategy that gracefully handles 429s using backoff and a global circuit breaker.
 
 ## Goal
 
-Re-scrape LOC Poetry 180 and retrieve all ~180 poems successfully. The fix should be robust enough that a re-run completes without significant 429 failures.
+Re-scrape LOC Poetry 180 and retrieve all ~180 poems successfully. Implement a robust backoff strategy with a global circuit breaker to handle rate limits gracefully without dropping items.
 
 ## Required Changes
 
+### 1. Baseline Pacing (The Governor)
 **File:** `packages/scraper/src/scrapers/loc-180.ts`
-
-### 1. Reduce concurrency and increase delay
-
-Lower the rate limiter settings to stay well within LOC's threshold:
-
+Lower the baseline concurrency and increase delay to establish a conservative baseline.
 ```typescript
-const limit = createRateLimiter({ concurrency: 1, minDelay: 1000 });
+const limit = createRateLimiter({ concurrency: 2, minDelay: 1000 });
 ```
 
-Start with sequential requests (`concurrency: 1`) at 1 second apart. This gives ~3 poems/minute — ~60 minutes for 180 poems, which is acceptable for a one-time batch scrape.
+### 2. Robust Fetch Wrapper with Backoff (The Retry Loop)
+**File:** `packages/scraper/src/scrapers/loc-180.ts` (or a new utility function)
+Wrap the HTTP fetch call in a retry loop:
+*   **Success (200-299):** Proceed.
+*   **Terminal Errors (403, 404, 410):** Do not retry. Log and skip.
+*   **Rate Limited (429) & Server Errors (5xx):**
+    *   Max retries: 4.
+    *   Extract `Retry-After` header if available.
+    *   Fallback to Exponential Backoff with Jitter: `delay = baseDelay * (2 ^ attempt) * jitter(0.8 - 1.2)`.
 
-If timing needs to be tuned, `concurrency: 2, minDelay: 800` is a reasonable middle ground to try.
+### 3. Global Failure Circuit Breaker
+When one concurrent request receives a 429, others are likely to fail too. A global circuit breaker ensures we pause all outbound traffic when a block is detected.
+*   Implement a global module-level state variable `let globalPauseUntil = 0;`.
+*   When a 429 occurs, update `globalPauseUntil = Date.now() + backoffDelay`.
+*   Before any request executes, check if `Date.now() < globalPauseUntil`. If so, await a timeout until `globalPauseUntil`.
 
-### 2. Add retry with backoff on 429
+*(Note on Architecture: Because Bun executes async/await `Promise.all` tasks concurrently on a single event-loop thread, a simple module-level variable acts as a perfect thread-safe lock for our circuit breaker. Using Bun Workers would introduce multi-threading and require SharedArrayBuffer or message passing, which is unnecessary overhead for an IO-bound batch of 180 requests).*
 
-The current code logs and skips on 429. Instead, retry with exponential backoff:
-
-```typescript
-// On 429 response: wait for Retry-After header value (or fallback to 5s), then retry.
-// Cap at 3 retries per URL before skipping.
-```
-
-The LOC response includes `Retry-After` or a suggested retry delay in the error body. Use it if present, otherwise default to 5 seconds.
-
-### 3. Validate final count
-
-After re-scrape, confirm the output file contains ≥170 poems (allowing for a small number of genuinely unavailable pages).
+### 4. Post-Scrape Validation
+Validate that the final array of successfully scraped poems is `>= 170`. Throw a hard error or exit if the threshold isn't met to prevent bad data from moving down the ETL pipeline.
 
 ## Re-Scrape Command
 
 After implementing the fix:
 
 ```bash
-# Re-scrape LOC only (leaves existing gutenberg and poets-org files intact)
+# Re-scrape LOC only (leaves existing files intact)
 bun scripts/run-scrape.ts --sources loc-180
 ```
 
@@ -70,11 +62,10 @@ Then re-run the ETL pipeline to incorporate the additional poems:
 pnpm --filter @sanctuary/etl run pipeline --include-non-pd
 ```
 
-> **Note:** The ETL load stage uses `INSERT OR IGNORE` with deterministic SHA-256 IDs, so re-running after adding LOC poems is safe and idempotent.
-
 ## Acceptance Criteria
 
-- [ ] LOC scrape retrieves ≥ 170 of 180 poems with no more than a handful of 429 failures
-- [ ] Re-scrape completes without needing manual intervention
-- [ ] ETL re-run after re-scrape increases HUMAN poem count in the DB
-- [ ] Rate limiter settings are documented in a comment in `loc-180.ts`
+- [ ] Baseline rate limiter is dialed down to conservative levels.
+- [ ] Retries are handled with `Retry-After` parsing and exponential backoff + jitter.
+- [ ] A Global Circuit Breaker halts all concurrent requests when a 429 is hit.
+- [ ] LOC scrape retrieves ≥ 170 of 180 poems.
+- [ ] ETL re-run after re-scrape successfully increases HUMAN poem count in the DB.
