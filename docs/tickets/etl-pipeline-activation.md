@@ -122,7 +122,7 @@ LIMIT 5;
 3. Run ETL dry-run (`--dry-run --include-non-pd`)
 4. Run ETL for real (`--include-non-pd`)
 5. Validate DB state (poem counts, topic associations)
-6. Implement ai-gen rate limiting and retry queue changes
+6. ~~Implement ai-gen rate limiting and retry queue changes~~
 7. Run ai-gen with `--limit 5` to validate
 8. Run ai-gen full generation
 9. Validate AI counterparts and duel assembly
