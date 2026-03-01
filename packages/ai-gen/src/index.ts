@@ -16,34 +16,34 @@ import { loadSystemInstructions } from './prompt-builder';
  * It generates AI counterparts to human poems based on topics and line counts.
  */
 
-export { buildPrompt, loadSystemInstructions, PromptOptions } from './prompt-builder';
+export { buildPrompt, loadSystemInstructions, type PromptOptions } from './prompt-builder';
 export {
   generatePoem,
-  GeminiConfig,
-  PoemOutput,
+  type GeminiConfig,
+  type PoemOutput,
   PoemGenerationError,
-  ThinkingConfig,
-  GeneratePoemParams,
+  type ThinkingConfig,
+  type GeneratePoemParams,
 } from './gemini-client';
 export {
   verifyPoem,
-  PoemVerificationResult,
+  type PoemVerificationResult,
   VerificationError,
-  VerifyPoemParams,
+  type VerifyPoemParams,
 } from './verification-agent';
 export {
   validateGeneratedPoemQuality,
-  QualityIssue,
-  QualityValidatorParams,
-  QualityValidationMetrics,
-  QualityValidationResult,
+  type QualityIssue,
+  type QualityValidatorParams,
+  type QualityValidationMetrics,
+  type QualityValidationResult,
 } from './quality-validator';
 export {
   fetchUnmatchedHumanPoems,
   buildAiPoemInsertValues,
   persistGeneratedPoem,
-  HumanPoemCandidate,
-  PersistedAiPoem,
+  type HumanPoemCandidate,
+  type PersistedAiPoem,
 } from './persistence';
 export {
   assemblePairs,
@@ -51,25 +51,25 @@ export {
   fetchPoemsWithTopics,
   fetchExistingDuelIds,
   persistDuelCandidates,
-  DuelCandidate,
-  PoemWithTopics,
-  TopicInfo,
-  AssemblePairsOptions,
+  type DuelCandidate,
+  type PoemWithTopics,
+  type TopicInfo,
+  type AssemblePairsOptions,
 } from './duel-assembly';
 export {
   generateCounterpartForPoem,
-  GenerateCounterpartParams,
-  GenerateCounterpartResult,
-  GenerationOutcome,
+  type GenerateCounterpartParams,
+  type GenerateCounterpartResult,
+  type GenerationOutcome,
 } from './generation-service';
 export {
   parseCliArgs,
   runGenerationCli,
-  CliConfig,
-  CliDependencies,
-  CliRunSummary,
-  ProcessPoemResult,
-  AssemblyRunResult,
+  type CliConfig,
+  type CliDependencies,
+  type CliRunSummary,
+  type ProcessPoemResult,
+  type AssemblyRunResult,
 } from './cli';
 
 export const AI_GEN_VERSION = '0.2.0';
