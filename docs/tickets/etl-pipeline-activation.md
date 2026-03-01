@@ -75,47 +75,106 @@ SELECT t.label, count(*) FROM poem_topics pt JOIN topics t ON t.id = pt.topic_id
 
 **Prerequisite:** Phase 2 must be fully complete. The ETL pipeline and AI generation are separate processes — never run concurrently against the same database.
 
-**Required env:** `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) must be set. Already present in root `.env`.
+**Required env:** `DEEPSEEK_API_KEY` must be set in `packages/ai-gen/.env`. See `packages/ai-gen/.env.example`.
 
-> **Note:** Full generation run is blocked pending migration to DeepSeek. See child ticket [`ai-gen-deepseek-migration.md`](ai-gen-deepseek-migration.md). Steps 8–9 below must be re-run after migration is complete.
+> **Note:** The Gemini → DeepSeek migration is complete (commits `3fc74f1`, `ca090d7`). `GEMINI_API_KEY` is no longer required. Steps 8–9 are unblocked.
 
-### Rate Limiting Changes Required
+### Implemented Queue and Error Behaviour
 
-The current `@sanctuary/ai-gen` CLI (`packages/ai-gen/src/cli.ts`) uses a simple concurrency limiter (`p-limit` or fallback) with no per-minute rate cap. The following changes are required before the live run:
+The following behaviours are already implemented in the current `@sanctuary/ai-gen` codebase:
 
-**Global rate limit:** Maximum 5 requests per minute across all 3 concurrency slots. This is a sliding-window or token-bucket constraint layered on top of the existing concurrency limiter — not a replacement. When the rate limit is hit, in-flight slots should block until the next minute window opens.
+**Concurrency and retry queue (`cli.ts`):**
+- A worker pool processes poems up to `--concurrency` in parallel (default: 3).
+- Per-poem elapsed time is tracked and logged after each result. A run summary logs total wall time and average time per stored poem.
+- When `processPoem` returns `status: 'failed'`, the poem is pushed to `failedQueue` and dequeued before new poems (priority: failed-first). Retry count is tracked per poem and capped at `--max-retries` CLI cycles (default: 2), giving each poem up to 3 full `processPoem` attempts within the run.
+- Poems that exhaust all CLI retries are logged as permanently failed and remain in the unmatched pool for the next run.
 
-**Retry queue with priority:** Failed requests must be re-queued rather than discarded. The queue must process failed retries before new poems. Current behavior: `processPoem` failures are logged and counted but not retried at the queue level (only `maxRetries` within `generateCounterpartForPoem` handles retries). The new behavior:
-- When `processPoem` returns `status: 'failed'`, push it back into the work queue.
-- Failed items are dequeued before new items (priority queue: failed-first).
-- Track retry count per poem. Cap at `maxRetries` total attempts across all queue cycles (default: 2). After exhausting retries, mark as permanently failed.
+**Error discrimination (`generation-service.ts`):**
+- `generateCounterpartForPoem` retries application-level failures — empty content, missing fields, invalid JSON (`PoemGenerationError`/`VerificationError` without `.cause`) — up to `maxRetries` times (default: 2, so 3 attempts total).
+- Network errors (SDK-wrapped, carry `.cause`) are rethrown immediately; the OpenAI SDK has already exhausted its own retries (`maxRetries: 2`).
+- Worst-case requests per persistently failing poem: 9 (3 SDK × 1 service pass-through × 3 CLI). Previous worst-case before fix was 27 (3 × 3 × 3).
 
-**Elapsed time logging:** Add per-poem timing (start → end, elapsed ms) and a running total logged after each poem completes. At the end, log a summary with:
-- Total elapsed wall time
-- Average time per poem (stored only, excluding skips/failures)
-- Rate limit wait time (cumulative time spent waiting on the RPM cap)
+**DeepSeek rate limits:**
+- DeepSeek enforces a dynamic rate limit (no hard static cap). 429 and 5xx errors are handled automatically by the OpenAI SDK (`maxRetries: 2`). No local rate limiter is needed.
+- Under high server load, connections are kept alive while the server queues the request. A 30s per-request timeout prevents indefinite hangs.
 
 ### Generation Command
 
 ```bash
-# Start with a small batch to validate
-pnpm --filter @sanctuary/ai-gen run generate --limit 5 --concurrency 3
-
-# Full run after validation
+# Full run
 pnpm --filter @sanctuary/ai-gen run generate --concurrency 3
 ```
 
 **Post-generation:** Duel assembly runs automatically via `assembleAfterRun()` hook after generation completes.
 
-### Implementation Details
+### Full Run Activation
 
-**Files to modify:**
-- `packages/ai-gen/src/cli.ts` — Replace `resolveLimiter` and the `tasks.map`/`Promise.all` block with a rate-limited priority queue. Add elapsed time tracking and summary logging.
-- `packages/ai-gen/src/index.ts` — No structural changes expected; `CliDependencies` interface may need a timestamp helper if DI is preferred for testability.
+**Known DB state entering this step (as of 2026-03-01 batch run):**
 
-**Current concurrency implementation** (`cli.ts:51-95`): `createConcurrencyLimiter` is a basic semaphore with a FIFO queue. `resolveLimiter` tries `p-limit` first, falls back to the built-in. Neither enforces RPM limits.
+| Table | Count | Notes |
+|---|---|---|
+| `poems` WHERE `type = 'HUMAN'` | 364 | 362 from ETL + 2 pre-existing seeds |
+| `poems` WHERE `type = 'AI'` | 7 | 2 pre-existing seeds (no `parent_poem_id`), 5 from batch validation run (with `parent_poem_id`) |
+| Unmatched human poems | ~359 | Human poems with no AI counterpart — these are the generation targets |
+| `duels` | TBD | Pending re-confirmation after topic backfill (see batch run notes below) |
 
-**Current retry implementation** (`generation-service.ts`): `generateCounterpartForPoem` retries internally on retryable quality issues up to `maxRetries`. Non-retryable failures (invalid output shape) skip immediately. This inner retry loop handles per-attempt retries within a single Gemini call chain — the new queue-level retry is a separate, outer layer that re-processes the entire `processPoem` call.
+**Verify state before running:**
+
+```sql
+-- Confirm unmatched human poem count — this is how many AI poems will be generated
+SELECT count(*) FROM poems p
+WHERE p.type = 'HUMAN'
+  AND NOT EXISTS (
+    SELECT 1 FROM poems ai WHERE ai.parent_poem_id = p.id
+  );
+-- Expected: ~359
+
+-- Confirm overall poem counts
+SELECT type, count(*) FROM poems GROUP BY type;
+-- Expected: HUMAN 364, AI 7
+```
+
+**Run the full generation:**
+
+```bash
+pnpm --filter @sanctuary/ai-gen run generate --concurrency 3
+```
+
+**Expected outputs:**
+- ~359 AI poems generated and persisted, each with `parent_poem_id` pointing to its human source poem and `poem_topics` copied from the parent.
+- Each poem requires 2 API calls: one generation call (`deepseek-chat`) and one verification call (`deepseek-chat`). Minimum ~718 calls total for a clean run.
+- DeepSeek context caching applies after the first call: the shared system prompt tokens are served from cache at $0.028/M (10× cheaper than $0.28/M). Effective cost is dominated by the per-poem variable content, not the repeated system prompt.
+- Duel assembly runs automatically after generation. Expected: ~359 new duels, one per matched human↔AI pair sharing at least one topic.
+
+**Monitoring during the run:**
+
+Per-poem log format:
+```
+Stored AI poem for [human-id] -> [ai-id] [Xms] (Total elapsed: Xms)
+Skipped [human-id]: [reason] [Xms] (Total elapsed: Xms)
+Failed [human-id] (retry N/M): [reason] [Xms] (Total elapsed: Xms)
+Failed [human-id] permanently after N retries: [reason] [Xms] (Total elapsed: Xms)
+```
+
+End-of-run summary format:
+```
+Completed generation run: processed=X stored=X skipped=X failed=X
+--- Run Summary ---
+Total elapsed wall time: Xms
+Average time per stored poem: Xms
+Duel assembly: X new duel(s) created from X candidate(s)
+```
+
+**If things go wrong:**
+
+| Symptom | Action |
+|---|---|
+| `402 Insufficient Balance` | Stop immediately. Top up at [platform.deepseek.com](https://platform.deepseek.com). Re-run — unmatched poems will be retried naturally. |
+| Persistent 429s (logged by SDK, not suppressed) | Reduce `--concurrency` to 1 and re-run. |
+| High permanent failure rate (bad JSON, empty content) | Check `DEEPSEEK_API_KEY` is valid. Inspect failure reasons in logs. A small number of permanent failures is normal. |
+| Duel assembly produces 0 new duels | Verify `poem_topics` rows exist for AI poems: `SELECT count(*) FROM poem_topics pt JOIN poems p ON p.id = pt.poem_id WHERE p.type = 'AI'`. If zero, the topic-copy step in `persistGeneratedPoem` is not running — check `packages/ai-gen/src/persistence.ts`. |
+
+**Permanently failed poems** (exhausted all retries) remain unmatched and will be picked up automatically on the next invocation of the generate command.
 
 ### Validation
 
@@ -154,7 +213,7 @@ LIMIT 5;
 5. ~~Validate DB state (poem counts, topic associations)~~ — ✅ Done (364 HUMAN, 809 topic associations)
 6. ~~Implement ai-gen rate limiting and retry queue changes~~ — ✅ Done
 7. ~~Run ai-gen with `--limit 5` to validate~~ — ✅ Done (5/5 stored; 3 bugs fixed during run)
-8. Run ai-gen full generation — ⏸ Blocked (pending DeepSeek migration)
+8. Run ai-gen full generation — ▶ Ready (`pnpm --filter @sanctuary/ai-gen run generate --concurrency 3`)
 9. Validate AI counterparts and duel assembly — ⏸ Pending step 8
 
-Steps 8–9 are blocked on [`ai-gen-deepseek-migration.md`](ai-gen-deepseek-migration.md). LOC re-scrape can be done independently via [`loc-scraper-rate-limit.md`](loc-scraper-rate-limit.md).
+Step 8 is unblocked: DeepSeek migration complete (`3fc74f1`, review `ca090d7`). See Phase 3 → Full Run Activation for pre-run checks, expected outputs, and troubleshooting. LOC re-scrape can be done independently via [`loc-scraper-rate-limit.md`](loc-scraper-rate-limit.md).
