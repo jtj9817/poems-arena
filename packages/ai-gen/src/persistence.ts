@@ -157,6 +157,17 @@ export async function persistGeneratedPoem(
     ],
   );
 
+  // Copy parent poem's topic associations to the AI poem so duel assembly
+  // can pair them under a shared topic.
+  await executeQuery(
+    params.db,
+    `INSERT OR IGNORE INTO poem_topics (poem_id, topic_id)
+     SELECT ?, topic_id
+     FROM poem_topics
+     WHERE poem_id = ?`,
+    [insertValues.id, insertValues.parentPoemId],
+  );
+
   const readResult = await executeQuery(
     params.db,
     `SELECT id, title, content, author, type, source, prompt, parent_poem_id AS parentPoemId
