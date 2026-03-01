@@ -19,7 +19,7 @@ describe('parseCliArgs', () => {
       '--limit',
       '5',
       '--model',
-      'gemini-3-flash-preview',
+      'deepseek-chat',
       '--concurrency',
       '2',
       '--max-retries',
@@ -29,7 +29,7 @@ describe('parseCliArgs', () => {
     expect(config).toEqual({
       topic: 'nature',
       limit: 5,
-      model: 'gemini-3-flash-preview',
+      model: 'deepseek-chat',
       concurrency: 2,
       maxRetries: 3,
     });
@@ -38,7 +38,7 @@ describe('parseCliArgs', () => {
   test('defaults to processing all unmatched poems when no limit is provided', () => {
     const config = parseCliArgs([]);
     expect(config.limit).toBeUndefined();
-    expect(config.model).toBe('gemini-3-flash-preview');
+    expect(config.model).toBe('deepseek-chat');
   });
 
   test('rejects malformed numeric flags', () => {
@@ -87,7 +87,7 @@ describe('runGenerationCli', () => {
     const config: CliConfig = {
       topic: undefined,
       limit: undefined,
-      model: 'gemini-3-flash-preview',
+      model: 'deepseek-chat',
       concurrency: 2,
       maxRetries: 2,
     };
@@ -124,7 +124,7 @@ describe('runGenerationCli', () => {
     const config: CliConfig = {
       topic: undefined,
       limit: undefined,
-      model: 'gemini-3-flash-preview',
+      model: 'deepseek-chat',
       concurrency: 1,
       maxRetries: 1,
     };
@@ -157,7 +157,7 @@ describe('runGenerationCli', () => {
     const config: CliConfig = {
       topic: undefined,
       limit: undefined,
-      model: 'gemini-3-flash-preview',
+      model: 'deepseek-chat',
       concurrency: 1,
       maxRetries: 1,
     };
@@ -188,7 +188,7 @@ describe('runGenerationCli', () => {
     const config: CliConfig = {
       topic: undefined,
       limit: undefined,
-      model: 'gemini-3-flash-preview',
+      model: 'deepseek-chat',
       concurrency: 1,
       maxRetries: 1,
     };
@@ -289,7 +289,7 @@ describe('runGenerationCli', () => {
     const config: CliConfig = {
       topic: undefined,
       limit: undefined,
-      model: 'gemini-3-flash-preview',
+      model: 'deepseek-chat',
       concurrency: 1,
       maxRetries: 1,
     };

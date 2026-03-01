@@ -1,4 +1,4 @@
-import type { PoemOutput } from './gemini-client';
+import type { PoemOutput } from './deepseek-client';
 import type { PoemVerificationResult } from './verification-agent';
 
 const MINIMUM_LINE_COUNT = 4;

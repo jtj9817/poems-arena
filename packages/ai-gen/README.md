@@ -2,14 +2,14 @@
 
 AI poem generation service for Classicist's Sanctuary.
 
-This package generates AI counterparts for HUMAN poems in the `poems` table using Google Gemini (`gemini-3-flash-preview`), validates quality, and persists idempotent AI rows linked by `parent_poem_id`.
+This package generates AI counterparts for HUMAN poems in the `poems` table using DeepSeek (`deepseek-chat`), validates quality, and persists idempotent AI rows linked by `parent_poem_id`.
 
 ## Features
 
 - Selects unmatched HUMAN poems from the database (`type='HUMAN'` with no AI counterpart).
 - Builds topic-aware prompts with line-count targeting (±20% tolerance).
-- Uses Gemini JSON mode with response schema enforcement (`title`, `content`).
-- Runs a secondary Gemini verification pass and quality validation checks.
+- Uses DeepSeek JSON mode with response schema enforcement (`title`, `content`).
+- Runs a secondary DeepSeek verification pass and quality validation checks.
 - Persists AI poems with deterministic IDs for idempotency.
 - Includes a CLI with topic, limit, model, concurrency, and retry controls.
 
@@ -25,12 +25,9 @@ This package generates AI counterparts for HUMAN poems in the `poems` table usin
 | ------------------------ | ------------------ | ------------------------------------------------------ |
 | `LIBSQL_URL`             | Yes (outside test) | LibSQL/Turso connection URL for `@sanctuary/db`        |
 | `LIBSQL_AUTH_TOKEN`      | Optional           | LibSQL auth token                                      |
-| `GEMINI_API_KEY`         | Yes\*              | Primary Gemini API key                                 |
-| `GOOGLE_API_KEY`         | Yes\*              | Fallback Gemini API key when `GEMINI_API_KEY` is unset |
+| `DEEPSEEK_API_KEY`       | Yes                | DeepSeek API key                                       |
 | `LIBSQL_TEST_URL`        | Test only          | Test DB URL when `NODE_ENV=test`                       |
 | `LIBSQL_TEST_AUTH_TOKEN` | Test only          | Optional test DB auth token                            |
-
-\* Either `GEMINI_API_KEY` or `GOOGLE_API_KEY` must be set.
 
 ## CLI Usage
 
@@ -53,7 +50,7 @@ pnpm --filter @sanctuary/ai-gen run dev
 | --------------- | ---------------- | ------------------------ | --------------------------------------------------------- |
 | `--topic`       | string           | auto/default             | Restrict candidate selection to a topic ID or topic label |
 | `--limit`       | positive integer | all unmatched            | Maximum number of HUMAN poems to process                  |
-| `--model`       | string           | `gemini-3-flash-preview` | Gemini model name used for generation + verification      |
+| `--model`       | string           | `deepseek-chat`          | DeepSeek model name used for generation + verification    |
 | `--concurrency` | positive integer | `3`                      | Max concurrent poem generation tasks                      |
 | `--max-retries` | positive integer | `2`                      | Retry attempts after retryable validation failures        |
 
@@ -70,15 +67,15 @@ pnpm --filter @sanctuary/ai-gen run generate --topic nature
 pnpm --filter @sanctuary/ai-gen run generate --topic mortality --limit 50
 
 # Override model and runtime controls
-pnpm --filter @sanctuary/ai-gen run generate --model gemini-3-flash-preview --concurrency 5 --max-retries 3
+pnpm --filter @sanctuary/ai-gen run generate --model deepseek-chat --concurrency 5 --max-retries 3
 ```
 
 ## Runtime Behavior
 
 1. Fetch unmatched HUMAN poem candidates.
 2. Build prompt with target line count and optional parent title context.
-3. Generate JSON poem output via Gemini (`title`, `content`).
-4. Verify generated poem with a second Gemini call.
+3. Generate JSON poem output via DeepSeek (`title`, `content`).
+4. Verify generated poem with a second DeepSeek call.
 5. Validate quality rules:
    - Minimum 4 non-empty lines
    - Within ±20% of parent poem line count

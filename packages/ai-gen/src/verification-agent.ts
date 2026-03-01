@@ -1,3 +1,5 @@
+import { getDeepSeekClient, sanitizeJsonContent } from './deepseek-client';
+
 export interface PoemVerificationResult {
   isValid: boolean;
   score: number;
@@ -14,7 +16,7 @@ export class VerificationError extends Error {
   }
 }
 
-const VERIFICATION_MODEL = 'gemini-3-flash-preview';
+const VERIFICATION_MODEL = 'deepseek-chat';
 
 const VERIFICATION_SYSTEM_INSTRUCTION = `You are a poem quality reviewer. Evaluate poems based on:
 1. Literary quality - imagery, metaphor, rhythm
@@ -29,16 +31,6 @@ Respond ONLY with valid JSON in the following format:
   "feedback": "brief constructive feedback"
 }`;
 
-const VERIFICATION_SCHEMA = {
-  type: 'object',
-  properties: {
-    isValid: { type: 'boolean' },
-    score: { type: 'number' },
-    feedback: { type: 'string' },
-  },
-  required: ['isValid', 'score', 'feedback'],
-};
-
 export interface VerifyPoemParams {
   poem: {
     title: string;
@@ -46,41 +38,55 @@ export interface VerifyPoemParams {
   };
   apiKey: string;
   model?: string;
+  client?: {
+    chat: {
+      completions: {
+        create: (params: {
+          model: string;
+          messages: Array<{ role: 'system' | 'user'; content: string }>;
+          response_format: { type: 'json_object' };
+          temperature: number;
+          max_tokens: number;
+        }) => Promise<{
+          choices: Array<{
+            message?: {
+              content?: string | null;
+            } | null;
+          }>;
+        }>;
+      };
+    };
+  };
 }
 
 export async function verifyPoem(params: VerifyPoemParams): Promise<PoemVerificationResult> {
   const { poem, apiKey, model = VERIFICATION_MODEL } = params;
 
-  const verificationPrompt = `Please evaluate the following poem:
-
-Title: ${poem.title}
-
-${poem.content}
-
-Provide your evaluation in JSON format.`;
+  const verificationPrompt = `Please evaluate the following poem:\n\nTitle: ${poem.title}\n\n${poem.content}\n\nProvide your evaluation in JSON format.`;
 
   try {
-    const { GoogleGenAI } = await import('@google/genai');
-    const client = new GoogleGenAI({ apiKey });
+    const client = params.client ?? (await getDeepSeekClient(apiKey));
 
-    const result = await client.models.generateContent({
+    const response = await client.chat.completions.create({
       model,
-      contents: verificationPrompt,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: VERIFICATION_SCHEMA,
-        temperature: 0.7,
-        systemInstruction: VERIFICATION_SYSTEM_INSTRUCTION,
-      },
+      messages: [
+        { role: 'system', content: VERIFICATION_SYSTEM_INSTRUCTION },
+        { role: 'user', content: verificationPrompt },
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.7,
+      max_tokens: 1024,
     });
 
-    const responseText = result.text;
+    const content = response.choices[0]?.message?.content;
 
-    if (!responseText) {
+    if (!content) {
       throw new VerificationError('Empty response from verification API');
     }
 
-    const parsed = JSON.parse(responseText) as Partial<PoemVerificationResult> | null;
+    const parsed = JSON.parse(
+      sanitizeJsonContent(content),
+    ) as Partial<PoemVerificationResult> | null;
 
     if (
       !parsed ||

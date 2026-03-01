@@ -1,7 +1,7 @@
 import { parseArgs } from 'node:util';
 import type { HumanPoemCandidate } from './persistence';
 
-const DEFAULT_MODEL = 'gemini-3-flash-preview';
+const DEFAULT_MODEL = 'deepseek-chat';
 const DEFAULT_CONCURRENCY = 3;
 const DEFAULT_MAX_RETRIES = 2;
 
@@ -46,49 +46,6 @@ export interface CliRunSummary {
   failed: number;
   results: ProcessPoemResult[];
   assemblyResult?: AssemblyRunResult;
-}
-
-class RateLimiter {
-  private timestamps: number[] = [];
-  private readonly maxRequests = 5;
-  private readonly windowMs = 60000;
-  public totalWaitTimeMs = 0;
-  private waiting: (() => void)[] = [];
-  private isProcessing = false;
-
-  async waitAndConsume(): Promise<void> {
-    return new Promise<void>((resolve) => {
-      this.waiting.push(resolve);
-      void this.processQueue();
-    });
-  }
-
-  private async processQueue() {
-    if (this.isProcessing) return;
-    this.isProcessing = true;
-
-    try {
-      while (this.waiting.length > 0) {
-        const now = Date.now();
-        this.timestamps = this.timestamps.filter((t) => now - t < this.windowMs);
-
-        if (this.timestamps.length < this.maxRequests) {
-          this.timestamps.push(Date.now());
-          const resolve = this.waiting.shift();
-          if (resolve) resolve();
-        } else {
-          const oldest = this.timestamps[0];
-          const waitTime = this.windowMs - (now - oldest);
-          if (waitTime > 0) {
-            this.totalWaitTimeMs += waitTime;
-            await new Promise((r) => setTimeout(r, waitTime));
-          }
-        }
-      }
-    } finally {
-      this.isProcessing = false;
-    }
-  }
 }
 
 interface QueueItem {
@@ -182,7 +139,6 @@ export async function runGenerationCli(
 
   dependencies.log(`Found ${poems.length} unmatched human poem(s)`);
 
-  const rateLimiter = new RateLimiter();
   const newQueue: QueueItem[] = poems.map((poem) => ({ poem, retries: 0 }));
   const failedQueue: QueueItem[] = [];
   let activeCount = 0;
@@ -209,8 +165,6 @@ export async function runGenerationCli(
 
         activeCount++;
         try {
-          await rateLimiter.waitAndConsume();
-
           const startTime = Date.now();
           let result: ProcessPoemResult;
           try {
@@ -284,7 +238,6 @@ export async function runGenerationCli(
   dependencies.log(`--- Run Summary ---`);
   dependencies.log(`Total elapsed wall time: ${runTotalTime}ms`);
   dependencies.log(`Average time per stored poem: ${avgTime}ms`);
-  dependencies.log(`Rate limit wait time: ${rateLimiter.totalWaitTimeMs}ms`);
 
   if (dependencies.assembleAfterRun) {
     dependencies.log('Running duel assembly...');

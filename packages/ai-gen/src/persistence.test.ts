@@ -1,5 +1,5 @@
 import { describe, expect, mock, test } from 'bun:test';
-import type { PoemOutput } from './gemini-client';
+import type { PoemOutput } from './deepseek-client';
 import {
   buildAiPoemInsertValues,
   fetchUnmatchedHumanPoems,
@@ -37,11 +37,11 @@ describe('buildAiPoemInsertValues', () => {
       parentPoem,
       generatedPoem,
       prompt: 'Write a poem about storms',
-      model: 'gemini-3-flash-preview',
+      model: 'deepseek-chat',
     });
 
     expect(result.type).toBe('AI');
-    expect(result.author).toBe('gemini-3-flash-preview');
+    expect(result.author).toBe('deepseek-chat');
     expect(result.parentPoemId).toBe('human-1');
     expect(result.prompt).toBe('Write a poem about storms');
     expect(result.source).toBe('ai-generated');
@@ -55,7 +55,7 @@ describe('persistGeneratedPoem', () => {
       id: 'ai-human-1-abcdef',
       title: 'Counterpart',
       content: 'line one\nline two\nline three\nline four',
-      author: 'gemini-3-flash-preview',
+      author: 'deepseek-chat',
       type: 'AI',
       prompt: 'Write a poem about storms',
       parentPoemId: 'human-1',
@@ -75,7 +75,7 @@ describe('persistGeneratedPoem', () => {
         content: 'line one\nline two\nline three\nline four',
       },
       prompt: 'Write a poem about storms',
-      model: 'gemini-3-flash-preview',
+      model: 'deepseek-chat',
     });
 
     expect(db.execute).toHaveBeenCalledTimes(3);
@@ -85,7 +85,7 @@ describe('persistGeneratedPoem', () => {
       expect.stringContaining('ai-human-1-'),
       'Counterpart',
       'line one\nline two\nline three\nline four',
-      'gemini-3-flash-preview',
+      'deepseek-chat',
       'AI',
       'ai-generated',
       'Write a poem about storms',

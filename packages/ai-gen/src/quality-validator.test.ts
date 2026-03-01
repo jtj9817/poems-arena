@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { PoemOutput } from './gemini-client';
+import type { PoemOutput } from './deepseek-client';
 import type { PoemVerificationResult } from './verification-agent';
 import { validateGeneratedPoemQuality } from './quality-validator';
 

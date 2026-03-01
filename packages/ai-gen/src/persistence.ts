@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { PoemOutput } from './gemini-client';
+import type { PoemOutput } from './deepseek-client';
 
 export interface HumanPoemCandidate {
   id: string;

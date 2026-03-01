@@ -12,19 +12,18 @@ import { loadSystemInstructions } from './prompt-builder';
 /**
  * AI Poem Generation Service
  *
- * This package provides AI-powered poem generation using Google's Gemini API.
+ * This package provides AI-powered poem generation using DeepSeek's API.
  * It generates AI counterparts to human poems based on topics and line counts.
  */
 
 export { buildPrompt, loadSystemInstructions, type PromptOptions } from './prompt-builder';
 export {
   generatePoem,
-  type GeminiConfig,
+  type DeepSeekConfig,
   type PoemOutput,
   PoemGenerationError,
-  type ThinkingConfig,
   type GeneratePoemParams,
-} from './gemini-client';
+} from './deepseek-client';
 export {
   verifyPoem,
   type PoemVerificationResult,
@@ -75,9 +74,9 @@ export {
 export const AI_GEN_VERSION = '0.2.0';
 
 function resolveApiKey(env: NodeJS.ProcessEnv): string {
-  const apiKey = env.GEMINI_API_KEY ?? env.GOOGLE_API_KEY;
+  const apiKey = env.DEEPSEEK_API_KEY;
   if (!apiKey) {
-    throw new Error('Missing Gemini API key. Set GEMINI_API_KEY (or GOOGLE_API_KEY).');
+    throw new Error('Missing DeepSeek API key. Set DEEPSEEK_API_KEY.');
   }
   return apiKey;
 }

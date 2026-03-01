@@ -10,10 +10,10 @@
     "test:watch": "bun test --watch"
   },
   "dependencies": {
-    "@google/genai": "^1.4.0",
     "@sanctuary/db": "workspace:*",
     "@sanctuary/shared": "workspace:*",
     "drizzle-orm": "^0.38.4",
+    "openai": "^4.104.0",
     "p-limit": "^6.2.0"
   },
   "devDependencies": {

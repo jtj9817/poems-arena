@@ -1,11 +1,11 @@
 import { buildPrompt } from './prompt-builder';
-import { generatePoem } from './gemini-client';
+import { generatePoem } from './deepseek-client';
 import { validateGeneratedPoemQuality } from './quality-validator';
 import { verifyPoem } from './verification-agent';
 import type { HumanPoemCandidate, PersistedAiPoem, PersistenceDb } from './persistence';
 import { persistGeneratedPoem } from './persistence';
 
-const DEFAULT_MODEL = 'gemini-3-flash-preview';
+const DEFAULT_MODEL = 'deepseek-chat';
 const DEFAULT_TOPIC = 'classical reflection';
 const DEFAULT_MAX_RETRIES = 2;
 
