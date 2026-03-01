@@ -61,7 +61,7 @@ describe('persistGeneratedPoem', () => {
       parentPoemId: 'human-1',
       source: 'ai-generated',
     };
-    const db = createMockDb([[], [storedRow]]);
+    const db = createMockDb([[], [], [storedRow]]);
 
     const result = await persistGeneratedPoem({
       db,
@@ -78,7 +78,7 @@ describe('persistGeneratedPoem', () => {
       model: 'gemini-3-flash-preview',
     });
 
-    expect(db.execute).toHaveBeenCalledTimes(2);
+    expect(db.execute).toHaveBeenCalledTimes(3);
     const insertCall = db.execute.mock.calls[0];
     expect(insertCall?.[0]).toContain('INSERT OR IGNORE INTO poems');
     expect(insertCall?.[1]).toEqual([
