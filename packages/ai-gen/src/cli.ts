@@ -48,50 +48,52 @@ export interface CliRunSummary {
   assemblyResult?: AssemblyRunResult;
 }
 
-function createConcurrencyLimiter(concurrency: number) {
-  let activeCount = 0;
-  const queue: Array<() => void> = [];
+class RateLimiter {
+  private timestamps: number[] = [];
+  private readonly maxRequests = 5;
+  private readonly windowMs = 60000;
+  public totalWaitTimeMs = 0;
+  private waiting: (() => void)[] = [];
+  private isProcessing = false;
 
-  const runNext = () => {
-    if (activeCount >= concurrency) {
-      return;
-    }
-
-    const next = queue.shift();
-    if (!next) {
-      return;
-    }
-    activeCount += 1;
-    next();
-  };
-
-  return async function limit<T>(task: () => Promise<T>): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
-      const run = () => {
-        void task()
-          .then(resolve)
-          .catch(reject)
-          .finally(() => {
-            activeCount -= 1;
-            runNext();
-          });
-      };
-
-      queue.push(run);
-      runNext();
+  async waitAndConsume(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      this.waiting.push(resolve);
+      void this.processQueue();
     });
-  };
+  }
+
+  private async processQueue() {
+    if (this.isProcessing) return;
+    this.isProcessing = true;
+
+    try {
+      while (this.waiting.length > 0) {
+        const now = Date.now();
+        this.timestamps = this.timestamps.filter((t) => now - t < this.windowMs);
+
+        if (this.timestamps.length < this.maxRequests) {
+          this.timestamps.push(Date.now());
+          const resolve = this.waiting.shift();
+          if (resolve) resolve();
+        } else {
+          const oldest = this.timestamps[0];
+          const waitTime = this.windowMs - (now - oldest);
+          if (waitTime > 0) {
+            this.totalWaitTimeMs += waitTime;
+            await new Promise((r) => setTimeout(r, waitTime));
+          }
+        }
+      }
+    } finally {
+      this.isProcessing = false;
+    }
+  }
 }
 
-async function resolveLimiter(
-  concurrency: number,
-): Promise<(task: () => Promise<void>) => Promise<void>> {
-  try {
-    const { default: pLimit } = await import('p-limit');
-    return pLimit(concurrency);
-  } catch {
-    return createConcurrencyLimiter(concurrency);
-  }
+interface QueueItem {
+  poem: HumanPoemCandidate;
+  retries: number;
 }
 
 function parsePositiveInt(raw: string | undefined, flagName: string): number | undefined {
@@ -179,44 +181,110 @@ export async function runGenerationCli(
   }
 
   dependencies.log(`Found ${poems.length} unmatched human poem(s)`);
-  const limit = await resolveLimiter(config.concurrency);
 
-  const tasks = poems.map((poem) =>
-    limit(async () => {
-      let result: ProcessPoemResult;
-      try {
-        result = await dependencies.processPoem(poem, config);
-      } catch (error) {
-        result = {
-          poemId: poem.id,
-          status: 'failed',
-          reason: error instanceof Error ? error.message : String(error),
-        };
+  const rateLimiter = new RateLimiter();
+  const newQueue: QueueItem[] = poems.map((poem) => ({ poem, retries: 0 }));
+  const failedQueue: QueueItem[] = [];
+  let activeCount = 0;
+
+  const startRunTime = Date.now();
+  let totalSuccessTimeMs = 0;
+
+  await new Promise<void>((resolveFinished) => {
+    if (newQueue.length === 0) {
+      resolveFinished();
+      return;
+    }
+
+    const worker = async () => {
+      while (true) {
+        const item = failedQueue.shift() || newQueue.shift();
+
+        if (!item) {
+          if (activeCount === 0) {
+            resolveFinished();
+          }
+          break;
+        }
+
+        activeCount++;
+        try {
+          await rateLimiter.waitAndConsume();
+
+          const startTime = Date.now();
+          let result: ProcessPoemResult;
+          try {
+            result = await dependencies.processPoem(item.poem, config);
+          } catch (error) {
+            result = {
+              poemId: item.poem.id,
+              status: 'failed',
+              reason: error instanceof Error ? error.message : String(error),
+            };
+          }
+          const elapsed = Date.now() - startTime;
+          const totalElapsedSoFar = Date.now() - startRunTime;
+
+          if (result.status === 'failed') {
+            if (item.retries < config.maxRetries) {
+              item.retries++;
+              failedQueue.push(item);
+              dependencies.log(
+                `Failed ${result.poemId} (retry ${item.retries}/${config.maxRetries}): ${
+                  result.reason ?? 'unknown error'
+                } [${elapsed}ms] (Total elapsed: ${totalElapsedSoFar}ms)`,
+              );
+            } else {
+              summary.failed += 1;
+              summary.processed += 1;
+              summary.results.push(result);
+              dependencies.log(
+                `Failed ${result.poemId} permanently after ${item.retries} retries: ${
+                  result.reason ?? 'unknown error'
+                } [${elapsed}ms] (Total elapsed: ${totalElapsedSoFar}ms)`,
+              );
+            }
+          } else {
+            summary.processed += 1;
+            summary.results.push(result);
+
+            if (result.status === 'stored') {
+              summary.stored += 1;
+              totalSuccessTimeMs += elapsed;
+              dependencies.log(
+                `Stored AI poem for ${result.poemId} -> ${result.storedPoemId ?? '(unknown)'} [${elapsed}ms] (Total elapsed: ${totalElapsedSoFar}ms)`,
+              );
+            } else if (result.status === 'skipped') {
+              summary.skipped += 1;
+              dependencies.log(
+                `Skipped ${result.poemId}: ${result.reason ?? 'no reason provided'} [${elapsed}ms] (Total elapsed: ${totalElapsedSoFar}ms)`,
+              );
+            }
+          }
+        } finally {
+          activeCount--;
+          if (activeCount === 0 && failedQueue.length === 0 && newQueue.length === 0) {
+            resolveFinished();
+          }
+        }
       }
+    };
 
-      summary.processed += 1;
-      summary.results.push(result);
+    for (let i = 0; i < config.concurrency; i++) {
+      void worker();
+    }
+  });
 
-      if (result.status === 'stored') {
-        summary.stored += 1;
-        dependencies.log(
-          `Stored AI poem for ${result.poemId} -> ${result.storedPoemId ?? '(unknown)'}`,
-        );
-      } else if (result.status === 'skipped') {
-        summary.skipped += 1;
-        dependencies.log(`Skipped ${result.poemId}: ${result.reason ?? 'no reason provided'}`);
-      } else {
-        summary.failed += 1;
-        dependencies.log(`Failed ${result.poemId}: ${result.reason ?? 'unknown error'}`);
-      }
-    }),
-  );
-
-  await Promise.all(tasks);
+  const runTotalTime = Date.now() - startRunTime;
+  const avgTime = summary.stored > 0 ? Math.round(totalSuccessTimeMs / summary.stored) : 0;
 
   dependencies.log(
     `Completed generation run: processed=${summary.processed} stored=${summary.stored} skipped=${summary.skipped} failed=${summary.failed}`,
   );
+  dependencies.log(`--- Run Summary ---`);
+  dependencies.log(`Total elapsed wall time: ${runTotalTime}ms`);
+  dependencies.log(`Average time per stored poem: ${avgTime}ms`);
+  dependencies.log(`Rate limit wait time: ${rateLimiter.totalWaitTimeMs}ms`);
 
   if (dependencies.assembleAfterRun) {
     dependencies.log('Running duel assembly...');
