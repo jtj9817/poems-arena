@@ -205,4 +205,51 @@ describe('scrapeLoc180', () => {
     expect(poems).toHaveLength(1);
     expect(poems[0].content).toContain('Fallback body content here.');
   });
+
+  test('honors HTTP-date Retry-After header on 429 responses', async () => {
+    const originalSetTimeout = globalThis.setTimeout;
+    const delays: number[] = [];
+
+    globalThis.setTimeout = ((handler: TimerHandler, timeout?: number, ...args: unknown[]) => {
+      delays.push(typeof timeout === 'number' ? timeout : 0);
+      if (typeof handler === 'function') {
+        handler(...args);
+      }
+      return 0 as unknown as ReturnType<typeof setTimeout>;
+    }) as typeof setTimeout;
+
+    try {
+      let poemAttemptCount = 0;
+      const retryAfterDate = new Date(Date.now() + 5000).toUTCString();
+
+      const fetchMock = mock((url: string | URL | Request) => {
+        const urlStr = url.toString();
+        if (urlStr.includes('all-poems')) {
+          return Promise.resolve(new Response(listHtml));
+        }
+        if (urlStr.includes('poetry-180-001')) {
+          poemAttemptCount += 1;
+          if (poemAttemptCount === 1) {
+            return Promise.resolve(
+              new Response('Rate limited', {
+                status: 429,
+                headers: { 'Retry-After': retryAfterDate },
+              }),
+            );
+          }
+          return Promise.resolve(new Response(detailHtml));
+        }
+        return Promise.resolve(new Response('Not Found', { status: 404 }));
+      });
+
+      const poems = await scrapeLoc180(1, 1, { fetchImpl: fetchMock as unknown as typeof fetch });
+
+      expect(poems).toHaveLength(1);
+      expect(poemAttemptCount).toBe(2);
+      // 1s comes from the shared rate limiter; HTTP-date backoff should be much larger.
+      expect(Math.max(...delays)).toBeGreaterThanOrEqual(3000);
+    } finally {
+      globalThis.setTimeout = originalSetTimeout;
+    }
+  });
 });

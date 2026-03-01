@@ -16,6 +16,24 @@ export interface Loc180ScraperOptions {
   fetchImpl?: typeof fetch;
 }
 
+function parseRetryAfterDelayMs(retryAfter: string | null, nowMs: number = Date.now()): number {
+  if (!retryAfter) {
+    return 0;
+  }
+
+  const retryAfterSeconds = Number(retryAfter);
+  if (Number.isFinite(retryAfterSeconds)) {
+    return Math.max(0, retryAfterSeconds * 1000);
+  }
+
+  const retryAfterDateMs = Date.parse(retryAfter);
+  if (Number.isNaN(retryAfterDateMs)) {
+    return 0;
+  }
+
+  return Math.max(0, retryAfterDateMs - nowMs);
+}
+
 export async function scrapeLoc180(
   start: number = 1,
   end: number = 180,
@@ -109,14 +127,7 @@ export async function scrapeLoc180(
                   }
 
                   const retryAfter = response.headers.get('Retry-After');
-                  let delayMs = 0;
-
-                  if (retryAfter) {
-                    const retryAfterNum = parseInt(retryAfter, 10);
-                    if (!isNaN(retryAfterNum)) {
-                      delayMs = retryAfterNum * 1000;
-                    }
-                  }
+                  let delayMs = parseRetryAfterDelayMs(retryAfter);
 
                   if (delayMs === 0) {
                     const jitter = 0.8 + Math.random() * 0.4;
