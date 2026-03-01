@@ -208,10 +208,18 @@ describe('scrapeLoc180', () => {
 
   test('honors HTTP-date Retry-After header on 429 responses', async () => {
     const originalSetTimeout = globalThis.setTimeout;
+    const originalDateNow = Date.now;
     const delays: number[] = [];
+    let simulatedNow = originalDateNow();
+
+    // Advance simulated time with each mocked setTimeout so the circuit-breaker
+    // while-loop exits after one iteration instead of spinning until real time passes.
+    Date.now = () => simulatedNow;
 
     globalThis.setTimeout = ((handler: TimerHandler, timeout?: number, ...args: unknown[]) => {
-      delays.push(typeof timeout === 'number' ? timeout : 0);
+      const delay = typeof timeout === 'number' ? timeout : 0;
+      delays.push(delay);
+      simulatedNow += delay;
       if (typeof handler === 'function') {
         handler(...args);
       }
@@ -250,6 +258,7 @@ describe('scrapeLoc180', () => {
       expect(Math.max(...delays)).toBeGreaterThanOrEqual(3000);
     } finally {
       globalThis.setTimeout = originalSetTimeout;
+      Date.now = originalDateNow;
     }
   });
 });
