@@ -42,11 +42,68 @@ const response = await client.chat.completions.create({
     { role: 'user', content: userPrompt + '\nRespond in JSON format.' },
   ],
   response_format: { type: 'json_object' }, // for structured output
-  temperature: 0.8,
+  temperature: 1.5, // DeepSeek recommends 1.5 for creative writing / poetry
 });
 
 const content = response.choices[0]?.message?.content;
 ```
+
+### Models & Pricing
+
+| Model | Version | Context | Default Max Output | Maximum Max Output |
+|---|---|---|---|---|
+| `deepseek-chat` | DeepSeek-V3.2 (Non-thinking Mode) | 128K | 4K | 8K |
+| `deepseek-reasoner` | DeepSeek-V3.2 (Thinking Mode) | 128K | 32K | 64K |
+
+**Pricing for `deepseek-chat` (per 1M tokens):**
+
+| Token Type | Price |
+|---|---|
+| Input (cache miss) | $0.28 |
+| Input (cache hit) | $0.028 |
+| Output | $0.42 |
+
+> Prices may change. Check [Models & Pricing](https://api-docs.deepseek.com/quick_start/pricing) for current rates. Both models support JSON output and tool calls; `deepseek-reasoner` does not support FIM completion.
+
+### Rate Limit
+
+DeepSeek does **not** enforce a hard rate limit — all requests are served on a best-effort basis.
+
+Under high server load, the connection is kept alive while the server waits to begin inference:
+- **Non-streaming requests:** server returns empty lines.
+- **Streaming requests:** server returns SSE keep-alive comments (`: keep-alive`).
+
+The OpenAI SDK handles these transparently. If parsing raw HTTP responses manually, filter out empty lines and `: keep-alive` comments before JSON parsing.
+
+> If inference has not started within **10 minutes**, the server closes the connection.
+
+### Error Codes
+
+| Code | Name | Cause | Solution |
+|---|---|---|---|
+| 400 | Invalid Format | Malformed request body | Fix request body per error message hints |
+| 401 | Authentication Fails | Wrong or missing API key | Verify `DEEPSEEK_API_KEY` is set correctly |
+| 402 | Insufficient Balance | Account balance exhausted | Top up at platform.deepseek.com |
+| 422 | Invalid Parameters | Invalid parameter values | Adjust parameters per error message hints |
+| 429 | Rate Limit Reached | Requests sent too quickly | Back off; OpenAI SDK `maxRetries` handles this |
+| 500 | Server Error | Internal server issue | Retry after a brief wait; contact support if persistent |
+| 503 | Server Overloaded | High traffic | Retry after a brief wait |
+
+The OpenAI SDK (`maxRetries: 2`) retries 429 and 5xx responses automatically. Application-level retry logic should only cover quality or JSON parse failures, not network-level errors.
+
+### The Temperature Parameter
+
+Default: `1.0`. Range: `0–2`. DeepSeek's recommended settings by use case:
+
+| Use Case | Temperature |
+|---|---|
+| Coding / Math | 0.0 |
+| Data Cleaning / Analysis | 1.0 |
+| General Conversation | 1.3 |
+| Translation | 1.3 |
+| **Creative Writing / Poetry** | **1.5** |
+
+For poem generation in this project, use `temperature: 1.5`. Alter `temperature` or `top_p` but not both.
 
 ## Required Changes
 
