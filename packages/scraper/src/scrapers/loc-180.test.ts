@@ -1,6 +1,8 @@
 import { expect, test, describe, mock } from 'bun:test';
 import { scrapeLoc180 } from './loc-180';
 
+const noSleep = async (_ms: number) => {};
+
 const listHtml = `
 <html>
 <body>
@@ -54,6 +56,16 @@ function createMockFetch(list: string, detail: string) {
   });
 }
 
+function createListHtmlWithRange(start: number, end: number): string {
+  const links: string[] = [];
+  for (let poemNumber = start; poemNumber <= end; poemNumber++) {
+    const padded = String(poemNumber).padStart(3, '0');
+    links.push(`<a href="/item/poetry-180-${padded}/poem-${padded}/">Poem ${padded}</a>`);
+  }
+
+  return `<html><body>${links.join('')}</body></html>`;
+}
+
 describe('scrapeLoc180', () => {
   test('should extract poem correctly', async () => {
     const fetchMock = mock((url: string | URL | Request) => {
@@ -67,7 +79,11 @@ describe('scrapeLoc180', () => {
       return Promise.resolve(new Response('Not Found', { status: 404 }));
     });
 
-    const poems = await scrapeLoc180(1, 1, { fetchImpl: fetchMock as unknown as typeof fetch });
+    const poems = await scrapeLoc180(1, 1, {
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      sleepImpl: noSleep,
+      randomImpl: () => 0,
+    });
 
     expect(poems).toHaveLength(1);
     expect(poems[0].title).toBe('Introduction to Poetry');
@@ -93,7 +109,11 @@ describe('scrapeLoc180', () => {
       return Promise.resolve(new Response('Not Found', { status: 404 }));
     });
 
-    const poems = await scrapeLoc180(5, 7, { fetchImpl: fetchMock as unknown as typeof fetch });
+    const poems = await scrapeLoc180(5, 7, {
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      sleepImpl: noSleep,
+      randomImpl: () => 0,
+    });
 
     // 1 list fetch + 3 detail fetches (poems 5, 6, 7)
     const detailCalls = fetchCalls.filter((u) => u.includes('poetry-180-'));
@@ -118,7 +138,11 @@ describe('scrapeLoc180', () => {
       return Promise.resolve(new Response('Not Found', { status: 404 }));
     });
 
-    const poems = await scrapeLoc180(1, 2, { fetchImpl: fetchMock as unknown as typeof fetch });
+    const poems = await scrapeLoc180(1, 2, {
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      sleepImpl: noSleep,
+      randomImpl: () => 0,
+    });
 
     expect(callCount).toBe(1); // poem 2 was attempted
     expect(poems).toHaveLength(1);
@@ -128,7 +152,11 @@ describe('scrapeLoc180', () => {
   test('all poems have source loc-180 and isPublicDomain false', async () => {
     const fetchMock = createMockFetch(listHtml, detailHtml);
 
-    const poems = await scrapeLoc180(1, 2, { fetchImpl: fetchMock as unknown as typeof fetch });
+    const poems = await scrapeLoc180(1, 2, {
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      sleepImpl: noSleep,
+      randomImpl: () => 0,
+    });
 
     for (const poem of poems) {
       expect(poem.source).toBe('loc-180');
@@ -145,7 +173,11 @@ describe('scrapeLoc180', () => {
       return Promise.resolve(new Response(detailHtml));
     });
 
-    const poems = await scrapeLoc180(1, 2, { fetchImpl: fetchMock as unknown as typeof fetch });
+    const poems = await scrapeLoc180(1, 2, {
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      sleepImpl: noSleep,
+      randomImpl: () => 0,
+    });
 
     for (const poem of poems) {
       expect(poem.sourceUrl).toContain('poetry-180-');
@@ -170,7 +202,11 @@ describe('scrapeLoc180', () => {
       return Promise.resolve(new Response(noMetaHtml));
     });
 
-    const poems = await scrapeLoc180(1, 1, { fetchImpl: fetchMock as unknown as typeof fetch });
+    const poems = await scrapeLoc180(1, 1, {
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      sleepImpl: noSleep,
+      randomImpl: () => 0,
+    });
 
     expect(poems).toHaveLength(1);
     expect(poems[0].title).toBe('Fallback Title');
@@ -200,7 +236,11 @@ describe('scrapeLoc180', () => {
       return Promise.resolve(new Response(fallbackContentHtml));
     });
 
-    const poems = await scrapeLoc180(1, 1, { fetchImpl: fetchMock as unknown as typeof fetch });
+    const poems = await scrapeLoc180(1, 1, {
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      sleepImpl: noSleep,
+      randomImpl: () => 0,
+    });
 
     expect(poems).toHaveLength(1);
     expect(poems[0].content).toContain('Fallback body content here.');
@@ -224,7 +264,7 @@ describe('scrapeLoc180', () => {
         handler(...args);
       }
       return 0 as unknown as ReturnType<typeof setTimeout>;
-    }) as typeof setTimeout;
+    }) as unknown as typeof setTimeout;
 
     try {
       let poemAttemptCount = 0;
@@ -254,11 +294,56 @@ describe('scrapeLoc180', () => {
 
       expect(poems).toHaveLength(1);
       expect(poemAttemptCount).toBe(2);
-      // 1s comes from the shared rate limiter; HTTP-date backoff should be much larger.
       expect(Math.max(...delays)).toBeGreaterThanOrEqual(3000);
     } finally {
       globalThis.setTimeout = originalSetTimeout;
       Date.now = originalDateNow;
     }
+  });
+
+  test('sends browser-like headers on list and poem fetches', async () => {
+    const initValues: Array<RequestInit | undefined> = [];
+    const fetchMock = mock((url: string | URL | Request, init?: RequestInit) => {
+      const urlStr = url.toString();
+      initValues.push(init);
+
+      if (urlStr.includes('all-poems')) {
+        return Promise.resolve(new Response(listHtml));
+      }
+
+      return Promise.resolve(new Response(detailHtml));
+    });
+
+    await scrapeLoc180(1, 1, {
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      sleepImpl: noSleep,
+      randomImpl: () => 0,
+    });
+
+    expect(initValues.length).toBeGreaterThan(0);
+    for (const init of initValues) {
+      const headers = init?.headers as Record<string, string> | undefined;
+      expect(headers?.['User-Agent']).toContain('Mozilla/5.0');
+      expect(headers?.Accept).toContain('text/html');
+    }
+  });
+
+  test('applies jitter between normal requests and macro-pause every 25 poems', async () => {
+    const delays: number[] = [];
+    const listHtmlTwentySix = createListHtmlWithRange(1, 26);
+    const fetchMock = createMockFetch(listHtmlTwentySix, detailHtml);
+
+    const poems = await scrapeLoc180(1, 26, {
+      fetchImpl: fetchMock as unknown as typeof fetch,
+      sleepImpl: async (ms: number) => {
+        delays.push(ms);
+      },
+      randomImpl: () => 0,
+    });
+
+    expect(poems).toHaveLength(26);
+    const jitterDelays = delays.filter((ms) => ms === 4000);
+    expect(jitterDelays).toHaveLength(24);
+    expect(delays).toContain(5 * 60 * 1000);
   });
 });
