@@ -1,7 +1,7 @@
 # [TASK] ETL Pipeline Activation — Full Data Run
 
 **Date:** 2026-02-28
-**Status:** In Progress
+**Status:** Mostly Complete
 **Priority:** High
 **Assignee:** —
 **Labels:** `etl`, `scraper`, `ai-gen`, `pipeline`
@@ -16,7 +16,7 @@ The ETL pipeline pre-flight is complete (see `etl-pipeline-preflight.md`). The s
 
 This ticket covers the full live activation: scraping all sources, running the ETL pipeline to load human poems, then running `@sanctuary/ai-gen` to generate AI counterparts and assemble duels. The ETL pipeline and AI generation are strictly separate processes — ETL must complete fully before AI generation begins.
 
-## Phase 1: Scrape All Sources ✅ Complete (partial — see notes)
+## Phase 1: Scrape All Sources ⚠️ Partial (LOC blocked — see notes)
 
 **Command:**
 ```bash
@@ -37,6 +37,29 @@ Output written to `packages/scraper/data/raw/` as timestamped JSON files per sou
 - LOC Poetry 180: **65 of ~180 poems** — LOC servers returned 429 on the majority of concurrent requests. Existing rate limiter (`concurrency: 5, minDelay: 200ms`) was too aggressive. See child ticket [`loc-scraper-rate-limit.md`](loc-scraper-rate-limit.md).
 - Poets.org: **100 poems** ✓
 - Total: **389 poems across 3 files** — all files exist and are non-empty
+
+**LOC re-scrape attempts (2026-03-02):**
+
+Three re-scrape attempts were made after implementing the improved rate limiter (commit `1c2a69d`). All three failed due to a long-duration IP-level WAF block on LOC's servers:
+
+| Attempt | Result | Cause |
+|---|---|---|
+| 1 (concurrency=1, minDelay=4s, baseDelay=15s) | ~52 poems, ≥170 threshold failed | WAF blocks IP after ~52 requests; max backoff 19s (old) insufficient |
+| 2 (+ list page retry) | 0 poems — list page 429 immediately | IP ban still active from attempt 1 |
+| 3 (waited 33 min from first 429) | 0 poems — list page 429 through all 4 retries | IP ban persisting >40 minutes |
+
+**Current LOC scraper state (commit `1c2a69d`):** concurrency=1, minDelay=4s, baseDelay=15s per-poem, 90s minimum circuit-breaker on any 429, list page has retry with same 90s circuit-breaker. The code is ready — the LOC re-scrape is blocked only by the IP ban, which expires after an unknown duration (observed: >40 min per session).
+
+**To re-run LOC when ready:**
+```bash
+# Re-scrape LOC only (wait until IP ban has expired — ideally 24h after last attempt)
+bun scripts/run-scrape.ts --sources loc-180
+
+# Then re-run ETL to load new poems (upsert-safe — existing poems are not duplicated)
+pnpm --filter @sanctuary/etl run pipeline --include-non-pd
+```
+
+Phase 3 generation proceeded without the additional LOC poems. The LOC re-scrape and subsequent ETL+generation pass can be done independently when the IP block clears.
 
 ## Phase 2: ETL Pipeline ✅ Complete
 
@@ -71,13 +94,13 @@ SELECT t.label, count(*) FROM poem_topics pt JOIN topics t ON t.id = pt.topic_id
 - Load: **362 poems loaded**, 20 topics upserted, 809 topic associations
 - DB state: HUMAN: 364, AI: 2 (pre-existing seeds)
 
-## Phase 3: AI Poem Generation ⚠️ Partially Complete
+## Phase 3: AI Poem Generation ✅ Complete
 
 **Prerequisite:** Phase 2 must be fully complete. The ETL pipeline and AI generation are separate processes — never run concurrently against the same database.
 
 **Required env:** `DEEPSEEK_API_KEY` must be set in `packages/ai-gen/.env`. See `packages/ai-gen/.env.example`.
 
-> **Note:** The Gemini → DeepSeek migration is complete (commits `3fc74f1`, `ca090d7`). `GEMINI_API_KEY` is no longer required. Steps 8–9 are unblocked.
+> **Note:** The Gemini → DeepSeek migration is complete (commits `3fc74f1`, `ca090d7`). `GEMINI_API_KEY` is no longer required.
 
 ### Implemented Queue and Error Behaviour
 
@@ -112,32 +135,19 @@ pnpm --filter @sanctuary/ai-gen run generate --concurrency 3
 
 **Post-generation:** Duel assembly runs automatically via the `assembleAfterRun()` hook in both invocation paths.
 
+> **Agent note:** Before running, ensure `pnpm install` has been run. The `openai` package must be present in the pnpm store — it was found missing on 2026-03-02 due to store corruption/sync drift, causing an immediate 100% failure rate (all 355 poems failed at 0ms). Run `pnpm install` to restore it before any generation attempt.
+
 ### Full Run Activation
 
-**Known DB state entering this step (as of 2026-03-01 batch run):**
+**DB state after full generation (2026-03-02):**
 
 | Table | Count | Notes |
 |---|---|---|
-| `poems` WHERE `type = 'HUMAN'` | 364 | 362 from ETL + 2 pre-existing seeds |
-| `poems` WHERE `type = 'AI'` | 7 | 2 pre-existing seeds (no `parent_poem_id`), 5 from batch validation run (with `parent_poem_id`) |
-| Unmatched human poems | ~359 | Human poems with no AI counterpart — these are the generation targets |
-| `duels` | TBD | Pending re-confirmation after topic backfill (see batch run notes below) |
-
-**Verify state before running:**
-
-```sql
--- Confirm unmatched human poem count — this is how many AI poems will be generated
-SELECT count(*) FROM poems p
-WHERE p.type = 'HUMAN'
-  AND NOT EXISTS (
-    SELECT 1 FROM poems ai WHERE ai.parent_poem_id = p.id
-  );
--- Expected: ~359
-
--- Confirm overall poem counts
-SELECT type, count(*) FROM poems GROUP BY type;
--- Expected: HUMAN 364, AI 7
-```
+| `poems` WHERE `type = 'HUMAN'` | **364** | Unchanged — 362 from ETL + 2 pre-existing seeds |
+| `poems` WHERE `type = 'AI'` | **358** | 2 pre-existing seeds (no `parent_poem_id`) + 356 with `parent_poem_id` |
+| `poems` WHERE `type = 'AI' AND parent_poem_id IS NOT NULL` | **356** | AI counterparts linked to human poems |
+| Unmatched human poems | **8** | Permanently failed during generation (JSON parse / line count) |
+| `duels` | **4,616** | Assembled across multiple runs |
 
 **Run the full generation (AI agent instructions):**
 
@@ -175,7 +185,7 @@ The script writes structured alerts to `logs/generate-status.json` in real time.
 | Alert | Meaning | Action |
 |---|---|---|
 | `balance_exhausted` | DeepSeek returned 402 on at least one poem | Top up at [platform.deepseek.com](https://platform.deepseek.com). Re-run when topped up — unmatched poems are retried automatically. |
-| `high_failure_rate` | >50% of processed poems are permanently failing | Check `DEEPSEEK_API_KEY` is set correctly in `packages/ai-gen/.env`. Inspect recent failure reasons: `tail -n 80 logs/generate-<ts>.log` |
+| `high_failure_rate` | >50% of processed poems are permanently failing | Check `DEEPSEEK_API_KEY` is set correctly in `packages/ai-gen/.env`. Also run `pnpm install` to ensure `openai` package is present. Inspect recent failure reasons: `tail -n 80 logs/generate-<ts>.log` |
 | `hang_warning` | No output for >10 min | DeepSeek can legitimately hold connections this long under high load. Verify the process is still alive: `kill -0 <pid>`. If it has exited, the report file will have been written. |
 
 **Step 4 — On completion:**
@@ -188,10 +198,12 @@ cat logs/generate-report-<ts>.json
 
 If `unmatchedHuman > 0` the script includes it in `nextSteps` with the exact re-run command. Re-running is always safe — `fetchUnmatchedHumanPoems` is idempotent and will not reprocess already-stored poems.
 
+> **Known issue:** The wrapper script (`scripts/run-generate.ts`) cannot import `@libsql/client` from the root context, so the pre-flight and post-run DB validation sections produce a `ResolveMessage: Cannot find module '@libsql/client'` warning. This does not affect generation or duel assembly — both run inside `@sanctuary/ai-gen` which resolves the package correctly. The `dbValidation` field in the report will be `null`.
+
 **Expected outputs:**
-- ~359 AI poems stored, each with `parent_poem_id` and `poem_topics` copied from the parent.
+- ~352 AI poems stored, each with `parent_poem_id` and `poem_topics` copied from the parent.
 - ~718 minimum API calls (1 generation + 1 verification per poem); up to 9× more on persistent failures.
-- Duel assembly runs automatically post-generation. Expected: ~359 new duels.
+- Duel assembly runs automatically post-generation. Expected: ~352 new duels.
 - DeepSeek context caching reduces system-prompt input costs by ~90% after the first call.
 
 ### Validation
@@ -216,11 +228,21 @@ LIMIT 5;
 2. `packages/ai-gen/.env` — Missing env file; `LIBSQL_URL` not found when running via `pnpm --filter`. Created from root `.env` (mirrors `packages/etl/.env` pattern).
 3. `packages/ai-gen/src/persistence.ts` — `persistGeneratedPoem` did not copy parent poem's `poem_topics` rows to the AI poem, causing duel assembly to produce 0 candidates. Fixed by adding `INSERT OR IGNORE INTO poem_topics SELECT ?, topic_id FROM poem_topics WHERE poem_id = ?` after poem insert. Backfilled topics for 5 already-generated AI poems.
 
+**Bug found and fixed during full run (2026-03-02):**
+4. `pnpm` store out of sync — `openai` package missing from `node_modules/.pnpm/`, causing immediate 100% generation failure at 0ms elapsed (dynamic `import('openai')` fails; rejected Promise is cached, all subsequent poems fail instantly). Fix: `pnpm install`.
+
 **Actual results (batch run — 5 poems, 2026-03-01):**
 - 5/5 AI poems stored ✓
 - Rate limiter triggered (37s of 86s total wall time on rate-limit wait) ✓
 - Retry queue: 1 poem hit 429, retried successfully ✓
-- Duel assembly: pending re-run after topic backfill confirmation
+- Duel assembly: 0 duels (topic backfill bug — fixed before full run)
+
+**Actual results (full run — 352 poems, 2026-03-02):**
+- **344/352 AI poems stored** (97.7% success rate)
+- 8 permanently failed (JSON parse errors / line count out of range)
+- Duration: ~69 minutes
+- **3,193 new duels assembled** (4,616 total in DB)
+- Alerts: none
 
 ## Execution Order
 
@@ -231,7 +253,9 @@ LIMIT 5;
 5. ~~Validate DB state (poem counts, topic associations)~~ — ✅ Done (364 HUMAN, 809 topic associations)
 6. ~~Implement ai-gen rate limiting and retry queue changes~~ — ✅ Done
 7. ~~Run ai-gen with `--limit 5` to validate~~ — ✅ Done (5/5 stored; 3 bugs fixed during run)
-8. Run ai-gen full generation — ▶ Ready (`bun scripts/run-generate.ts --concurrency 3`)
-9. Validate AI counterparts and duel assembly — ⏸ Pending step 8
+8. ~~Run ai-gen full generation~~ — ✅ Done (344/352 stored, 8 perm-failed, 4,616 duels)
+9. ~~Validate AI counterparts and duel assembly~~ — ✅ Done (356 AI poems with parent, 4,616 duels, spot-check passed)
 
-Step 8 is unblocked: DeepSeek migration complete (`3fc74f1`, review `ca090d7`). See Phase 3 → Full Run Activation for pre-run checks, expected outputs, and troubleshooting. LOC re-scrape can be done independently via [`loc-scraper-rate-limit.md`](loc-scraper-rate-limit.md).
+**Remaining work:**
+- LOC re-scrape (⏸ blocked by IP ban — retry after 24h+ from last attempt on 2026-03-02): `bun scripts/run-scrape.ts --sources loc-180`, then ETL re-run, then `bun scripts/run-generate.ts` for the ~115 new poems
+- 8 permanently failed poems — re-running generation is safe (idempotent); these may succeed on a subsequent run if DeepSeek's output improves
