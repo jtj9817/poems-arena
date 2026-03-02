@@ -8,7 +8,7 @@ import { extractAnchors, loadHtml, normalizeWhitespace } from '../utils/html';
 const LIST_URL =
   'https://www.loc.gov/programs/poetry-and-literature/poet-laureate/poet-laureate-projects/poetry-180/all-poems/';
 
-const limit = createRateLimiter({ concurrency: 2, minDelay: 1000 });
+const limit = createRateLimiter({ concurrency: 1, minDelay: 4000 });
 
 let globalPauseUntil = 0;
 
@@ -48,17 +48,57 @@ export async function scrapeLoc180(
   });
 
   try {
-    const listResponse = await fetchImpl(LIST_URL);
-    if (!listResponse.ok) {
-      logger.error('Failed to fetch LOC list page', undefined, {
+    // Fetch list page with retry on 429/5xx — same circuit breaker shared with poem fetches.
+    let listHtml: string | null = null;
+    const listMaxRetries = 4;
+    const listBaseDelay = 15000;
+    for (let listAttempt = 0; listAttempt <= listMaxRetries; listAttempt++) {
+      while (Date.now() < globalPauseUntil) {
+        const waitTime = globalPauseUntil - Date.now();
+        logger.info('Circuit breaker active before list fetch, waiting', {
+          source: 'loc-180',
+          waitMs: waitTime,
+        });
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
+      }
+      const listResponse = await fetchImpl(LIST_URL);
+      if (listResponse.ok) {
+        listHtml = await listResponse.text();
+        break;
+      }
+      if ([403, 404, 410].includes(listResponse.status)) {
+        logger.error('Terminal error fetching LOC list page', undefined, {
+          source: 'loc-180',
+          status: listResponse.status,
+          sourceUrl: LIST_URL,
+        });
+        return [];
+      }
+      if (listAttempt === listMaxRetries) {
+        logger.error('Failed to fetch LOC list page after all retries', undefined, {
+          source: 'loc-180',
+          status: listResponse.status,
+          sourceUrl: LIST_URL,
+        });
+        return [];
+      }
+      const retryAfter = listResponse.headers.get('Retry-After');
+      let delayMs = parseRetryAfterDelayMs(retryAfter);
+      if (delayMs === 0) {
+        const jitter = 0.8 + Math.random() * 0.4;
+        delayMs = listBaseDelay * Math.pow(2, listAttempt) * jitter;
+      }
+      const circuitBreakerDelay = Math.max(delayMs, 90_000);
+      logger.warn('Rate limited fetching LOC list page, backing off', {
         source: 'loc-180',
         status: listResponse.status,
-        sourceUrl: LIST_URL,
+        delayMs: circuitBreakerDelay,
+        attempt: listAttempt + 1,
       });
-      return [];
+      globalPauseUntil = Math.max(globalPauseUntil, Date.now() + circuitBreakerDelay);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
-
-    const listHtml = await listResponse.text();
+    if (!listHtml) return [];
     const anchors = extractAnchors(listHtml);
     // Find links like .../item/poetry-180-XXX/...
     const poemLinks = anchors.filter((a) => a.href.includes('/item/poetry-180-'));
@@ -89,11 +129,15 @@ export async function scrapeLoc180(
         limit(async () => {
           let attempt = 0;
           const maxRetries = 4;
-          const baseDelay = 2000;
+          const baseDelay = 15000;
 
           while (attempt <= maxRetries) {
             while (Date.now() < globalPauseUntil) {
               const waitTime = globalPauseUntil - Date.now();
+              logger.debug('Circuit breaker active, waiting', {
+                source: 'loc-180',
+                waitMs: waitTime,
+              });
               await new Promise((resolve) => setTimeout(resolve, waitTime));
             }
 
@@ -136,15 +180,19 @@ export async function scrapeLoc180(
                     delayMs = baseDelay * Math.pow(2, attempt) * jitter;
                   }
 
+                  // Enforce a minimum global pause of 90s on first 429 to let the WAF block expire.
+                  const minCircuitBreakerMs = 90_000;
+                  const circuitBreakerDelay = Math.max(delayMs, minCircuitBreakerMs);
+
                   logger.warn('Rate limited or server error, backing off', {
                     source: 'loc-180',
                     sourceUrl: url,
                     status: response.status,
-                    delayMs,
+                    delayMs: circuitBreakerDelay,
                     attempt: attempt + 1,
                   });
 
-                  globalPauseUntil = Math.max(globalPauseUntil, Date.now() + delayMs);
+                  globalPauseUntil = Math.max(globalPauseUntil, Date.now() + circuitBreakerDelay);
 
                   await new Promise((resolve) => setTimeout(resolve, delayMs));
                   attempt++;
