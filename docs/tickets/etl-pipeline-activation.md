@@ -231,7 +231,7 @@ LIMIT 5;
 5. ~~Validate DB state (poem counts, topic associations)~~ — ✅ Done (364 HUMAN, 809 topic associations)
 6. ~~Implement ai-gen rate limiting and retry queue changes~~ — ✅ Done
 7. ~~Run ai-gen with `--limit 5` to validate~~ — ✅ Done (5/5 stored; 3 bugs fixed during run)
-8. Run ai-gen full generation — ▶ Ready (`pnpm --filter @sanctuary/ai-gen run generate --concurrency 3`)
+8. Run ai-gen full generation — ▶ Ready (`bun scripts/run-generate.ts --concurrency 3`)
 9. Validate AI counterparts and duel assembly — ⏸ Pending step 8
 
 Step 8 is unblocked: DeepSeek migration complete (`3fc74f1`, review `ca090d7`). See Phase 3 → Full Run Activation for pre-run checks, expected outputs, and troubleshooting. LOC re-scrape can be done independently via [`loc-scraper-rate-limit.md`](loc-scraper-rate-limit.md).
