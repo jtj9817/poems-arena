@@ -100,12 +100,17 @@ The following behaviours are already implemented in the current `@sanctuary/ai-g
 
 ### Generation Command
 
+This is a long-running job (~1–2 hours for ~359 poems). Use the supervised wrapper script rather than calling the package directly — it handles session expiry, structured check-ins, and automatic failure detection.
+
 ```bash
-# Full run
+# Preferred: monitored wrapper (writes status + report files to logs/)
+bun scripts/run-generate.ts --concurrency 3
+
+# Direct package invocation (no monitoring, not recommended for agents)
 pnpm --filter @sanctuary/ai-gen run generate --concurrency 3
 ```
 
-**Post-generation:** Duel assembly runs automatically via `assembleAfterRun()` hook after generation completes.
+**Post-generation:** Duel assembly runs automatically via the `assembleAfterRun()` hook in both invocation paths.
 
 ### Full Run Activation
 
@@ -134,47 +139,60 @@ SELECT type, count(*) FROM poems GROUP BY type;
 -- Expected: HUMAN 364, AI 7
 ```
 
-**Run the full generation:**
+**Run the full generation (AI agent instructions):**
+
+Because this job runs for ~1–2 hours, an AI agent must treat it as a background process with periodic check-ins. The `run-generate.ts` wrapper handles everything that can't be managed inline: session expiry, structured progress state, and automatic failure detection.
+
+**Step 1 — Launch in the background:**
+```bash
+bun scripts/run-generate.ts --concurrency 3
+```
+Run this with `run_in_background: true`. The script immediately prints startup info (PID, log file path, unmatched count) and then streams all subprocess output.
+
+**Step 2 — Check in periodically (every 10–20 min):**
+```bash
+# Structured summary (fastest — parses status.json)
+bun scripts/run-generate.ts --status
+
+# Recent output (last 40 lines of the live log)
+tail -n 40 logs/generate-<ts>.log
+```
+`--status` output:
+```
+Phase:       running
+Progress:    120/359 (33%) — 115 stored, 3 skipped, 2 perm-failed, 4 retrying
+Avg/poem:    18.4s
+Remaining:   43m 54s
+Last output: 2026-03-01T10:42:11Z (2m ago)
+Alerts:      none
+Log file:    logs/generate-20260301T100000Z.log
+```
+
+**Step 3 — Interpret alerts:**
+
+The script writes structured alerts to `logs/generate-status.json` in real time. An agent should act on them immediately:
+
+| Alert | Meaning | Action |
+|---|---|---|
+| `balance_exhausted` | DeepSeek returned 402 on at least one poem | Top up at [platform.deepseek.com](https://platform.deepseek.com). Re-run when topped up — unmatched poems are retried automatically. |
+| `high_failure_rate` | >50% of processed poems are permanently failing | Check `DEEPSEEK_API_KEY` is set correctly in `packages/ai-gen/.env`. Inspect recent failure reasons: `tail -n 80 logs/generate-<ts>.log` |
+| `hang_warning` | No output for >10 min | DeepSeek can legitimately hold connections this long under high load. Verify the process is still alive: `kill -0 <pid>`. If it has exited, the report file will have been written. |
+
+**Step 4 — On completion:**
+
+The wrapper writes a final report to `logs/generate-report-<ts>.json` containing: progress totals, assembly result, all alerts, DB validation counts (humanPoems, aiPoems, aiPoemsWithParent, unmatchedHuman, totalDuels), and a `nextSteps` array. Read it to determine whether to re-run or proceed to validation:
 
 ```bash
-pnpm --filter @sanctuary/ai-gen run generate --concurrency 3
+cat logs/generate-report-<ts>.json
 ```
+
+If `unmatchedHuman > 0` the script includes it in `nextSteps` with the exact re-run command. Re-running is always safe — `fetchUnmatchedHumanPoems` is idempotent and will not reprocess already-stored poems.
 
 **Expected outputs:**
-- ~359 AI poems generated and persisted, each with `parent_poem_id` pointing to its human source poem and `poem_topics` copied from the parent.
-- Each poem requires 2 API calls: one generation call (`deepseek-chat`) and one verification call (`deepseek-chat`). Minimum ~718 calls total for a clean run.
-- DeepSeek context caching applies after the first call: the shared system prompt tokens are served from cache at $0.028/M (10× cheaper than $0.28/M). Effective cost is dominated by the per-poem variable content, not the repeated system prompt.
-- Duel assembly runs automatically after generation. Expected: ~359 new duels, one per matched human↔AI pair sharing at least one topic.
-
-**Monitoring during the run:**
-
-Per-poem log format:
-```
-Stored AI poem for [human-id] -> [ai-id] [Xms] (Total elapsed: Xms)
-Skipped [human-id]: [reason] [Xms] (Total elapsed: Xms)
-Failed [human-id] (retry N/M): [reason] [Xms] (Total elapsed: Xms)
-Failed [human-id] permanently after N retries: [reason] [Xms] (Total elapsed: Xms)
-```
-
-End-of-run summary format:
-```
-Completed generation run: processed=X stored=X skipped=X failed=X
---- Run Summary ---
-Total elapsed wall time: Xms
-Average time per stored poem: Xms
-Duel assembly: X new duel(s) created from X candidate(s)
-```
-
-**If things go wrong:**
-
-| Symptom | Action |
-|---|---|
-| `402 Insufficient Balance` | Stop immediately. Top up at [platform.deepseek.com](https://platform.deepseek.com). Re-run — unmatched poems will be retried naturally. |
-| Persistent 429s (logged by SDK, not suppressed) | Reduce `--concurrency` to 1 and re-run. |
-| High permanent failure rate (bad JSON, empty content) | Check `DEEPSEEK_API_KEY` is valid. Inspect failure reasons in logs. A small number of permanent failures is normal. |
-| Duel assembly produces 0 new duels | Verify `poem_topics` rows exist for AI poems: `SELECT count(*) FROM poem_topics pt JOIN poems p ON p.id = pt.poem_id WHERE p.type = 'AI'`. If zero, the topic-copy step in `persistGeneratedPoem` is not running — check `packages/ai-gen/src/persistence.ts`. |
-
-**Permanently failed poems** (exhausted all retries) remain unmatched and will be picked up automatically on the next invocation of the generate command.
+- ~359 AI poems stored, each with `parent_poem_id` and `poem_topics` copied from the parent.
+- ~718 minimum API calls (1 generation + 1 verification per poem); up to 9× more on persistent failures.
+- Duel assembly runs automatically post-generation. Expected: ~359 new duels.
+- DeepSeek context caching reduces system-prompt input costs by ~90% after the first call.
 
 ### Validation
 
