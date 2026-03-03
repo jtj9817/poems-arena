@@ -94,7 +94,7 @@ SELECT t.label, count(*) FROM poem_topics pt JOIN topics t ON t.id = pt.topic_id
 - Load: **362 poems loaded**, 20 topics upserted, 809 topic associations
 - DB state: HUMAN: 364, AI: 2 (pre-existing seeds)
 
-## Phase 3: AI Poem Generation ✅ Complete
+## Phase 3: AI Poem Generation ⚠️ Partially Complete
 
 **Prerequisite:** Phase 2 must be fully complete. The ETL pipeline and AI generation are separate processes — never run concurrently against the same database.
 
@@ -244,6 +244,71 @@ LIMIT 5;
 - **3,193 new duels assembled** (4,616 total in DB)
 - Alerts: none
 
+### Phase 3.1 — Fix Permanently Failed Poems ⏳ Not Started
+
+7 of the 8 permanently failed poems are covered by the `fix-long-poems` script (see [`fix-long-poems.md`](fix-long-poems.md)). Root cause: DeepSeek truncates JSON output when the input poem exceeds ~4,000 chars (average successful poem: ~1,125 chars). The fix deletes 2 Gutenberg editorial artefacts and splits 5 long poems into ≤4,000-char parts.
+
+The 8th failed poem is not targeted by the script; attempt a plain re-run of generation after the fix to see if it succeeds on retry.
+
+**Step 1 — Pre-flight: ensure the LLM API key is set in `packages/etl/.env`.**
+Refer to `packages/etl/.env.example` for the required variable name.
+
+**Step 2 — Dry-run to review all planned changes (no DB writes, no LLM calls):**
+```bash
+pnpm --filter @sanctuary/etl run fix-long-poems -- --dry-run
+```
+Expected output: 2 `[DELETE]` lines followed by 5 `[SPLIT]` blocks. Verify part counts match:
+
+| Poem | Expected parts |
+|---|---|
+| The Ballad of Reading Gaol (Oscar Wilde) | 6 |
+| MAY-DAY (Ralph Waldo Emerson) | 5 |
+| THE ADIRONDACS (Ralph Waldo Emerson) | 5 |
+| MONADNOC (Ralph Waldo Emerson) | 5 |
+| Halloween (Robert Burns) | 2 |
+
+**Step 3 — Execute (LLM verification + DB writes):**
+```bash
+pnpm --filter @sanctuary/etl run fix-long-poems
+```
+The script verifies each of the 23 parts via LLM before writing. Watch for any `✗ INVALID` lines — if a part fails verification, all parts for that poem are skipped and the original is left intact for manual inspection.
+
+**Step 4 — Confirm DB state after the script:**
+```sql
+-- 7 originals must be gone (expected: 0 rows)
+SELECT count(*) FROM poems
+WHERE id LIKE 'd87091e153a9%' OR id LIKE 'f399fdc5e1ab%'
+   OR id LIKE '19176bc9d632%' OR id LIKE 'b45e1e960ad8%'
+   OR id LIKE 'c8d1c4ef3331%' OR id LIKE '92273a10aba0%'
+   OR id LIKE 'f49974a9f0b2%';
+
+-- 23 new part-poems must be present as HUMAN type (expected: 23 rows)
+SELECT title, author FROM poems
+WHERE type = 'HUMAN' AND (
+  title LIKE 'The Ballad of Reading Gaol (%)'
+  OR title LIKE 'MAY-DAY (%)'
+  OR title LIKE 'THE ADIRONDACS (%)'
+  OR title LIKE 'MONADNOC (%)'
+  OR title LIKE 'Halloween (%)'
+);
+-- Expected breakdown: Ballad ×6, MAY-DAY ×5, ADIRONDACS ×5, MONADNOC ×5, Halloween ×2
+```
+
+**Step 5 — Generate AI counterparts for the 23 new part-poems:**
+`run-generate.ts` is idempotent — it skips the 344 poems already matched and only processes the newly unmatched ones.
+```bash
+bun scripts/run-generate.ts --concurrency 3
+```
+
+**Step 6 — Validate generation results:**
+```sql
+-- AI poems with parent (expected: 356 + up to 23 new = up to 379)
+SELECT count(*) FROM poems WHERE type = 'AI' AND parent_poem_id IS NOT NULL;
+
+-- Total duels (expected: 4,616 + up to ~23 new)
+SELECT count(*) FROM duels;
+```
+
 ## Execution Order
 
 1. ~~Run scraper (`scripts/run-scrape.ts`)~~ — ✅ Done (389 poems; LOC partial — see Phase 1 notes)
@@ -255,7 +320,10 @@ LIMIT 5;
 7. ~~Run ai-gen with `--limit 5` to validate~~ — ✅ Done (5/5 stored; 3 bugs fixed during run)
 8. ~~Run ai-gen full generation~~ — ✅ Done (344/352 stored, 8 perm-failed, 4,616 duels)
 9. ~~Validate AI counterparts and duel assembly~~ — ✅ Done (356 AI poems with parent, 4,616 duels, spot-check passed)
+10. Dry-run `fix-long-poems` and verify part counts — see Phase 3.1 Step 2
+11. Execute `fix-long-poems` and confirm DB state — see Phase 3.1 Steps 3–4
+12. Re-run generation for the ~23 new part-poems — see Phase 3.1 Steps 5–6
 
 **Remaining work:**
+- Steps 10–12 above (Phase 3.1 — fix permanently failed poems)
 - LOC re-scrape (⏸ blocked by IP ban — retry after 24h+ from last attempt on 2026-03-02): `bun scripts/run-scrape.ts --sources loc-180`, then ETL re-run, then `bun scripts/run-generate.ts` for the ~115 new poems
-- 8 permanently failed poems — re-running generation is safe (idempotent); these may succeed on a subsequent run if DeepSeek's output improves
