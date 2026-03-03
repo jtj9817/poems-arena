@@ -94,7 +94,7 @@ SELECT t.label, count(*) FROM poem_topics pt JOIN topics t ON t.id = pt.topic_id
 - Load: **362 poems loaded**, 20 topics upserted, 809 topic associations
 - DB state: HUMAN: 364, AI: 2 (pre-existing seeds)
 
-## Phase 3: AI Poem Generation ⚠️ Partially Complete
+## Phase 3: AI Poem Generation ✅ Complete
 
 **Prerequisite:** Phase 2 must be fully complete. The ETL pipeline and AI generation are separate processes — never run concurrently against the same database.
 
@@ -244,45 +244,38 @@ LIMIT 5;
 - **3,193 new duels assembled** (4,616 total in DB)
 - Alerts: none
 
-### Phase 3.1 — Fix Permanently Failed Poems ⏳ Not Started
+### Phase 3.1 — Fix Permanently Failed Poems ✅ Complete
 
-7 of the 8 permanently failed poems are covered by the `fix-long-poems` script (see [`fix-long-poems.md`](fix-long-poems.md)). Root cause: DeepSeek truncates JSON output when the input poem exceeds ~4,000 chars (average successful poem: ~1,125 chars). The fix deletes 2 Gutenberg editorial artefacts and splits 5 long poems into ≤4,000-char parts.
+7 of the 8 permanently failed poems were covered by the `fix-long-poems` script (see [`fix-long-poems.md`](fix-long-poems.md)). Root cause: DeepSeek truncates JSON output when the input poem exceeds ~4,000 chars (average successful poem: ~1,125 chars). The fix deleted 2 Gutenberg editorial artefacts and split 5 long poems into ≤4,000-char parts. The 8th failed poem succeeded on retry during the subsequent generation run.
 
-The 8th failed poem is not targeted by the script; attempt a plain re-run of generation after the fix to see if it succeeds on retry.
+**Script bug fixed during execution (2026-03-03):** The original `fix-long-poems.ts` had three issues that required fixes before the script could run cleanly:
+1. **FK cascade missing** — `deleteOriginal` and the original-deletion block in `insertSplitPoems` did not delete referencing `duels` rows before the `poems` delete, causing `SQLITE_CONSTRAINT: FOREIGN KEY constraint failed`. Fixed by pre-fetching referencing duel IDs and cascading through `featured_duels` → `votes` → `duels` in the transaction.
+2. **All-`\n\n` poem format** — Halloween and the Ballad of Reading Gaol were stored with `\n\n` between every individual line (no `\n` within stanzas), making the split algorithm cut mid-stanza. Fixed by adding `splitAtRomanSections` (Ballad: 6-line stanzas within sections I–VI) and `splitByFixedLineCount` (Halloween: 9-line stanzas), detected from the content format.
+3. **Overly strict LLM prompt** — The verification prompt judged thematic completeness rather than structural integrity, causing false-positive INVALID results for Emerson's blank-verse poems. Fixed by revising the prompt to check sentence-level and line-level structural integrity only.
 
-**Step 1 — Pre-flight: ensure the LLM API key is set in `packages/etl/.env`.**
-Refer to `packages/etl/.env.example` for the required variable name.
+**Actual part counts (fixed algorithm):**
 
-**Step 2 — Dry-run to review all planned changes (no DB writes, no LLM calls):**
-```bash
-pnpm --filter @sanctuary/etl run fix-long-poems -- --dry-run
-```
-Expected output: 2 `[DELETE]` lines followed by 5 `[SPLIT]` blocks. Verify part counts match:
+| Poem | Expected | Actual | Notes |
+|---|---|---|---|
+| The Ballad of Reading Gaol (Oscar Wilde) | 6 | **8** | Cantos III and IV oversized → each split into 2 sub-parts at stanza boundaries |
+| MAY-DAY (Ralph Waldo Emerson) | 5 | 5 | ✓ |
+| THE ADIRONDACS (Ralph Waldo Emerson) | 5 | 5 | ✓ |
+| MONADNOC (Ralph Waldo Emerson) | 5 | 5 | ✓ |
+| Halloween (Robert Burns) | 2 | 2 | ✓ |
 
-| Poem | Expected parts |
-|---|---|
-| The Ballad of Reading Gaol (Oscar Wilde) | 6 |
-| MAY-DAY (Ralph Waldo Emerson) | 5 |
-| THE ADIRONDACS (Ralph Waldo Emerson) | 5 |
-| MONADNOC (Ralph Waldo Emerson) | 5 |
-| Halloween (Robert Burns) | 2 |
+Total new HUMAN part-poems: **25** (not 23)
 
-**Step 3 — Execute (LLM verification + DB writes):**
-```bash
-pnpm --filter @sanctuary/etl run fix-long-poems
-```
-The script verifies each of the 23 parts via LLM before writing. Watch for any `✗ INVALID` lines — if a part fails verification, all parts for that poem are skipped and the original is left intact for manual inspection.
+**DB state after run (2026-03-03):**
 
-**Step 4 — Confirm DB state after the script:**
 ```sql
--- 7 originals must be gone (expected: 0 rows)
+-- 7 originals must be gone (actual: 0 rows) ✓
 SELECT count(*) FROM poems
 WHERE id LIKE 'd87091e153a9%' OR id LIKE 'f399fdc5e1ab%'
    OR id LIKE '19176bc9d632%' OR id LIKE 'b45e1e960ad8%'
    OR id LIKE 'c8d1c4ef3331%' OR id LIKE '92273a10aba0%'
    OR id LIKE 'f49974a9f0b2%';
 
--- 23 new part-poems must be present as HUMAN type (expected: 23 rows)
+-- 25 new part-poems present as HUMAN type (actual: 25 rows) ✓
 SELECT title, author FROM poems
 WHERE type = 'HUMAN' AND (
   title LIKE 'The Ballad of Reading Gaol (%)'
@@ -291,21 +284,20 @@ WHERE type = 'HUMAN' AND (
   OR title LIKE 'MONADNOC (%)'
   OR title LIKE 'Halloween (%)'
 );
--- Expected breakdown: Ballad ×6, MAY-DAY ×5, ADIRONDACS ×5, MONADNOC ×5, Halloween ×2
+-- Actual: Ballad ×8, MAY-DAY ×5, ADIRONDACS ×5, MONADNOC ×5, Halloween ×2
 ```
 
-**Step 5 — Generate AI counterparts for the 23 new part-poems:**
-`run-generate.ts` is idempotent — it skips the 344 poems already matched and only processes the newly unmatched ones.
-```bash
-bun scripts/run-generate.ts --concurrency 3
-```
+**Generation results (2026-03-03):**
+- **25/25 AI counterparts stored** (100% success rate)
+- Duration: ~9.5 minutes
+- **431 new duels assembled**
+- 8th previously-failed poem also succeeded on this retry run
 
-**Step 6 — Validate generation results:**
 ```sql
--- AI poems with parent (expected: 356 + up to 23 new = up to 379)
+-- AI poems with parent_poem_id (actual: 382 = 356 + 25 new + 1 retry success) ✓
 SELECT count(*) FROM poems WHERE type = 'AI' AND parent_poem_id IS NOT NULL;
 
--- Total duels (expected: 4,616 + up to ~23 new)
+-- Total duels (actual: 4,964 = 4,616 − 89 cascaded + 431 new + 6 from 8th poem) ✓
 SELECT count(*) FROM duels;
 ```
 
@@ -320,10 +312,9 @@ SELECT count(*) FROM duels;
 7. ~~Run ai-gen with `--limit 5` to validate~~ — ✅ Done (5/5 stored; 3 bugs fixed during run)
 8. ~~Run ai-gen full generation~~ — ✅ Done (344/352 stored, 8 perm-failed, 4,616 duels)
 9. ~~Validate AI counterparts and duel assembly~~ — ✅ Done (356 AI poems with parent, 4,616 duels, spot-check passed)
-10. Dry-run `fix-long-poems` and verify part counts — see Phase 3.1 Step 2
-11. Execute `fix-long-poems` and confirm DB state — see Phase 3.1 Steps 3–4
-12. Re-run generation for the ~23 new part-poems — see Phase 3.1 Steps 5–6
+10. ~~Dry-run `fix-long-poems` and verify part counts~~ — ✅ Done (2 DELETE + 5 SPLIT; algorithm fixed to handle all-`\n\n` format and LLM prompt revised for structural verification)
+11. ~~Execute `fix-long-poems` and confirm DB state~~ — ✅ Done (0 originals remaining; 25 new part-poems inserted: Ballad×8, MAY-DAY×5, ADIRONDACS×5, MONADNOC×5, Halloween×2; 89 stale duels cascaded)
+12. ~~Re-run generation for the ~25 new part-poems~~ — ✅ Done (25/25 stored, 431 new duels, 382 total AI poems with parent; 8th previously-failed poem also succeeded on retry)
 
 **Remaining work:**
-- Steps 10–12 above (Phase 3.1 — fix permanently failed poems)
 - LOC re-scrape (⏸ blocked by IP ban — retry after 24h+ from last attempt on 2026-03-02): `bun scripts/run-scrape.ts --sources loc-180`, then ETL re-run, then `bun scripts/run-generate.ts` for the ~115 new poems

@@ -1,7 +1,7 @@
 # [TASK] Fix Long Poems — Clean, Split, and Re-insert
 
 **Date:** 2026-03-02
-**Status:** In-Progress
+**Status:** Complete
 **Priority:** High
 **Assignee:** —
 **Labels:** `etl`, `ai-gen`, `data-quality`, `pipeline`
@@ -92,8 +92,8 @@ bun scripts/run-generate.ts --concurrency 3
 - [x] `fix-long-poems.ts` implemented with dry-run support
 - [x] `@anthropic-ai/sdk` added to `packages/etl/package.json`
 - [x] `ANTHROPIC_API_KEY` documented in `.env.example`
-- [ ] Dry-run confirms 2 deletes + 5 splits matching expected part counts
-- [ ] LLM verification passes for all 23 parts
-- [ ] DB state after run: 2 editorial artefacts gone; 5 original long poems replaced by 23 part-poems
-- [ ] `bun scripts/run-generate.ts --concurrency 3` generates AI counterparts for the 23 new poems
-- [ ] Duel assembly produces ~23 new duels from the new part-poems
+- [x] Dry-run confirms 2 deletes + 5 splits matching expected part counts
+- [x] LLM verification passes for all 25 parts (Ballad produces 8 parts, not 6, due to stanza-aware section splitting; 3 fixes required before all parts passed — see Phase 3.1 notes in etl-pipeline-activation.md)
+- [x] DB state after run: 2 editorial artefacts gone; 5 original long poems replaced by 25 part-poems (Ballad×8, MAY-DAY×5, ADIRONDACS×5, MONADNOC×5, Halloween×2)
+- [x] `bun scripts/run-generate.ts --concurrency 3` generates AI counterparts for the 25 new poems (25/25, 0 failures)
+- [x] Duel assembly produces 431 new duels from the new part-poems
