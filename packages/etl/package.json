@@ -5,10 +5,12 @@
   "type": "module",
   "scripts": {
     "pipeline": "bun run src/index.ts",
+    "fix-long-poems": "bun run src/fix-long-poems.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
     "@libsql/client": "^0.14.0",
     "@sanctuary/db": "workspace:*",
     "@sanctuary/shared": "workspace:*",
