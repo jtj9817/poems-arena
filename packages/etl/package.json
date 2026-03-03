@@ -10,7 +10,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.39.0",
     "@libsql/client": "^0.14.0",
     "@sanctuary/db": "workspace:*",
     "@sanctuary/shared": "workspace:*",
@@ -18,6 +17,7 @@
     "drizzle-orm": "^0.38.4",
     "fast-glob": "^3.3.3",
     "he": "^1.2.0",
+    "openai": "^4.104.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {

@@ -14,7 +14,7 @@
 import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
 import { config as loadEnv } from 'dotenv';
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 import { like } from 'drizzle-orm';
 
 import { createDb } from '@sanctuary/db/client';
@@ -128,16 +128,21 @@ function cleanAndSplit(content: string): string[] {
 }
 
 // ---------------------------------------------------------------------------
-// Anthropic LLM verification
+// DeepSeek LLM verification
 // ---------------------------------------------------------------------------
 
-let _anthropicClient: Anthropic | null = null;
+let _deepSeekClient: OpenAI | null = null;
 
-function getAnthropicClient(apiKey: string): Anthropic {
-  if (!_anthropicClient) {
-    _anthropicClient = new Anthropic({ apiKey });
+function getDeepSeekClient(apiKey: string): OpenAI {
+  if (!_deepSeekClient) {
+    _deepSeekClient = new OpenAI({
+      apiKey,
+      baseURL: 'https://api.deepseek.com/v1',
+      timeout: 30_000,
+      maxRetries: 2,
+    });
   }
-  return _anthropicClient;
+  return _deepSeekClient;
 }
 
 interface VerifyResult {
@@ -153,7 +158,7 @@ async function verifyPart(
   partNum: number,
   totalParts: number,
 ): Promise<VerifyResult> {
-  const client = getAnthropicClient(apiKey);
+  const client = getDeepSeekClient(apiKey);
   const romanNum = toRoman(partNum);
 
   const prompt = `You are verifying that a poem excerpt has clean boundaries after being split from a longer source poem.
@@ -169,19 +174,31 @@ Check whether this excerpt:
 2. Ends at a clean verse or stanza boundary — the last line concludes a complete thought or verse unit, not cut off mid-stanza.
 3. Contains no truncation artefacts — no mid-word breaks, no orphaned half-lines.
 
-Respond ONLY with JSON:
-{"valid": true | false, "issue": null | "<brief description of the problem>"}`;
+Respond ONLY with JSON (no markdown code fences):
+{"valid": true | false, "issue": null | "<brief description of the problem>"}
 
-  const message = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
+Respond in JSON format.`;
+
+  const response = await client.chat.completions.create({
+    model: 'deepseek-chat',
     max_tokens: 256,
+    temperature: 1,
+    response_format: { type: 'json_object' },
     messages: [{ role: 'user', content: prompt }],
   });
 
-  const responseText = message.content[0]?.type === 'text' ? message.content[0].text.trim() : '';
+  const responseText = response.choices[0]?.message?.content?.trim() ?? '';
+  if (!responseText) {
+    throw new Error('DeepSeek verification returned empty content');
+  }
+
+  const sanitized = responseText
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
 
   // Extract JSON (tolerate markdown code fences in response)
-  const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+  const jsonMatch = sanitized.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
     throw new Error(`Could not parse verification response: ${responseText}`);
   }
@@ -349,7 +366,7 @@ async function processSplit(
   prefix: string,
   db: Db,
   dryRun: boolean,
-  anthropicApiKey: string,
+  deepSeekApiKey: string,
 ): Promise<void> {
   const poem = await fetchPoem(db, prefix);
   if (!poem) {
@@ -371,7 +388,7 @@ async function processSplit(
   if (dryRun) return;
 
   // LLM verification — sequential calls (23 total across all poems)
-  console.log(`  Verifying ${parts.length} parts via Claude Haiku…`);
+  console.log(`  Verifying ${parts.length} parts via DeepSeek…`);
   let allValid = true;
 
   for (let i = 0; i < parts.length; i++) {
@@ -380,7 +397,7 @@ async function processSplit(
 
     try {
       result = await verifyPart(
-        anthropicApiKey,
+        deepSeekApiKey,
         poem.title,
         poem.author,
         parts[i],
@@ -438,24 +455,22 @@ async function main(): Promise<void> {
     console.log('DRY RUN — no changes will be made\n');
   }
 
-  // Load .env from the ETL package root (needed for DB + Anthropic API key)
+  // Load .env from the ETL package root (needed for DB + DeepSeek API key)
   loadEnv({ path: resolve(PKG_ROOT, '.env') });
 
   // DB is needed in both dry-run (for reading poem content) and live mode
   const db = createDb(resolveDbConfig());
 
-  const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
-  if (!dryRun && !anthropicApiKey) {
-    throw new Error(
-      'ANTHROPIC_API_KEY environment variable is required (set in packages/etl/.env)',
-    );
+  const deepSeekApiKey = process.env.DEEPSEEK_API_KEY;
+  if (!dryRun && !deepSeekApiKey) {
+    throw new Error('DEEPSEEK_API_KEY environment variable is required (set in packages/etl/.env)');
   }
 
   for (const target of POEM_TARGETS) {
     if (target.action === 'delete') {
       await processDelete(target.prefix, db, dryRun);
     } else {
-      await processSplit(target.prefix, db, dryRun, anthropicApiKey ?? '');
+      await processSplit(target.prefix, db, dryRun, deepSeekApiKey ?? '');
     }
   }
 
