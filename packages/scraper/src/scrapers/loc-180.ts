@@ -14,6 +14,7 @@ const MACRO_PAUSE_MIN_MS = 5 * 60 * 1000;
 const MACRO_PAUSE_MAX_MS = 10 * 60 * 1000;
 const SEARCH_FETCH_MAX_ATTEMPTS = 3;
 const POEM_FETCH_MAX_ATTEMPTS = 3;
+const FETCH_TIMEOUT_MS = 30000;
 const RETRY_DELAY_MIN_MS = 1000;
 const RETRY_DELAY_MAX_MS = 2500;
 
@@ -49,6 +50,8 @@ export interface Loc180ScraperOptions {
   htmlFetcherImpl?: (url: string) => Promise<string>;
   sleepImpl?: (ms: number) => Promise<void>;
   randomImpl?: () => number;
+  fetchImpl?: typeof fetch;
+  fetchTimeoutMs?: number;
   requestJitterMs?: DelayRange;
   macroPauseEvery?: number;
   macroPauseMs?: DelayRange;
@@ -159,6 +162,13 @@ export async function scrapeLoc180(
     ? Math.floor(options.macroPauseEvery)
     : MICRO_BATCH_SIZE;
   const strictValidation = options.strictValidation ?? false;
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const fetchTimeoutMs =
+    typeof options.fetchTimeoutMs === 'number' &&
+    Number.isFinite(options.fetchTimeoutMs) &&
+    options.fetchTimeoutMs > 0
+      ? options.fetchTimeoutMs
+      : FETCH_TIMEOUT_MS;
   const startTimeMs = Date.now();
 
   logger.info('Starting LOC Poetry 180 scrape (JSON API + Playwright)', {
@@ -256,7 +266,14 @@ export async function scrapeLoc180(
       }
 
       try {
-        const response = await fetch(url);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), fetchTimeoutMs);
+        let response: Response;
+        try {
+          response = await fetchImpl(url, { signal: controller.signal });
+        } finally {
+          clearTimeout(timeoutId);
+        }
         if (!response.ok) {
           logger.warn('Non-OK response from LOC fetch', {
             sourceUrl: url,
@@ -279,7 +296,14 @@ export async function scrapeLoc180(
 
         return body;
       } catch (e) {
-        logger.warn('Fetch error fetching LOC URL', { url, error: String(e) });
+        const error = String(e);
+        const isAbort =
+          (e as { name?: unknown } | null)?.name === 'AbortError' ||
+          error.toLowerCase().includes('abort');
+        logger.warn(isAbort ? 'Fetch timeout fetching LOC URL' : 'Fetch error fetching LOC URL', {
+          url,
+          error,
+        });
         return null;
       }
     };
