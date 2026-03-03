@@ -264,7 +264,7 @@ describe('scrapeLoc180', () => {
     expect(poems[0].content).not.toContain('May Swenson');
   });
 
-  test('applies jitter between normal requests and macro-pause every 25 poems', async () => {
+  test('applies jitter between every request with no macro-pauses', async () => {
     const delays: number[] = [];
 
     // 26 poems: poems 1–26
@@ -285,14 +285,13 @@ describe('scrapeLoc180', () => {
         delays.push(ms);
       },
       randomImpl: () => 0,
+      requestJitterMs: { min: 10, max: 20 },
     });
 
     expect(poems).toHaveLength(26);
-    // 24 jitter delays (between poems 1–25, skipping the macro-pause slot)
-    const jitterDelays = delays.filter((ms) => ms === 4000);
-    expect(jitterDelays).toHaveLength(24);
-    // One macro-pause after poem 25
-    expect(delays).toContain(5 * 60 * 1000);
+    // jitter applied after every poem except the last (25 delays total)
+    expect(delays).toHaveLength(25);
+    expect(delays.every((ms) => ms === 10)).toBe(true);
   });
 
   test('dedupes by poem number and keeps deterministic first URL', async () => {
@@ -321,7 +320,7 @@ describe('scrapeLoc180', () => {
     expect(poems[0].sourceUrl).toContain('first-slug');
   });
 
-  test('supports configurable pacing options without changing default behavior', async () => {
+  test('supports configurable requestJitterMs and applies jitter between poems', async () => {
     const delays: number[] = [];
     const threePoems = Array.from({ length: 3 }, (_, i) => ({
       num: i + 1,
@@ -340,12 +339,11 @@ describe('scrapeLoc180', () => {
       },
       randomImpl: () => 0,
       requestJitterMs: { min: 10, max: 20 },
-      macroPauseEvery: 2,
-      macroPauseMs: { min: 100, max: 200 },
     });
 
     expect(poems).toHaveLength(3);
-    expect(delays).toEqual([10, 100]);
+    // jitter applied after poem 1 and poem 2; skipped after poem 3 (last)
+    expect(delays).toEqual([10, 10]);
   });
 
   test('returns partial results when post-scrape validation fails by default', async () => {

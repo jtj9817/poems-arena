@@ -7,11 +7,8 @@ import { loadHtml, normalizeWhitespace } from '../utils/html';
 // LOC search API — returns all 180 Poetry 180 poems in a single request.
 const SEARCH_URL = 'https://www.loc.gov/search/?fa=partof:poetry+180&fo=json&c=200';
 
-const REQUEST_JITTER_MIN_MS = 4000;
-const REQUEST_JITTER_MAX_MS = 9000;
-const MICRO_BATCH_SIZE = 25;
-const MACRO_PAUSE_MIN_MS = 5 * 60 * 1000;
-const MACRO_PAUSE_MAX_MS = 10 * 60 * 1000;
+const REQUEST_JITTER_MIN_MS = 10000;
+const REQUEST_JITTER_MAX_MS = 31000;
 const SEARCH_FETCH_MAX_ATTEMPTS = 3;
 const POEM_FETCH_MAX_ATTEMPTS = 3;
 const FETCH_TIMEOUT_MS = 30000;
@@ -53,8 +50,6 @@ export interface Loc180ScraperOptions {
   fetchImpl?: typeof fetch;
   fetchTimeoutMs?: number;
   requestJitterMs?: DelayRange;
-  macroPauseEvery?: number;
-  macroPauseMs?: DelayRange;
   strictValidation?: boolean;
 }
 
@@ -153,14 +148,6 @@ export async function scrapeLoc180(
     REQUEST_JITTER_MIN_MS,
     REQUEST_JITTER_MAX_MS,
   );
-  const macroPause = resolveDelayRange(
-    options.macroPauseMs,
-    MACRO_PAUSE_MIN_MS,
-    MACRO_PAUSE_MAX_MS,
-  );
-  const macroPauseEvery = isFiniteNonNegativeNumber(options.macroPauseEvery)
-    ? Math.floor(options.macroPauseEvery)
-    : MICRO_BATCH_SIZE;
   const strictValidation = options.strictValidation ?? false;
   const fetchImpl = options.fetchImpl ?? fetch;
   const fetchTimeoutMs =
@@ -388,19 +375,7 @@ export async function scrapeLoc180(
       .sort((a, b) => a.number - b.number);
 
     const pace = async (processedCount: number): Promise<void> => {
-      const isLastPoem = processedCount >= linksToScrape.length;
-      if (isLastPoem) return;
-
-      if (macroPauseEvery > 0 && processedCount % macroPauseEvery === 0) {
-        const macroPauseMs = randomJitter(macroPause.min, macroPause.max, randomImpl);
-        logger.info('Taking macro pause between LOC micro-batches', {
-          source: 'loc-180',
-          processedCount,
-          pauseMs: macroPauseMs,
-        });
-        await sleepImpl(macroPauseMs);
-        return;
-      }
+      if (processedCount >= linksToScrape.length) return;
 
       const jitterMs = randomJitter(requestJitter.min, requestJitter.max, randomImpl);
       logger.debug('Applying jitter before next LOC request', {
