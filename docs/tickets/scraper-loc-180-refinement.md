@@ -23,13 +23,22 @@ Current implementation is correct but can be made simpler and more robust:
 
 ## Suggested Refinements (No Fundamental Output Change)
 
+### Output Invariants (Must Remain True)
+
+- `ScrapedPoem.source` remains `'loc-180'`.
+- `ScrapedPoem.sourceUrl` remains the poem detail page URL (the one that contains `poetry-180-XYZ`), not the `?fo=json` URL.
+- `sourceId` generation remains `generateSourceId('loc-180', url, title)` using the poem detail page URL and final extracted title.
+- Poem `content` continues to be extracted from the `<pre>` within `item.article` and continues to exclude attribution lines outside the `<pre>`.
+- `isPublicDomain` remains `false`.
+
 1. **Use `fetch` (or Playwright `APIRequestContext`) as the default for LOC JSON**, and keep Playwright page navigation only as a fallback when a WAF/challenge is detected.
    - This aligns with other scrapers (e.g. `gutenberg.ts`, `poets-org.ts`) that default to `fetch`.
    - For Playwright-based fallback, prefer `context.request.get(url)` to avoid opening a new page per request.
 
 2. **Return partial results on post-scrape validation failure.**
    - Replace the `throw` at `loc-180.ts:315-318` with a `logger.error(...)` (include `poems.length`, expected count, and maybe `start/end`) and still return `poems`.
-   - If strict behavior is desired, introduce an option like `strictValidation?: boolean` defaulting to current behavior, or defaulting to non-throw with an explicit opt-in for “fail-hard”.
+   - Preferred behavior: default to returning partial results (do not discard already-scraped poems).
+   - If strict behavior is still needed for some callers, introduce an option like `strictValidation?: boolean` with a clear default (`false`), and when enabled preserve current “fail-hard” behavior.
 
 3. **Simplify link collection and dedupe by poem number.**
    - Build a `Map<number, string>` from the search results (first seen wins, or prefer canonical URL if detectable), then sort numbers.
@@ -43,10 +52,22 @@ Current implementation is correct but can be made simpler and more robust:
    - If response `Content-Type` is `text/html` (or body starts with `<`), treat as a WAF/challenge and retry with backoff/fallback transport.
    - This reduces noisy JSON parse warnings and avoids retrying a path that will never succeed.
 
+### Transport Preference (Implementation Guidance)
+
+- Preferred order:
+  1. Bun `fetch` for `SEARCH_URL` and each poem `?fo=json` request.
+  2. Playwright `context.request.get(url)` if (and only if) `fetch` appears blocked or returns HTML/challenge.
+  3. Full page navigation (`page.goto`) only as a last resort for challenge detection/debugging, since it is the most expensive path.
+
 ## Files Affected
 
 - `packages/scraper/src/scrapers/loc-180.ts`
 - `packages/scraper/src/scrapers/loc-180.test.ts` (only if new options / behavior switches are added)
+
+## How To Verify
+
+- Unit tests: `pnpm --filter @sanctuary/scraper test` (must keep `loc-180.test.ts` passing; it locks in default pacing expectations).
+- Optional smoke run: `packages/scraper/src/scrapers/live-scrape.test.ts` (if enabled/used in your workflow) to confirm behavior against real LOC endpoints.
 
 ## Acceptance Criteria
 
@@ -55,4 +76,3 @@ Current implementation is correct but can be made simpler and more robust:
 - [ ] When post-scrape validation fails, already-scraped poems are still returned (and the failure is clearly logged).
 - [ ] Dedupe is deterministic and keyed by poem number, not URL string.
 - [ ] Pacing defaults remain unchanged (existing tests continue to pass), but pacing can be overridden via options for faster controlled runs.
-
