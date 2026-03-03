@@ -1,89 +1,214 @@
-# [TASK] LOC 180 Scraper WAF Bypass Algorithm Redesign
+# [TASK] LOC 180 Scraper WAF Bypass — Revised Plan
 
 **Date:** 2026-03-02
 **Status:** Open
 **Priority:** High
 **Assignee:** —
-**Labels:** `scraper`, `etl`, `loc-180`, `waf`
+**Labels:** `scraper`, `etl`, `loc-180`, `waf`, `playwright`
 
-**Linked To:** 
+**Linked To:**
 - Parent Ticket: [`etl-pipeline-activation.md`](etl-pipeline-activation.md)
 - Related: [`loc-scraper-rate-limit.md`](loc-scraper-rate-limit.md)
 
-## Context
+---
 
-According to the status update in the `etl-pipeline-activation.md` ticket, the Phase 1 LOC scrape is still incomplete. The Library of Congress (LOC) Web Application Firewall (WAF) is still able to detect our scraping attempts as a flagrant violation of its rules. This results in a long-duration IP ban after approximately 52 requests, despite previous rate-limiting efforts (`minDelay: 4000`).
+## What Was Tried (and Failed)
 
-The WAF is likely detecting either:
-1. The lack of typical browser headers (e.g., node fetch user-agent).
-2. The robotic predictability of the requests (static delay).
-3. A strict rate limit per IP over a short time window (e.g., max 50 requests/hour).
+The original bypass plan proposed in this ticket was implemented in full (commit `6e8d1b3`):
 
-Therefore, the scraping algorithm in `packages/scraper/src/scrapers/loc-180.ts` must be reworked to simulate human behavior and successfully bypass the WAF.
+- ✅ Browser-like headers (`User-Agent`, `Accept`, `Sec-Fetch-*`, etc.)
+- ✅ Random per-request jitter (4–9 s)
+- ✅ Micro-batch macro-pauses (5–10 min every 25 poems)
+- ✅ Sequential `for...of` loop (no `Promise.all`)
+- ✅ Circuit breaker with 90 s minimum block on any 429
+- ✅ `Retry-After` header parsing
 
-## Proposed Solution / Implementation Plan
+Despite all of this, three re-scrape attempts on 2026-03-02 all failed. Attempt 1 got ~52 poems then was blocked; attempts 2 and 3 were blocked on the very first list-page request.
 
-### 1. Spoof Realistic Browser Headers (High Impact)
-Currently, `fetchImpl(url)` is called without HTTP headers, exposing the default node environment user-agent.
-**Action:** Pass standard browser headers in every `fetch` call to disguise the scraper as a regular user navigating the site.
+---
 
-```typescript
-const BROWSER_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-  'Accept-Language': 'en-US,en;q=0.9',
-  'Accept-Encoding': 'gzip, deflate, br',
-  'Connection': 'keep-alive',
-  'Upgrade-Insecure-Requests': '1',
-  'Sec-Fetch-Dest': 'document',
-  'Sec-Fetch-Mode': 'navigate',
-  'Sec-Fetch-Site': 'none',
-  'Sec-Fetch-User': '?1'
-};
+## Revised Diagnosis
+
+The original plan assumed the WAF was reacting to **request rate and missing headers**. This was incorrect.
+
+The key observation: **the user can load the same LOC pages in a browser on the same machine from the same IP without any issues.** This rules out a true IP-level ban. The WAF is performing **client fingerprinting**, distinguishing our process from a real browser even though the IP is identical.
+
+The most likely detection vectors, in order of probability:
+
+1. **TLS fingerprint mismatch** — Bun's TLS ClientHello presents a different cipher suite ordering and extension list than Chrome's. Sophisticated WAFs (Akamai Bot Manager, Cloudflare Bot Management) fingerprint TLS at the handshake level, before any HTTP headers are visible. Header spoofing cannot fix this.
+
+2. **No cookie persistence** — WAFs commonly issue a cookie challenge on first contact (a `Set-Cookie` with a short-lived clearance token). Browsers handle this transparently; `fetch` does not carry cookies across calls, so every request looks like a fresh unverified client.
+
+3. **Missing Client Hints** — Chrome 89+ sends `Sec-CH-UA`, `Sec-CH-UA-Mobile`, and `Sec-CH-UA-Platform`. Their absence is a strong bot signal on Chromium-based WAF fingerprinting rules.
+
+**Conclusion:** Header spoofing alone cannot defeat TLS-level fingerprinting. The only reliable fix is to scrape with a real browser process — or to avoid scraping entirely by using an official API if one exists.
+
+---
+
+## Implementation Plan
+
+### Phase 0 — Check for LOC JSON API (Do This First)
+
+LOC exposes a `?fo=json` query parameter on many of its pages that returns structured JSON instead of HTML. If the Poetry 180 collection is available via this API, scraping becomes unnecessary.
+
+**Manual check (takes ~2 minutes):**
+
+```bash
+# Check if the all-poems list page returns JSON
+curl -s "https://www.loc.gov/programs/poetry-and-literature/poet-laureate/poet-laureate-projects/poetry-180/all-poems/?fo=json" \
+  | head -c 500
+
+# Also check individual poem page
+curl -s "https://www.loc.gov/programs/poetry-and-literature/poet-laureate/poet-laureate-projects/poetry-180/all-poems/poem-number-1/?fo=json" \
+  | head -c 500
 ```
 
-### 2. Introduce "Human-Like" Jitter
-A strict `minDelay: 4000` is highly predictable.
-**Action:** Apply a randomized delay between every single request (e.g., 4 to 9 seconds) rather than a static limiter delay.
+**If the API works:** Update `loc-180.ts` to hit the JSON endpoint instead of parsing HTML. The `scrapeLoc180()` public interface stays the same; only the internals change. Close this ticket and open a new `loc-scraper-json-api.md` with the implementation details.
 
-```typescript
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-const randomJitter = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1) + min);
-// Example usage: await delay(randomJitter(4000, 9000));
+**If the API returns HTML, 404, or 403:** Proceed to Phase 1.
+
+---
+
+### Phase 1 — Playwright-Based Scraper
+
+Replace the `fetch`-based scraping loop with a headless Chromium browser driven by Playwright. A real browser process handles TLS fingerprinting, cookie challenges, and Client Hints automatically.
+
+#### 1.1 — Add `playwright` to `@sanctuary/scraper`
+
+```bash
+pnpm --filter @sanctuary/scraper add playwright
 ```
 
-### 3. Implement Micro-Batching with Macro-Pauses
-If the WAF strictly limits an IP to ~50 requests per window, we must respect that quota by grouping requests and taking long "reading" breaks.
-**Action:** Process poems in batches of 20–30 (e.g., 25). After a batch finishes, enforce a 5 to 10-minute pause before starting the next batch.
+After install, download the Chromium binary:
 
-### 4. Sequential Execution instead of Promise.all
-The current `p-limit` implementation queues all 180 promises at once using `Promise.all(poemPromises)`.
-**Action:** Refactor the link processing into a clean `for...of` loop to better manage state, macro-pauses, and early aborts.
+```bash
+pnpm --filter @sanctuary/scraper exec playwright install chromium
+```
+
+**Note:** `playwright` (the core library) is used here rather than `@playwright/test`. The test runner is not needed; only `chromium.launch()` is required.
+
+#### 1.2 — Rewrite `scrapeLoc180` internals
+
+The public function signature stays identical:
 
 ```typescript
-const poems: ScrapedPoem[] = [];
+export async function scrapeLoc180(
+  start: number = 1,
+  end: number = 180,
+  options: Loc180ScraperOptions = {},
+): Promise<ScrapedPoem[]>
+```
 
-for (let i = 0; i < poemLinks.length; i++) {
-    const link = poemLinks[i];
-    
-    // Process poem sequentially
-    const poem = await processPoem(link); 
+Replace the `fetchImpl` loop with a Playwright browser session:
+
+```typescript
+import { chromium } from 'playwright';
+
+// Inside scrapeLoc180():
+const browser = await chromium.launch({ headless: true });
+const context = await browser.newContext({
+  userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ...',
+  locale: 'en-US',
+  // context shares cookies across all pages — handles WAF cookie challenges
+});
+
+try {
+  // 1. Navigate the list page to seed cookies
+  const listPage = await context.newPage();
+  await listPage.goto(LIST_URL, { waitUntil: 'domcontentloaded' });
+  const listHtml = await listPage.content();
+  await listPage.close();
+
+  // 2. Parse poem URLs from the list (same logic as before)
+  const linksToScrape = extractPoemLinks(listHtml, start, end);
+
+  // 3. Iterate sequentially with jitter
+  for (let i = 0; i < linksToScrape.length; i++) {
+    const page = await context.newPage();
+    await page.goto(linksToScrape[i].url, { waitUntil: 'domcontentloaded' });
+    const html = await page.content();
+    await page.close();
+
+    const poem = parsePoem(html, linksToScrape[i]);
     if (poem) poems.push(poem);
-    
-    // Check for macro-pause every 25 poems
-    if ((i + 1) % 25 === 0 && i !== poemLinks.length - 1) {
-        logger.info('Taking a 6-minute break to reset WAF thresholds...');
-        await delay(6 * 60 * 1000); 
-    } else {
-        // Standard random jitter between poems
-        await delay(randomJitter(4000, 9000));
+
+    // Jitter between requests (same constants as before)
+    if (i < linksToScrape.length - 1) {
+      const jitterMs = randomJitter(REQUEST_JITTER_MIN_MS, REQUEST_JITTER_MAX_MS, randomImpl);
+      await sleepImpl(jitterMs);
     }
+
+    // Macro-pause every 25 poems
+    if ((i + 1) % MICRO_BATCH_SIZE === 0 && i < linksToScrape.length - 1) {
+      const pauseMs = randomJitter(MACRO_PAUSE_MIN_MS, MACRO_PAUSE_MAX_MS, randomImpl);
+      logger.info('Taking macro pause between LOC micro-batches', { pauseMs });
+      await sleepImpl(pauseMs);
+    }
+  }
+} finally {
+  await browser.close();
 }
 ```
 
+Key design points:
+- **Single `BrowserContext`** — cookies set on the list page are automatically sent on all subsequent poem page requests within the same context.
+- **One page per poem, then `page.close()`** — prevents memory accumulation over 180 iterations.
+- **`waitUntil: 'domcontentloaded'`** — no need to wait for JS execution; the poem content is server-rendered HTML.
+- **Jitter and macro-pause constants unchanged** — same conservative pacing as the current implementation.
+- **`Retry-After` / circuit breaker logic removed** — navigation failures are handled via Playwright's built-in timeout + `try/catch`; WAF blocks manifest as timeouts or redirect loops rather than 429 HTTP codes when using a real browser.
+
+#### 1.3 — Handle the 429-as-redirect case
+
+Some WAFs redirect blocked requests to a challenge page rather than returning a 429. Add a post-navigation check:
+
+```typescript
+const finalUrl = page.url();
+if (finalUrl.includes('captcha') || finalUrl.includes('challenge') || finalUrl.includes('blocked')) {
+  logger.warn('WAF challenge page detected', { sourceUrl, finalUrl });
+  // Increase delay significantly and retry once
+}
+```
+
+#### 1.4 — Update `Loc180ScraperOptions`
+
+The `fetchImpl` injectable is no longer meaningful. Replace it with a Playwright-compatible hook for unit tests:
+
+```typescript
+export interface Loc180ScraperOptions {
+  // For unit testing: provide a function that returns pre-canned HTML
+  // given a URL, bypassing the browser entirely.
+  htmlFetcherImpl?: (url: string) => Promise<string>;
+  sleepImpl?: (ms: number) => Promise<void>;
+  randomImpl?: () => number;
+}
+```
+
+Unit tests that currently inject `fetchImpl` will need to be updated to use `htmlFetcherImpl`.
+
+#### 1.5 — Post-scrape validation unchanged
+
+Keep the existing `≥ 170 of 180` validation gate.
+
+---
+
 ## Acceptance Criteria
-- [ ] `loc-180.ts` is updated to include standard browser headers on all fetch requests.
-- [ ] A random jitter delay is implemented between sequential requests.
-- [ ] Macro-pauses (e.g., 6 minutes after every 25 requests) are implemented.
-- [ ] The `Promise.all` concurrency model is replaced with a sequential `for...of` loop for the poem processing phase.
-- [ ] The scraper successfully runs against LOC 180 without triggering an IP ban.
+
+- [ ] Phase 0 JSON API probe completed and result documented here
+- [ ] If Phase 1 needed: `playwright` added to `@sanctuary/scraper` dependencies
+- [ ] `scrapeLoc180` rewritten to use `chromium.launch()` via Playwright
+- [ ] Existing unit tests updated to use `htmlFetcherImpl` (or equivalent stub)
+- [ ] LOC scrape retrieves ≥ 170 of 180 poems in a single run
+- [ ] ETL re-run after re-scrape loads the new poems into the DB
+
+## Running After Implementation
+
+```bash
+# Re-scrape LOC only
+bun scripts/run-scrape.ts --sources loc-180
+
+# Re-run ETL to load new poems (upsert-safe)
+pnpm --filter @sanctuary/etl run pipeline --include-non-pd
+
+# Generate AI counterparts for the ~115 new poems
+bun scripts/run-generate.ts --concurrency 3
+```
