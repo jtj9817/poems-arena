@@ -10,22 +10,24 @@ const gutenbergHtml = `
   <p>Some poem content for testing.</p>
 </body></html>`;
 
-const locListHtml = `
-<html><body>
-  <a href="/item/poetry-180-001/test-poem/">Poem 001</a>
-</body></html>`;
+const locSearchJson = JSON.stringify({
+  results: [
+    {
+      url: 'https://www.loc.gov/item/poetry-180-001/test-poem/',
+      title: 'Test LOC Poem',
+      shelf_id: 'poetry-and-literature|poetry-180|001|test-poem|1',
+    },
+  ],
+});
 
-const locDetailHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta name="dc.title" content="Test LOC Poem" />
-  <meta name="dc.creator" content="Test Author" />
-</head>
-<body>
-  <div class="poem"><pre>Test LOC content here.</pre></div>
-</body>
-</html>`;
+const locPoemJson = JSON.stringify({
+  item: {
+    title: 'Test LOC Poem',
+    author: ['Author, Test'],
+    article: '<pre>Test LOC content here.</pre><p>\u2014Test Author</p>',
+    poem_number: '001',
+  },
+});
 
 const poetsListHtml = `
 <html><body>
@@ -89,15 +91,16 @@ describe('ScrapedPoem schema validation', () => {
   });
 
   test('LOC-180 scraper returns valid ScrapedPoem objects', async () => {
-    const fetchMock = mock((url: string | URL | Request) => {
-      const urlStr = url.toString();
-      if (urlStr.includes('all-poems')) {
-        return Promise.resolve(new Response(locListHtml));
-      }
-      return Promise.resolve(new Response(locDetailHtml));
-    });
+    const htmlFetcherImpl = async (url: string): Promise<string> => {
+      if (url.includes('partof:poetry+180')) return locSearchJson;
+      if (url.includes('poetry-180-001')) return locPoemJson;
+      throw new Error(`No stub for URL: ${url}`);
+    };
 
-    const poems = await scrapeLoc180(1, 1, { fetchImpl: fetchMock as unknown as typeof fetch });
+    const poems = await scrapeLoc180(1, 1, {
+      htmlFetcherImpl,
+      sleepImpl: async () => {},
+    });
 
     expect(poems.length).toBeGreaterThan(0);
     for (const poem of poems) {

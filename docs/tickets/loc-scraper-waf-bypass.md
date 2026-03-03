@@ -191,12 +191,36 @@ Keep the existing `≥ 170 of 180` validation gate.
 
 ---
 
+## Phase 0 Findings (2026-03-03)
+
+Both JSON API endpoints were probed using Playwright MCP (real Chromium browser, same machine/IP):
+
+**`https://www.loc.gov/search/?fa=partof:poetry+180&fo=json&c=200`** → ✅ Returns structured JSON
+- `results[]` array contains all 180 poems (confirmed: numbers 1–180, none missing)
+- Each entry has `url` (e.g. `https://www.loc.gov/item/poetry-180-001/introduction-to-poetry/`) and `shelf_id`
+- No WAF challenge — response arrived successfully
+
+**`https://www.loc.gov/item/poetry-180-001/introduction-to-poetry/?fo=json`** → ✅ Returns structured JSON
+- `item.article` contains `<pre>poem text</pre><p>—Author Name</p>` HTML
+- `item.author` = `["Collins, Billy"]` (Title-case, Last-First format)
+- `item.title` = `"Introduction to Poetry"`
+- `item.poem_number` = `"001"`
+
+**Decision:** Implement JSON API approach. The scraper will use:
+1. Search API to retrieve all 180 poem URLs in a single request
+2. Per-poem `?fo=json` endpoint for structured content (avoiding HTML parsing)
+3. Playwright browser for all HTTP (WAF bypass via real Chromium TLS)
+
+Phase 1 (Playwright-based scraper) is still required for WAF bypass — the JSON API does not change the TLS fingerprint issue. The difference is that we parse JSON instead of HTML, which is simpler and more robust.
+
+---
+
 ## Acceptance Criteria
 
-- [ ] Phase 0 JSON API probe completed and result documented here
-- [ ] If Phase 1 needed: `playwright` added to `@sanctuary/scraper` dependencies
-- [ ] `scrapeLoc180` rewritten to use `chromium.launch()` via Playwright
-- [ ] Existing unit tests updated to use `htmlFetcherImpl` (or equivalent stub)
+- [x] Phase 0 JSON API probe completed and result documented here
+- [x] `playwright` added to `@sanctuary/scraper` dependencies
+- [x] `scrapeLoc180` rewritten to use `chromium.launch()` via Playwright + JSON API
+- [x] Existing unit tests updated to use `htmlFetcherImpl` (or equivalent stub)
 - [ ] LOC scrape retrieves ≥ 170 of 180 poems in a single run
 - [ ] ETL re-run after re-scrape loads the new poems into the DB
 

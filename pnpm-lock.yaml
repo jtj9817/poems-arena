@@ -217,6 +217,9 @@ importers:
       p-limit:
         specifier: ^6.2.0
         version: 6.2.0
+      playwright:
+        specifier: ^1.58.2
+        version: 1.58.2
     devDependencies:
       '@types/bun':
         specifier: latest
