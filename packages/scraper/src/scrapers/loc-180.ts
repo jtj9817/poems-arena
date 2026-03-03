@@ -12,6 +12,10 @@ const REQUEST_JITTER_MAX_MS = 9000;
 const MICRO_BATCH_SIZE = 25;
 const MACRO_PAUSE_MIN_MS = 5 * 60 * 1000;
 const MACRO_PAUSE_MAX_MS = 10 * 60 * 1000;
+const SEARCH_FETCH_MAX_ATTEMPTS = 3;
+const POEM_FETCH_MAX_ATTEMPTS = 3;
+const RETRY_DELAY_MIN_MS = 1000;
+const RETRY_DELAY_MAX_MS = 2500;
 
 // JSON shapes returned by the LOC API
 interface SearchResult {
@@ -117,21 +121,26 @@ export async function scrapeLoc180(
       const page = await context!.newPage();
       try {
         const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        const finalUrl = page.url().toLowerCase();
+
+        if (
+          finalUrl.includes('captcha') ||
+          finalUrl.includes('challenge') ||
+          finalUrl.includes('blocked')
+        ) {
+          logger.warn('WAF challenge page detected', {
+            sourceUrl: url,
+            finalUrl,
+            status: response?.status(),
+          });
+          return null;
+        }
 
         if (!response || !response.ok()) {
-          const finalUrl = page.url();
-          if (
-            finalUrl.includes('captcha') ||
-            finalUrl.includes('challenge') ||
-            finalUrl.includes('blocked')
-          ) {
-            logger.warn('WAF challenge page detected', { sourceUrl: url, finalUrl });
-          } else {
-            logger.warn('Non-OK response from LOC', {
-              sourceUrl: url,
-              status: response?.status(),
-            });
-          }
+          logger.warn('Non-OK response from LOC', {
+            sourceUrl: url,
+            status: response?.status(),
+          });
           return null;
         }
 
@@ -144,8 +153,34 @@ export async function scrapeLoc180(
       }
     };
 
+    const getBodyWithRetries = async (
+      url: string,
+      maxAttempts: number,
+      operation: string,
+    ): Promise<string | null> => {
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const body = await getBody(url);
+        if (body) return body;
+
+        const shouldRetry = attempt < maxAttempts;
+        logger.warn(shouldRetry ? 'LOC fetch failed, retrying' : 'LOC fetch failed after retries', {
+          source: 'loc-180',
+          operation,
+          url,
+          attempt,
+          maxAttempts,
+        });
+
+        if (shouldRetry) {
+          const delayMs = randomJitter(RETRY_DELAY_MIN_MS, RETRY_DELAY_MAX_MS, randomImpl);
+          await sleepImpl(delayMs);
+        }
+      }
+      return null;
+    };
+
     // ── Step 1: Retrieve all poem URLs via the search API ──────────────────
-    const searchBody = await getBody(SEARCH_URL);
+    const searchBody = await getBodyWithRetries(SEARCH_URL, SEARCH_FETCH_MAX_ATTEMPTS, 'search');
     if (!searchBody) {
       logger.error('Failed to fetch LOC poem list from search API', undefined, {
         source: 'loc-180',
@@ -204,7 +239,7 @@ export async function scrapeLoc180(
         sourceUrl: url,
       });
 
-      const poemBody = await getBody(poemApiUrl);
+      const poemBody = await getBodyWithRetries(poemApiUrl, POEM_FETCH_MAX_ATTEMPTS, 'poem');
 
       if (poemBody) {
         try {

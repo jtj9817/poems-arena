@@ -145,9 +145,65 @@ describe('scrapeLoc180', () => {
       randomImpl: () => 0,
     });
 
-    expect(poem2CallCount).toBe(1);
+    expect(poem2CallCount).toBe(3);
     expect(poems).toHaveLength(1);
     expect(poems[0].title).toBe('Introduction to Poetry');
+  });
+
+  test('retries search API fetch and recovers from transient failures', async () => {
+    let searchCallCount = 0;
+
+    const fetcher = async (url: string): Promise<string> => {
+      if (url.includes('partof:poetry+180')) {
+        searchCallCount++;
+        if (searchCallCount < 3) {
+          throw new Error('temporary network error');
+        }
+        return makeSearchJson([poem1]);
+      }
+
+      if (url.includes('poetry-180-001')) {
+        return defaultPoemJson;
+      }
+
+      throw new Error(`No stub for ${url}`);
+    };
+
+    const poems = await scrapeLoc180(1, 1, {
+      htmlFetcherImpl: fetcher,
+      sleepImpl: noSleep,
+      randomImpl: () => 0,
+    });
+
+    expect(searchCallCount).toBe(3);
+    expect(poems).toHaveLength(1);
+  });
+
+  test('retries poem JSON fetch and recovers from transient failures', async () => {
+    let poemCallCount = 0;
+
+    const fetcher = async (url: string): Promise<string> => {
+      if (url.includes('partof:poetry+180')) return makeSearchJson([poem1]);
+
+      if (url.includes('poetry-180-001')) {
+        poemCallCount++;
+        if (poemCallCount < 3) {
+          throw new Error('temporary timeout');
+        }
+        return defaultPoemJson;
+      }
+
+      throw new Error(`No stub for ${url}`);
+    };
+
+    const poems = await scrapeLoc180(1, 1, {
+      htmlFetcherImpl: fetcher,
+      sleepImpl: noSleep,
+      randomImpl: () => 0,
+    });
+
+    expect(poemCallCount).toBe(3);
+    expect(poems).toHaveLength(1);
   });
 
   test('all poems have source "loc-180" and isPublicDomain false', async () => {
