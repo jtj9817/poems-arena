@@ -15,11 +15,18 @@ import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
 import { config as loadEnv } from 'dotenv';
 import OpenAI from 'openai';
-import { like } from 'drizzle-orm';
+import { like, or, inArray } from 'drizzle-orm';
 
 import { createDb } from '@sanctuary/db/client';
 import { resolveDbConfig } from '@sanctuary/db/config';
-import { poems, poemTopics, scrapeSources } from '@sanctuary/db/schema';
+import {
+  poems,
+  poemTopics,
+  scrapeSources,
+  duels,
+  votes,
+  featuredDuels,
+} from '@sanctuary/db/schema';
 import type { Db } from '@sanctuary/db/client';
 import { generatePoemId, generateScrapeSourceId } from './utils/id-gen';
 
@@ -40,16 +47,22 @@ type PoemAction = 'delete' | 'split';
 interface PoemTarget {
   prefix: string;
   action: PoemAction;
+  /**
+   * For poems stored with \n\n between every individual line (no \n within stanzas):
+   * the number of lines per stanza. Used to reassemble proper stanzas before packing.
+   * Only needed when the poem has no Roman numeral section headers.
+   */
+  stanzaLines?: number;
 }
 
 const POEM_TARGETS: PoemTarget[] = [
   { prefix: 'd87091e153a9', action: 'delete' },
   { prefix: 'f399fdc5e1ab', action: 'delete' },
-  { prefix: '19176bc9d632', action: 'split' },
-  { prefix: 'b45e1e960ad8', action: 'split' },
-  { prefix: 'c8d1c4ef3331', action: 'split' },
-  { prefix: '92273a10aba0', action: 'split' },
-  { prefix: 'f49974a9f0b2', action: 'split' },
+  { prefix: '19176bc9d632', action: 'split', stanzaLines: 6 }, // Ballad: 6-line stanzas within sections I–VI
+  { prefix: 'b45e1e960ad8', action: 'split' }, // MAY-DAY: correct \n/\n\n format
+  { prefix: 'c8d1c4ef3331', action: 'split' }, // ADIRONDACS: correct \n/\n\n format
+  { prefix: '92273a10aba0', action: 'split' }, // MONADNOC: correct \n/\n\n format
+  { prefix: 'f49974a9f0b2', action: 'split', stanzaLines: 9 }, // Halloween: 9-line stanzas
 ];
 
 // ---------------------------------------------------------------------------
@@ -86,11 +99,138 @@ function isEditorialHeader(stanza: string): boolean {
   return line.length <= 80 && line === line.toUpperCase() && /[A-Z]/.test(line);
 }
 
-/** Clean stanzas then split content into parts under MAX_PART_CHARS. */
-function cleanAndSplit(content: string): string[] {
-  const rawStanzas = content.split(/\n{2,}/);
+/**
+ * Split a poem whose content uses Roman numeral section headers (e.g. "I", "II"…)
+ * as section delimiters.
+ *
+ * Each section's individual lines (all-\n\n format) are first reassembled into
+ * proper stanzas of `stanzaLines` lines each, joined with \n within a stanza
+ * and \n\n between stanzas. Stanzas are then packed greedily into parts under
+ * MAX_PART_CHARS.
+ *
+ * Used for: The Ballad of Reading Gaol (6-line stanzas within sections I–VI).
+ */
+function splitAtRomanSections(chunks: string[], stanzaLines: number): string[] {
+  const sections: string[][] = [];
+  let cur: string[] = [];
 
-  const stanzas = rawStanzas.filter((s) => {
+  for (const chunk of chunks) {
+    const trimmed = chunk.trim();
+    if (!trimmed) continue;
+    if (isRomanNumeralHeader(trimmed)) {
+      if (cur.length > 0) {
+        sections.push(cur);
+        cur = [];
+      }
+    } else if (!isEditorialHeader(trimmed)) {
+      cur.push(trimmed);
+    }
+  }
+  if (cur.length > 0) sections.push(cur);
+
+  const parts: string[] = [];
+  for (const section of sections) {
+    // Reassemble individual lines into stanzas of stanzaLines lines
+    const stanzas: string[] = [];
+    for (let i = 0; i < section.length; i += stanzaLines) {
+      stanzas.push(section.slice(i, i + stanzaLines).join('\n'));
+    }
+
+    // Greedy-pack stanzas into parts under MAX_PART_CHARS
+    let curStanzas: string[] = [];
+    let curLen = 0;
+    for (const stanza of stanzas) {
+      const stanzaLen = stanza.length + 2;
+      if (curLen + stanzaLen > MAX_PART_CHARS && curStanzas.length > 0) {
+        parts.push(curStanzas.join('\n\n'));
+        curStanzas = [stanza];
+        curLen = stanzaLen;
+      } else {
+        curStanzas.push(stanza);
+        curLen += stanzaLen;
+      }
+    }
+    if (curStanzas.length > 0) parts.push(curStanzas.join('\n\n'));
+  }
+
+  // Tail-merge: if the last part is too short, fold into second-to-last
+  if (parts.length > 1 && lineCount(parts[parts.length - 1]) < MIN_PART_LINES) {
+    parts[parts.length - 2] = parts[parts.length - 2] + '\n\n' + parts[parts.length - 1];
+    parts.pop();
+  }
+
+  return parts;
+}
+
+/**
+ * Split a poem stored in "all-\n\n" format (every individual line separated
+ * by \n\n, no \n within stanzas) by first reassembling stanzas of a fixed
+ * line count, then packing stanzas greedily under MAX_PART_CHARS.
+ *
+ * Used for: Halloween (Burns, 9-line stanzas).
+ */
+function splitByFixedLineCount(chunks: string[], stanzaLines: number): string[] {
+  const lines = chunks
+    .map((c) => c.trim())
+    .filter((c) => c && !isRomanNumeralHeader(c) && !isEditorialHeader(c));
+
+  // Reassemble into proper stanzas
+  const stanzas: string[] = [];
+  for (let i = 0; i < lines.length; i += stanzaLines) {
+    stanzas.push(lines.slice(i, i + stanzaLines).join('\n'));
+  }
+
+  // Greedy pack
+  const parts: string[] = [];
+  let cur: string[] = [];
+  let curLen = 0;
+
+  for (const stanza of stanzas) {
+    const stanzaLen = stanza.length + 2;
+    if (curLen + stanzaLen > MAX_PART_CHARS && cur.length > 0) {
+      parts.push(cur.join('\n\n'));
+      cur = [stanza];
+      curLen = stanzaLen;
+    } else {
+      cur.push(stanza);
+      curLen += stanzaLen;
+    }
+  }
+  if (cur.length > 0) parts.push(cur.join('\n\n'));
+
+  // Tail-merge
+  if (parts.length > 1 && lineCount(parts[parts.length - 1]) < MIN_PART_LINES) {
+    parts[parts.length - 2] = parts[parts.length - 2] + '\n\n' + parts[parts.length - 1];
+    parts.pop();
+  }
+
+  return parts;
+}
+
+/**
+ * Clean stanzas then split content into parts under MAX_PART_CHARS.
+ *
+ * Handles three content formats:
+ *   1. All-\n\n with Roman numeral section headers → split at sections.
+ *   2. All-\n\n without section headers → reassemble stanzas from fixed line count.
+ *   3. Normal \n / \n\n format → split at \n\n stanza/paragraph boundaries.
+ */
+function cleanAndSplit(content: string, stanzaLines?: number): string[] {
+  const rawChunks = content.split(/\n{2,}/);
+
+  // Detect "all-double-newline" format: every line is its own chunk (no \n within chunks)
+  const isAllDoubleNewline = rawChunks.every((c) => !c.includes('\n'));
+
+  if (isAllDoubleNewline) {
+    const hasRomanSections = rawChunks.some((c) => isRomanNumeralHeader(c.trim()));
+    if (hasRomanSections) {
+      return splitAtRomanSections(rawChunks, stanzaLines ?? 6);
+    }
+    return splitByFixedLineCount(rawChunks, stanzaLines ?? 9);
+  }
+
+  // Normal format: stanzas separated by \n\n, lines within stanzas by \n
+  const stanzas = rawChunks.filter((s) => {
     const trimmed = s.trim();
     if (!trimmed) return false;
     if (isRomanNumeralHeader(trimmed)) return false;
@@ -161,7 +301,7 @@ async function verifyPart(
   const client = getDeepSeekClient(apiKey);
   const romanNum = toRoman(partNum);
 
-  const prompt = `You are verifying that a poem excerpt has clean boundaries after being split from a longer source poem.
+  const prompt = `You are verifying that a poem excerpt has clean STRUCTURAL boundaries after being mechanically split from a longer source poem.
 
 Poem: "${title}" by ${author}
 Part ${romanNum} of ${totalParts}:
@@ -169,13 +309,16 @@ Part ${romanNum} of ${totalParts}:
 ${content}
 ---
 
-Check whether this excerpt:
-1. Begins at a clean verse or stanza boundary — the first line is the start of a complete thought or verse unit, not a mid-stanza continuation.
-2. Ends at a clean verse or stanza boundary — the last line concludes a complete thought or verse unit, not cut off mid-stanza.
-3. Contains no truncation artefacts — no mid-word breaks, no orphaned half-lines.
+Verify ONLY structural integrity (do NOT evaluate thematic or argumentative completeness):
+
+1. Begins at a structural start — the first line is NOT mid-sentence and is NOT an obvious syntactic continuation that only makes sense with the immediately preceding line (e.g., a line beginning with a lowercase word that continues the previous sentence).
+2. Ends at a structural boundary — the last line ends a complete sentence (ends with sentence-final punctuation: . ! ? or —) OR ends a complete verse unit (the final line of a stanza or rhyming couplet).
+3. No truncation artefacts — no mid-word breaks, no orphaned half-lines.
+
+IMPORTANT: It is expected and acceptable that the thematic content is incomplete — each part covers only a section of the full poem. Only mark as INVALID if there is a genuine mid-sentence syntactic cut or an obvious structural fracture. Do NOT mark invalid solely because the ideas or argument continue in the next part.
 
 Respond ONLY with JSON (no markdown code fences):
-{"valid": true | false, "issue": null | "<brief description of the problem>"}
+{"valid": true | false, "issue": null | "<brief specific description of the structural problem>"}
 
 Respond in JSON format.`;
 
@@ -274,8 +417,28 @@ async function fetchSourceRows(db: Db, prefix: string): Promise<ScrapeSourceRow[
   }));
 }
 
+async function fetchDuelIds(db: Db, prefix: string): Promise<string[]> {
+  const rows = await db
+    .select({ id: duels.id })
+    .from(duels)
+    .where(or(like(duels.poemAId, `${prefix}%`), like(duels.poemBId, `${prefix}%`)));
+  return rows.map((r) => r.id);
+}
+
 async function deleteOriginal(db: Db, prefix: string): Promise<void> {
+  // Pre-fetch referencing duel IDs outside the transaction (SELECT not available in LibSQL batch txn)
+  const duelIds = await fetchDuelIds(db, prefix);
+
   await db.transaction(async (tx) => {
+    // Cascade: featured_duels → votes (by duel) → duels → votes (by poem) → poem_topics → scrape_sources → poems
+    if (duelIds.length > 0) {
+      await tx.delete(featuredDuels).where(inArray(featuredDuels.duelId, duelIds));
+      await tx.delete(votes).where(inArray(votes.duelId, duelIds));
+      await tx
+        .delete(duels)
+        .where(or(like(duels.poemAId, `${prefix}%`), like(duels.poemBId, `${prefix}%`)));
+    }
+    await tx.delete(votes).where(like(votes.selectedPoemId, `${prefix}%`));
     await tx.delete(poemTopics).where(like(poemTopics.poemId, `${prefix}%`));
     await tx.delete(scrapeSources).where(like(scrapeSources.poemId, `${prefix}%`));
     await tx.delete(poems).where(like(poems.id, `${prefix}%`));
@@ -289,6 +452,7 @@ async function insertSplitPoems(
   parts: string[],
   topicIds: string[],
   sourceRows: ScrapeSourceRow[],
+  duelIds: string[],
 ): Promise<void> {
   await db.transaction(async (tx) => {
     for (let i = 0; i < parts.length; i++) {
@@ -336,7 +500,17 @@ async function insertSplitPoems(
       }
     }
 
-    // Delete the original poem
+    // Delete the original poem (cascade: featured_duels → votes → duels → poem_topics → scrape_sources → poems)
+    if (duelIds.length > 0) {
+      await tx.delete(featuredDuels).where(inArray(featuredDuels.duelId, duelIds));
+      await tx.delete(votes).where(inArray(votes.duelId, duelIds));
+      await tx
+        .delete(duels)
+        .where(
+          or(like(duels.poemAId, `${originalPrefix}%`), like(duels.poemBId, `${originalPrefix}%`)),
+        );
+    }
+    await tx.delete(votes).where(like(votes.selectedPoemId, `${originalPrefix}%`));
     await tx.delete(poemTopics).where(like(poemTopics.poemId, `${originalPrefix}%`));
     await tx.delete(scrapeSources).where(like(scrapeSources.poemId, `${originalPrefix}%`));
     await tx.delete(poems).where(like(poems.id, `${originalPrefix}%`));
@@ -354,11 +528,12 @@ async function processDelete(prefix: string, db: Db, dryRun: boolean): Promise<v
     return;
   }
 
+  const duelCount = dryRun ? 0 : (await fetchDuelIds(db, prefix)).length;
   console.log(`[DELETE] ${prefix} — ${poem.title} (${poem.author})`);
 
   if (!dryRun) {
     await deleteOriginal(db, prefix);
-    console.log(`  ✓ Deleted`);
+    console.log(`  ✓ Deleted (${duelCount} duels cascaded)`);
   }
 }
 
@@ -367,6 +542,7 @@ async function processSplit(
   db: Db,
   dryRun: boolean,
   deepSeekApiKey: string,
+  stanzaLines?: number,
 ): Promise<void> {
   const poem = await fetchPoem(db, prefix);
   if (!poem) {
@@ -374,7 +550,7 @@ async function processSplit(
     return;
   }
 
-  const parts = cleanAndSplit(poem.content);
+  const parts = cleanAndSplit(poem.content, stanzaLines);
 
   console.log(`\n[SPLIT] ${prefix} — ${poem.title} (${poem.author})`);
   for (let i = 0; i < parts.length; i++) {
@@ -428,12 +604,19 @@ async function processSplit(
     return;
   }
 
-  // Fetch topics and sources to copy alongside the new parts
+  // Fetch topics, sources, and referencing duels to cascade-delete with the original
   const topicIds = await fetchTopicIds(db, prefix);
   const sourceRows = await fetchSourceRows(db, prefix);
+  const duelIds = await fetchDuelIds(db, prefix);
 
-  await insertSplitPoems(db, poem, prefix, parts, topicIds, sourceRows);
-  console.log(`  ✓ Inserted ${parts.length} parts, deleted original`);
+  if (duelIds.length > 0) {
+    console.log(`  Cascading deletion of ${duelIds.length} duels referencing original…`);
+  }
+
+  await insertSplitPoems(db, poem, prefix, parts, topicIds, sourceRows, duelIds);
+  console.log(
+    `  ✓ Inserted ${parts.length} parts, deleted original (${duelIds.length} duels cascaded)`,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -470,7 +653,7 @@ async function main(): Promise<void> {
     if (target.action === 'delete') {
       await processDelete(target.prefix, db, dryRun);
     } else {
-      await processSplit(target.prefix, db, dryRun, deepSeekApiKey ?? '');
+      await processSplit(target.prefix, db, dryRun, deepSeekApiKey ?? '', target.stanzaLines);
     }
   }
 
