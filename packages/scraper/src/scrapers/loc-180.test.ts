@@ -295,6 +295,112 @@ describe('scrapeLoc180', () => {
     expect(delays).toContain(5 * 60 * 1000);
   });
 
+  test('dedupes by poem number and keeps deterministic first URL', async () => {
+    const duplicateNumberSearch = JSON.stringify({
+      results: [
+        { url: 'https://www.loc.gov/item/poetry-180-001/first-slug/' },
+        { url: 'https://www.loc.gov/item/poetry-180-001/second-slug/' },
+      ],
+    });
+    const fetchedPoemUrls: string[] = [];
+    const fetcher = async (url: string): Promise<string> => {
+      if (url.includes('partof:poetry+180')) return duplicateNumberSearch;
+      fetchedPoemUrls.push(url);
+      return makePoemJson({ title: 'Poem One' });
+    };
+
+    const poems = await scrapeLoc180(1, 1, {
+      htmlFetcherImpl: fetcher,
+      sleepImpl: noSleep,
+      randomImpl: () => 0,
+    });
+
+    expect(poems).toHaveLength(1);
+    expect(fetchedPoemUrls).toHaveLength(1);
+    expect(fetchedPoemUrls[0]).toContain('first-slug');
+    expect(poems[0].sourceUrl).toContain('first-slug');
+  });
+
+  test('supports configurable pacing options without changing default behavior', async () => {
+    const delays: number[] = [];
+    const threePoems = Array.from({ length: 3 }, (_, i) => ({
+      num: i + 1,
+      slug: `poem-${String(i + 1).padStart(3, '0')}`,
+      title: `Poem ${i + 1}`,
+    }));
+    const fetcher = createFetcher({
+      'partof:poetry+180': makeSearchJson(threePoems),
+      'poetry-180-': defaultPoemJson,
+    });
+
+    const poems = await scrapeLoc180(1, 3, {
+      htmlFetcherImpl: fetcher,
+      sleepImpl: async (ms: number) => {
+        delays.push(ms);
+      },
+      randomImpl: () => 0,
+      requestJitterMs: { min: 10, max: 20 },
+      macroPauseEvery: 2,
+      macroPauseMs: { min: 100, max: 200 },
+    });
+
+    expect(poems).toHaveLength(3);
+    expect(delays).toEqual([10, 100]);
+  });
+
+  test('returns partial results when post-scrape validation fails by default', async () => {
+    const allPoems = Array.from({ length: 180 }, (_, i) => ({
+      num: i + 1,
+      slug: `poem-${String(i + 1).padStart(3, '0')}`,
+      title: `Poem ${i + 1}`,
+    }));
+    const fetcher = async (url: string): Promise<string> => {
+      if (url.includes('partof:poetry+180')) return makeSearchJson(allPoems);
+      const match = url.match(/poetry-180-(\d{3})/);
+      if (!match) throw new Error(`No stub for ${url}`);
+      const poemNumber = parseInt(match[1], 10);
+      if (poemNumber <= 160) {
+        return makePoemJson({ title: `Poem ${poemNumber}` });
+      }
+      throw new Error('simulated fetch failure');
+    };
+
+    const poems = await scrapeLoc180(1, 180, {
+      htmlFetcherImpl: fetcher,
+      sleepImpl: noSleep,
+      randomImpl: () => 0,
+    });
+
+    expect(poems).toHaveLength(160);
+  });
+
+  test('preserves strict post-scrape validation mode when enabled', async () => {
+    const allPoems = Array.from({ length: 180 }, (_, i) => ({
+      num: i + 1,
+      slug: `poem-${String(i + 1).padStart(3, '0')}`,
+      title: `Poem ${i + 1}`,
+    }));
+    const fetcher = async (url: string): Promise<string> => {
+      if (url.includes('partof:poetry+180')) return makeSearchJson(allPoems);
+      const match = url.match(/poetry-180-(\d{3})/);
+      if (!match) throw new Error(`No stub for ${url}`);
+      const poemNumber = parseInt(match[1], 10);
+      if (poemNumber <= 160) {
+        return makePoemJson({ title: `Poem ${poemNumber}` });
+      }
+      throw new Error('simulated fetch failure');
+    };
+
+    const poems = await scrapeLoc180(1, 180, {
+      htmlFetcherImpl: fetcher,
+      sleepImpl: noSleep,
+      randomImpl: () => 0,
+      strictValidation: true,
+    });
+
+    expect(poems).toHaveLength(0);
+  });
+
   test('returns empty array if search API fails', async () => {
     const fetcher = async (_url: string): Promise<string> => {
       throw new Error('network error');

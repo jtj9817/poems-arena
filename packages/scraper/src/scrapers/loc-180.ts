@@ -39,11 +39,20 @@ interface PoemResponse {
   item?: PoemItem;
 }
 
+interface DelayRange {
+  min: number;
+  max: number;
+}
+
 export interface Loc180ScraperOptions {
   // For unit testing: returns raw response body for a given URL, bypassing Playwright.
   htmlFetcherImpl?: (url: string) => Promise<string>;
   sleepImpl?: (ms: number) => Promise<void>;
   randomImpl?: () => number;
+  requestJitterMs?: DelayRange;
+  macroPauseEvery?: number;
+  macroPauseMs?: DelayRange;
+  strictValidation?: boolean;
 }
 
 async function sleep(ms: number): Promise<void> {
@@ -53,6 +62,51 @@ async function sleep(ms: number): Promise<void> {
 
 function randomJitter(min: number, max: number, randomImpl: () => number): number {
   return Math.floor(randomImpl() * (max - min + 1) + min);
+}
+
+function isFiniteNonNegativeNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
+function resolveDelayRange(
+  override: DelayRange | undefined,
+  defaultMin: number,
+  defaultMax: number,
+): DelayRange {
+  if (
+    !override ||
+    !isFiniteNonNegativeNumber(override.min) ||
+    !isFiniteNonNegativeNumber(override.max)
+  ) {
+    return { min: defaultMin, max: defaultMax };
+  }
+
+  if (override.min > override.max) {
+    return { min: defaultMin, max: defaultMax };
+  }
+
+  return override;
+}
+
+function getWafReason(finalUrl: string, contentType: string | null, body: string): string | null {
+  const normalizedFinalUrl = finalUrl.toLowerCase();
+  if (
+    normalizedFinalUrl.includes('captcha') ||
+    normalizedFinalUrl.includes('challenge') ||
+    normalizedFinalUrl.includes('blocked')
+  ) {
+    return 'challenge URL';
+  }
+
+  if (contentType?.toLowerCase().includes('text/html')) {
+    return 'unexpected HTML content type';
+  }
+
+  if (body.trimStart().startsWith('<')) {
+    return 'unexpected HTML response body';
+  }
+
+  return null;
 }
 
 /**
@@ -91,6 +145,20 @@ export async function scrapeLoc180(
 ): Promise<ScrapedPoem[]> {
   const sleepImpl = options.sleepImpl ?? sleep;
   const randomImpl = options.randomImpl ?? Math.random;
+  const requestJitter = resolveDelayRange(
+    options.requestJitterMs,
+    REQUEST_JITTER_MIN_MS,
+    REQUEST_JITTER_MAX_MS,
+  );
+  const macroPause = resolveDelayRange(
+    options.macroPauseMs,
+    MACRO_PAUSE_MIN_MS,
+    MACRO_PAUSE_MAX_MS,
+  );
+  const macroPauseEvery = isFiniteNonNegativeNumber(options.macroPauseEvery)
+    ? Math.floor(options.macroPauseEvery)
+    : MICRO_BATCH_SIZE;
+  const strictValidation = options.strictValidation ?? false;
   const startTimeMs = Date.now();
 
   logger.info('Starting LOC Poetry 180 scrape (JSON API + Playwright)', {
@@ -108,7 +176,76 @@ export async function scrapeLoc180(
       context = await browser.newContext({ locale: 'en-US' });
     }
 
-    const getBody = async (url: string): Promise<string | null> => {
+    const getBodyViaPageNavigation = async (url: string): Promise<string | null> => {
+      const page = await context!.newPage();
+      try {
+        const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        const finalUrl = page.url();
+
+        if (!response || !response.ok()) {
+          logger.warn('Non-OK response from LOC page navigation', {
+            sourceUrl: url,
+            status: response?.status(),
+          });
+          return null;
+        }
+
+        const body = await response.text();
+        const wafReason = getWafReason(finalUrl, response.headers()['content-type'] ?? null, body);
+        if (wafReason) {
+          logger.warn('WAF challenge detected via LOC page navigation', {
+            sourceUrl: url,
+            finalUrl,
+            status: response.status(),
+            reason: wafReason,
+          });
+          return null;
+        }
+
+        return body;
+      } catch (e) {
+        logger.warn('Navigation error fetching LOC URL', { url, error: String(e) });
+        return null;
+      } finally {
+        await page.close();
+      }
+    };
+
+    const getBodyViaPlaywrightRequest = async (url: string): Promise<string | null> => {
+      try {
+        const response = await context!.request.get(url, { timeout: 30000 });
+        if (!response.ok()) {
+          logger.warn('Non-OK response from LOC Playwright request', {
+            sourceUrl: url,
+            status: response.status(),
+          });
+          return null;
+        }
+
+        const body = await response.text();
+        const wafReason = getWafReason(
+          response.url(),
+          response.headers()['content-type'] ?? null,
+          body,
+        );
+        if (wafReason) {
+          logger.warn('WAF challenge detected via LOC Playwright request', {
+            sourceUrl: url,
+            finalUrl: response.url(),
+            status: response.status(),
+            reason: wafReason,
+          });
+          return null;
+        }
+
+        return body;
+      } catch (e) {
+        logger.warn('Playwright request error fetching LOC URL', { url, error: String(e) });
+        return null;
+      }
+    };
+
+    const getBodyViaFetch = async (url: string): Promise<string | null> => {
       if (options.htmlFetcherImpl) {
         try {
           return await options.htmlFetcherImpl(url);
@@ -118,39 +255,45 @@ export async function scrapeLoc180(
         }
       }
 
-      const page = await context!.newPage();
       try {
-        const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-        const finalUrl = page.url().toLowerCase();
-
-        if (
-          finalUrl.includes('captcha') ||
-          finalUrl.includes('challenge') ||
-          finalUrl.includes('blocked')
-        ) {
-          logger.warn('WAF challenge page detected', {
+        const response = await fetch(url);
+        if (!response.ok) {
+          logger.warn('Non-OK response from LOC fetch', {
             sourceUrl: url,
-            finalUrl,
-            status: response?.status(),
+            status: response.status,
           });
           return null;
         }
 
-        if (!response || !response.ok()) {
-          logger.warn('Non-OK response from LOC', {
+        const body = await response.text();
+        const wafReason = getWafReason(response.url, response.headers.get('content-type'), body);
+        if (wafReason) {
+          logger.warn('WAF challenge detected via LOC fetch', {
             sourceUrl: url,
-            status: response?.status(),
+            finalUrl: response.url,
+            status: response.status,
+            reason: wafReason,
           });
           return null;
         }
 
-        return await response.text();
+        return body;
       } catch (e) {
-        logger.warn('Navigation error fetching LOC URL', { url, error: String(e) });
+        logger.warn('Fetch error fetching LOC URL', { url, error: String(e) });
         return null;
-      } finally {
-        await page.close();
       }
+    };
+
+    const getBody = async (url: string): Promise<string | null> => {
+      const fetchBody = await getBodyViaFetch(url);
+      if (fetchBody) return fetchBody;
+
+      if (options.htmlFetcherImpl || !context) return null;
+
+      const playwrightRequestBody = await getBodyViaPlaywrightRequest(url);
+      if (playwrightRequestBody) return playwrightRequestBody;
+
+      return await getBodyViaPageNavigation(url);
     };
 
     const getBodyWithRetries = async (
@@ -202,8 +345,7 @@ export async function scrapeLoc180(
     }
 
     // ── Step 2: Filter to the requested number range and sort ──────────────
-    const linksToScrape: Array<{ number: number; url: string }> = [];
-    const seenUrls = new Set<string>();
+    const linksByNumber = new Map<number, string>();
 
     for (const result of searchData.results) {
       if (!result.url) continue;
@@ -212,13 +354,38 @@ export async function scrapeLoc180(
 
       const number = parseInt(match[1], 10);
       if (number < start || number > end) continue;
-      if (seenUrls.has(result.url)) continue;
+      if (linksByNumber.has(number)) continue;
 
-      seenUrls.add(result.url);
-      linksToScrape.push({ number, url: result.url });
+      linksByNumber.set(number, result.url);
     }
 
-    linksToScrape.sort((a, b) => a.number - b.number);
+    const linksToScrape = [...linksByNumber.entries()]
+      .map(([number, url]) => ({ number, url }))
+      .sort((a, b) => a.number - b.number);
+
+    const pace = async (processedCount: number): Promise<void> => {
+      const isLastPoem = processedCount >= linksToScrape.length;
+      if (isLastPoem) return;
+
+      if (macroPauseEvery > 0 && processedCount % macroPauseEvery === 0) {
+        const macroPauseMs = randomJitter(macroPause.min, macroPause.max, randomImpl);
+        logger.info('Taking macro pause between LOC micro-batches', {
+          source: 'loc-180',
+          processedCount,
+          pauseMs: macroPauseMs,
+        });
+        await sleepImpl(macroPauseMs);
+        return;
+      }
+
+      const jitterMs = randomJitter(requestJitter.min, requestJitter.max, randomImpl);
+      logger.debug('Applying jitter before next LOC request', {
+        source: 'loc-180',
+        processedCount,
+        delayMs: jitterMs,
+      });
+      await sleepImpl(jitterMs);
+    };
 
     logger.info('LOC poem list fetched', {
       source: 'loc-180',
@@ -287,35 +454,23 @@ export async function scrapeLoc180(
         logger.warn('Failed to fetch poem JSON, skipping', { source: 'loc-180', sourceUrl: url });
       }
 
-      // ── Pacing: jitter between requests, macro-pause every 25 poems ──────
-      const isLastPoem = index === linksToScrape.length - 1;
-      if (!isLastPoem) {
-        const processedCount = index + 1;
-        if (processedCount % MICRO_BATCH_SIZE === 0) {
-          const macroPauseMs = randomJitter(MACRO_PAUSE_MIN_MS, MACRO_PAUSE_MAX_MS, randomImpl);
-          logger.info('Taking macro pause between LOC micro-batches', {
-            source: 'loc-180',
-            processedCount,
-            pauseMs: macroPauseMs,
-          });
-          await sleepImpl(macroPauseMs);
-        } else {
-          const jitterMs = randomJitter(REQUEST_JITTER_MIN_MS, REQUEST_JITTER_MAX_MS, randomImpl);
-          logger.debug('Applying jitter before next LOC request', {
-            source: 'loc-180',
-            processedCount,
-            delayMs: jitterMs,
-          });
-          await sleepImpl(jitterMs);
-        }
-      }
+      await pace(index + 1);
     }
 
     // ── Step 4: Post-scrape validation ────────────────────────────────────
     if (start === 1 && end >= 180 && poems.length < 170) {
-      throw new Error(
-        `Post-scrape validation failed: retrieved only ${poems.length} of 180 poems.`,
-      );
+      const message = `Post-scrape validation failed: retrieved only ${poems.length} of 180 poems.`;
+      if (strictValidation) {
+        throw new Error(message);
+      }
+
+      logger.error(message, undefined, {
+        source: 'loc-180',
+        retrieved: poems.length,
+        expected: 180,
+        poemStart: start,
+        poemEnd: end,
+      });
     }
 
     logger.info('Completed LOC Poetry 180 scrape', {
