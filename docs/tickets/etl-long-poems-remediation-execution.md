@@ -101,6 +101,75 @@ Eliminate stale unmatched originals and complete long-poem reconciliation while 
      - `Unmatched HUMAN` decreases accordingly
      - no unintended regression in `duels`, `votes`, `featured_duels`.
 
+### SQL Validation Checklist
+
+Run after remediation/generation completes:
+
+```sql
+-- 1) Scoped IDs no longer unmatched
+SELECT p.id, p.title
+FROM poems p
+WHERE p.id IN (
+  '19176bc9d632','b45e1e960ad8','92273a10aba0',
+  'c8d1c4ef3331','f399fdc5e1ab','d87091e153a9'
+)
+AND p.type = 'HUMAN'
+AND NOT EXISTS (
+  SELECT 1 FROM poems ai
+  WHERE ai.type = 'AI' AND ai.parent_poem_id = p.id
+);
+
+-- 2) No duels reference scoped stale originals
+SELECT count(*) AS duel_refs
+FROM duels
+WHERE poem_a_id IN (
+  '19176bc9d632','b45e1e960ad8','92273a10aba0',
+  'c8d1c4ef3331','f399fdc5e1ab','d87091e153a9'
+)
+OR poem_b_id IN (
+  '19176bc9d632','b45e1e960ad8','92273a10aba0',
+  'c8d1c4ef3331','f399fdc5e1ab','d87091e153a9'
+);
+
+-- 3) Global unmatched HUMAN count
+SELECT count(*) AS unmatched_human
+FROM poems p
+WHERE p.type = 'HUMAN'
+AND NOT EXISTS (
+  SELECT 1 FROM poems ai
+  WHERE ai.type = 'AI' AND ai.parent_poem_id = p.id
+);
+
+-- 4) Orphan safety checks
+SELECT count(*) AS orphan_poem_topics
+FROM poem_topics pt
+LEFT JOIN poems p ON p.id = pt.poem_id
+LEFT JOIN topics t ON t.id = pt.topic_id
+WHERE p.id IS NULL OR t.id IS NULL;
+
+SELECT count(*) AS orphan_scrape_sources
+FROM scrape_sources s
+LEFT JOIN poems p ON p.id = s.poem_id
+WHERE p.id IS NULL;
+
+SELECT count(*) AS orphan_duels
+FROM duels d
+LEFT JOIN poems pa ON pa.id = d.poem_a_id
+LEFT JOIN poems pb ON pb.id = d.poem_b_id
+WHERE pa.id IS NULL OR pb.id IS NULL;
+
+SELECT count(*) AS orphan_votes
+FROM votes v
+LEFT JOIN duels d ON d.id = v.duel_id
+LEFT JOIN poems p ON p.id = v.selected_poem_id
+WHERE d.id IS NULL OR p.id IS NULL;
+
+SELECT count(*) AS orphan_featured_duels
+FROM featured_duels fd
+LEFT JOIN duels d ON d.id = fd.duel_id
+WHERE d.id IS NULL;
+```
+
 ## Precautions / Safety Requirements
 
 - **No concurrent ETL + AI generation** against same DB.
