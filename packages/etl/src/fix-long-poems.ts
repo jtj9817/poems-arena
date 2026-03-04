@@ -2,9 +2,10 @@
  * fix-long-poems.ts
  *
  * One-time fixup script that:
- *   1. Deletes 2 non-poem editorial artefacts from the DB.
- *   2. Cleans, splits, LLM-verifies, and re-inserts 5 long poems as
+ *   1. Cleans, splits, LLM-verifies, and re-inserts 5 long poems as
  *      numbered part-poems, each under 4,000 characters.
+ *   2. Runs only against the 5 scoped poem IDs from
+ *      docs/tickets/etl-long-poems-remediation-execution.md.
  *
  * Usage:
  *   pnpm --filter @sanctuary/etl run fix-long-poems
@@ -15,7 +16,7 @@ import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
 import { config as loadEnv } from 'dotenv';
 import OpenAI from 'openai';
-import { like, or, inArray } from 'drizzle-orm';
+import { eq, or, inArray } from 'drizzle-orm';
 
 import { createDb } from '@sanctuary/db/client';
 import { resolveDbConfig } from '@sanctuary/db/config';
@@ -42,11 +43,8 @@ const MIN_PART_LINES = 20;
 // Poem targets
 // ---------------------------------------------------------------------------
 
-type PoemAction = 'delete' | 'split';
-
 interface PoemTarget {
-  prefix: string;
-  action: PoemAction;
+  poemId: string;
   /**
    * For poems stored with \n\n between every individual line (no \n within stanzas):
    * the number of lines per stanza. Used to reassemble proper stanzas before packing.
@@ -55,14 +53,12 @@ interface PoemTarget {
   stanzaLines?: number;
 }
 
-const POEM_TARGETS: PoemTarget[] = [
-  { prefix: 'd87091e153a9', action: 'delete' },
-  { prefix: 'f399fdc5e1ab', action: 'delete' },
-  { prefix: '19176bc9d632', action: 'split', stanzaLines: 6 }, // Ballad: 6-line stanzas within sections I–VI
-  { prefix: 'b45e1e960ad8', action: 'split' }, // MAY-DAY: correct \n/\n\n format
-  { prefix: 'c8d1c4ef3331', action: 'split' }, // ADIRONDACS: correct \n/\n\n format
-  { prefix: '92273a10aba0', action: 'split' }, // MONADNOC: correct \n/\n\n format
-  { prefix: 'f49974a9f0b2', action: 'split', stanzaLines: 9 }, // Halloween: 9-line stanzas
+export const POEM_TARGETS: readonly PoemTarget[] = [
+  { poemId: '19176bc9d632', stanzaLines: 6 }, // Ballad: 6-line stanzas within sections I–VI
+  { poemId: 'b45e1e960ad8' }, // MAY-DAY
+  { poemId: '92273a10aba0' }, // MONADNOC
+  { poemId: 'c8d1c4ef3331' }, // THE ADIRONDACS
+  { poemId: 'f399fdc5e1ab' }, // FRAGMENTS ON THE POET AND THE POETIC GIFT
 ];
 
 // ---------------------------------------------------------------------------
@@ -167,7 +163,7 @@ function splitAtRomanSections(chunks: string[], stanzaLines: number): string[] {
  * by \n\n, no \n within stanzas) by first reassembling stanzas of a fixed
  * line count, then packing stanzas greedily under MAX_PART_CHARS.
  *
- * Used for: Halloween (Burns, 9-line stanzas).
+ * Used for: poems where each logical stanza has a fixed line count.
  */
 function splitByFixedLineCount(chunks: string[], stanzaLines: number): string[] {
   const lines = chunks
@@ -215,7 +211,7 @@ function splitByFixedLineCount(chunks: string[], stanzaLines: number): string[] 
  *   2. All-\n\n without section headers → reassemble stanzas from fixed line count.
  *   3. Normal \n / \n\n format → split at \n\n stanza/paragraph boundaries.
  */
-function cleanAndSplit(content: string, stanzaLines?: number): string[] {
+export function cleanAndSplit(content: string, stanzaLines?: number): string[] {
   const rawChunks = content.split(/\n{2,}/);
 
   // Detect "all-double-newline" format: every line is its own chunk (no \n within chunks)
@@ -374,11 +370,8 @@ interface ScrapeSourceRow {
   isPublicDomain: boolean;
 }
 
-async function fetchPoem(db: Db, prefix: string): Promise<PoemRow | null> {
-  const rows = await db
-    .select()
-    .from(poems)
-    .where(like(poems.id, `${prefix}%`));
+async function fetchPoem(db: Db, poemId: string): Promise<PoemRow | null> {
+  const rows = await db.select().from(poems).where(eq(poems.id, poemId));
   if (rows.length === 0) return null;
   const r = rows[0];
   return {
@@ -393,19 +386,13 @@ async function fetchPoem(db: Db, prefix: string): Promise<PoemRow | null> {
   };
 }
 
-async function fetchTopicIds(db: Db, prefix: string): Promise<string[]> {
-  const rows = await db
-    .select()
-    .from(poemTopics)
-    .where(like(poemTopics.poemId, `${prefix}%`));
+async function fetchTopicIds(db: Db, poemId: string): Promise<string[]> {
+  const rows = await db.select().from(poemTopics).where(eq(poemTopics.poemId, poemId));
   return rows.map((r) => r.topicId);
 }
 
-async function fetchSourceRows(db: Db, prefix: string): Promise<ScrapeSourceRow[]> {
-  const rows = await db
-    .select()
-    .from(scrapeSources)
-    .where(like(scrapeSources.poemId, `${prefix}%`));
+async function fetchSourceRows(db: Db, poemId: string): Promise<ScrapeSourceRow[]> {
+  const rows = await db.select().from(scrapeSources).where(eq(scrapeSources.poemId, poemId));
   return rows.map((r) => ({
     id: r.id,
     poemId: r.poemId,
@@ -417,38 +404,17 @@ async function fetchSourceRows(db: Db, prefix: string): Promise<ScrapeSourceRow[
   }));
 }
 
-async function fetchDuelIds(db: Db, prefix: string): Promise<string[]> {
+async function fetchDuelIds(db: Db, poemId: string): Promise<string[]> {
   const rows = await db
     .select({ id: duels.id })
     .from(duels)
-    .where(or(like(duels.poemAId, `${prefix}%`), like(duels.poemBId, `${prefix}%`)));
+    .where(or(eq(duels.poemAId, poemId), eq(duels.poemBId, poemId)));
   return rows.map((r) => r.id);
-}
-
-async function deleteOriginal(db: Db, prefix: string): Promise<void> {
-  // Pre-fetch referencing duel IDs outside the transaction (SELECT not available in LibSQL batch txn)
-  const duelIds = await fetchDuelIds(db, prefix);
-
-  await db.transaction(async (tx) => {
-    // Cascade: featured_duels → votes (by duel) → duels → votes (by poem) → poem_topics → scrape_sources → poems
-    if (duelIds.length > 0) {
-      await tx.delete(featuredDuels).where(inArray(featuredDuels.duelId, duelIds));
-      await tx.delete(votes).where(inArray(votes.duelId, duelIds));
-      await tx
-        .delete(duels)
-        .where(or(like(duels.poemAId, `${prefix}%`), like(duels.poemBId, `${prefix}%`)));
-    }
-    await tx.delete(votes).where(like(votes.selectedPoemId, `${prefix}%`));
-    await tx.delete(poemTopics).where(like(poemTopics.poemId, `${prefix}%`));
-    await tx.delete(scrapeSources).where(like(scrapeSources.poemId, `${prefix}%`));
-    await tx.delete(poems).where(like(poems.id, `${prefix}%`));
-  });
 }
 
 async function insertSplitPoems(
   db: Db,
   original: PoemRow,
-  originalPrefix: string,
   parts: string[],
   topicIds: string[],
   sourceRows: ScrapeSourceRow[],
@@ -506,14 +472,12 @@ async function insertSplitPoems(
       await tx.delete(votes).where(inArray(votes.duelId, duelIds));
       await tx
         .delete(duels)
-        .where(
-          or(like(duels.poemAId, `${originalPrefix}%`), like(duels.poemBId, `${originalPrefix}%`)),
-        );
+        .where(or(eq(duels.poemAId, original.id), eq(duels.poemBId, original.id)));
     }
-    await tx.delete(votes).where(like(votes.selectedPoemId, `${originalPrefix}%`));
-    await tx.delete(poemTopics).where(like(poemTopics.poemId, `${originalPrefix}%`));
-    await tx.delete(scrapeSources).where(like(scrapeSources.poemId, `${originalPrefix}%`));
-    await tx.delete(poems).where(like(poems.id, `${originalPrefix}%`));
+    await tx.delete(votes).where(eq(votes.selectedPoemId, original.id));
+    await tx.delete(poemTopics).where(eq(poemTopics.poemId, original.id));
+    await tx.delete(scrapeSources).where(eq(scrapeSources.poemId, original.id));
+    await tx.delete(poems).where(eq(poems.id, original.id));
   });
 }
 
@@ -521,38 +485,22 @@ async function insertSplitPoems(
 // Per-target handlers
 // ---------------------------------------------------------------------------
 
-async function processDelete(prefix: string, db: Db, dryRun: boolean): Promise<void> {
-  const poem = await fetchPoem(db, prefix);
-  if (!poem) {
-    console.log(`[DELETE] ${prefix} — (not found in DB, skipping)`);
-    return;
-  }
-
-  const duelCount = dryRun ? 0 : (await fetchDuelIds(db, prefix)).length;
-  console.log(`[DELETE] ${prefix} — ${poem.title} (${poem.author})`);
-
-  if (!dryRun) {
-    await deleteOriginal(db, prefix);
-    console.log(`  ✓ Deleted (${duelCount} duels cascaded)`);
-  }
-}
-
 async function processSplit(
-  prefix: string,
+  poemId: string,
   db: Db,
   dryRun: boolean,
   deepSeekApiKey: string,
   stanzaLines?: number,
 ): Promise<void> {
-  const poem = await fetchPoem(db, prefix);
+  const poem = await fetchPoem(db, poemId);
   if (!poem) {
-    console.log(`\n[SPLIT] ${prefix} — (not found in DB, skipping)`);
+    console.log(`\n[SPLIT] ${poemId} — (not found in DB, skipping)`);
     return;
   }
 
   const parts = cleanAndSplit(poem.content, stanzaLines);
 
-  console.log(`\n[SPLIT] ${prefix} — ${poem.title} (${poem.author})`);
+  console.log(`\n[SPLIT] ${poemId} — ${poem.title} (${poem.author})`);
   for (let i = 0; i < parts.length; i++) {
     const roman = toRoman(i + 1);
     const chars = parts[i].length;
@@ -563,7 +511,7 @@ async function processSplit(
 
   if (dryRun) return;
 
-  // LLM verification — sequential calls (23 total across all poems)
+  // LLM verification — sequential calls (one per split part)
   console.log(`  Verifying ${parts.length} parts via DeepSeek…`);
   let allValid = true;
 
@@ -605,15 +553,15 @@ async function processSplit(
   }
 
   // Fetch topics, sources, and referencing duels to cascade-delete with the original
-  const topicIds = await fetchTopicIds(db, prefix);
-  const sourceRows = await fetchSourceRows(db, prefix);
-  const duelIds = await fetchDuelIds(db, prefix);
+  const topicIds = await fetchTopicIds(db, poem.id);
+  const sourceRows = await fetchSourceRows(db, poem.id);
+  const duelIds = await fetchDuelIds(db, poem.id);
 
   if (duelIds.length > 0) {
     console.log(`  Cascading deletion of ${duelIds.length} duels referencing original…`);
   }
 
-  await insertSplitPoems(db, poem, prefix, parts, topicIds, sourceRows, duelIds);
+  await insertSplitPoems(db, poem, parts, topicIds, sourceRows, duelIds);
   console.log(
     `  ✓ Inserted ${parts.length} parts, deleted original (${duelIds.length} duels cascaded)`,
   );
@@ -650,11 +598,7 @@ async function main(): Promise<void> {
   }
 
   for (const target of POEM_TARGETS) {
-    if (target.action === 'delete') {
-      await processDelete(target.prefix, db, dryRun);
-    } else {
-      await processSplit(target.prefix, db, dryRun, deepSeekApiKey ?? '', target.stanzaLines);
-    }
+    await processSplit(target.poemId, db, dryRun, deepSeekApiKey ?? '', target.stanzaLines);
   }
 
   console.log('\nDone.');
