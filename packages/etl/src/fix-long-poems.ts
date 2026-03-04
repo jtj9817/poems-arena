@@ -2,10 +2,10 @@
  * fix-long-poems.ts
  *
  * One-time fixup script that:
- *   1. Cleans, splits, LLM-verifies, and re-inserts 5 long poems as
- *      numbered part-poems, each under 4,000 characters.
- *   2. Runs only against the 5 scoped poem IDs from
+ *   1. Runs only against the 6 scoped poem IDs from
  *      docs/tickets/etl-long-poems-remediation-execution.md.
+ *   2. Applies explicit per-ID actions (delete stale originals, split where needed).
+ *   3. Requires explicit operator classification for f399fdc5e1ab in live mode.
  *
  * Usage:
  *   pnpm --filter @sanctuary/etl run fix-long-poems
@@ -16,7 +16,7 @@ import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
 import { config as loadEnv } from 'dotenv';
 import OpenAI from 'openai';
-import { eq, or, inArray } from 'drizzle-orm';
+import { eq, or, inArray, and, like } from 'drizzle-orm';
 
 import { createDb } from '@sanctuary/db/client';
 import { resolveDbConfig } from '@sanctuary/db/config';
@@ -45,6 +45,7 @@ const MIN_PART_LINES = 20;
 
 interface PoemTarget {
   poemId: string;
+  strategy: 'delete-stale-original' | 'split' | 'delete-artefact' | 'classify';
   /**
    * For poems stored with \n\n between every individual line (no \n within stanzas):
    * the number of lines per stanza. Used to reassemble proper stanzas before packing.
@@ -54,11 +55,12 @@ interface PoemTarget {
 }
 
 export const POEM_TARGETS: readonly PoemTarget[] = [
-  { poemId: '19176bc9d632', stanzaLines: 6 }, // Ballad: 6-line stanzas within sections I–VI
-  { poemId: 'b45e1e960ad8' }, // MAY-DAY
-  { poemId: '92273a10aba0' }, // MONADNOC
-  { poemId: 'c8d1c4ef3331' }, // THE ADIRONDACS
-  { poemId: 'f399fdc5e1ab' }, // FRAGMENTS ON THE POET AND THE POETIC GIFT
+  { poemId: '19176bc9d632', strategy: 'delete-stale-original' }, // The Ballad of Reading Gaol
+  { poemId: 'b45e1e960ad8', strategy: 'delete-stale-original' }, // MAY-DAY
+  { poemId: '92273a10aba0', strategy: 'delete-stale-original' }, // MONADNOC
+  { poemId: 'c8d1c4ef3331', strategy: 'delete-stale-original' }, // THE ADIRONDACS
+  { poemId: 'f399fdc5e1ab', strategy: 'classify' }, // FRAGMENTS ON THE POET AND THE POETIC GIFT
+  { poemId: 'd87091e153a9', strategy: 'delete-artefact' }, // INDEX OF FIRST LINES
 ];
 
 // ---------------------------------------------------------------------------
@@ -412,6 +414,47 @@ async function fetchDuelIds(db: Db, poemId: string): Promise<string[]> {
   return rows.map((r) => r.id);
 }
 
+async function fetchSplitHumanPartIdsForOriginal(db: Db, poem: PoemRow): Promise<string[]> {
+  const rows = await db
+    .select({ id: poems.id })
+    .from(poems)
+    .where(
+      and(
+        eq(poems.type, 'HUMAN'),
+        eq(poems.author, poem.author),
+        like(poems.title, `${poem.title} (%`),
+      ),
+    );
+  return rows.map((r) => r.id);
+}
+
+async function fetchAiParentCount(db: Db, parentPoemIds: string[]): Promise<number> {
+  if (parentPoemIds.length === 0) return 0;
+  const rows = await db
+    .select({ parentPoemId: poems.parentPoemId })
+    .from(poems)
+    .where(and(eq(poems.type, 'AI'), inArray(poems.parentPoemId, parentPoemIds)));
+  return rows.length;
+}
+
+async function deletePoemAndReferences(db: Db, poemId: string): Promise<{ duelCount: number }> {
+  const duelIds = await fetchDuelIds(db, poemId);
+
+  await db.transaction(async (tx) => {
+    if (duelIds.length > 0) {
+      await tx.delete(featuredDuels).where(inArray(featuredDuels.duelId, duelIds));
+      await tx.delete(votes).where(inArray(votes.duelId, duelIds));
+      await tx.delete(duels).where(or(eq(duels.poemAId, poemId), eq(duels.poemBId, poemId)));
+    }
+    await tx.delete(votes).where(eq(votes.selectedPoemId, poemId));
+    await tx.delete(poemTopics).where(eq(poemTopics.poemId, poemId));
+    await tx.delete(scrapeSources).where(eq(scrapeSources.poemId, poemId));
+    await tx.delete(poems).where(eq(poems.id, poemId));
+  });
+
+  return { duelCount: duelIds.length };
+}
+
 async function insertSplitPoems(
   db: Db,
   original: PoemRow,
@@ -567,6 +610,49 @@ async function processSplit(
   );
 }
 
+async function processDelete(
+  poemId: string,
+  db: Db,
+  dryRun: boolean,
+  options?: { requireSplitAiCoverage?: boolean; label?: string },
+): Promise<void> {
+  const poem = await fetchPoem(db, poemId);
+  const label = options?.label ?? 'DELETE';
+
+  if (!poem) {
+    console.log(`\n[${label}] ${poemId} — (not found in DB, skipping)`);
+    return;
+  }
+
+  if (options?.requireSplitAiCoverage) {
+    const splitPartIds = await fetchSplitHumanPartIdsForOriginal(db, poem);
+    if (splitPartIds.length === 0) {
+      console.log(`\n[${label}] ${poemId} — ${poem.title} (${poem.author})`);
+      console.log(
+        '  ⚠ No split HUMAN parts found; skipping to avoid deleting the only source record',
+      );
+      return;
+    }
+    const aiCount = await fetchAiParentCount(db, splitPartIds);
+    if (aiCount < splitPartIds.length) {
+      console.log(`\n[${label}] ${poemId} — ${poem.title} (${poem.author})`);
+      console.log(
+        `  ⚠ Split part AI coverage incomplete (${aiCount}/${splitPartIds.length}); skipping delete`,
+      );
+      return;
+    }
+  }
+
+  const duelIds = await fetchDuelIds(db, poemId);
+  console.log(`\n[${label}] ${poemId} — ${poem.title} (${poem.author})`);
+  console.log(`  Referencing duels: ${duelIds.length}`);
+
+  if (dryRun) return;
+
+  const { duelCount } = await deletePoemAndReferences(db, poemId);
+  console.log(`  ✓ Deleted original and cascaded ${duelCount} duel(s)`);
+}
+
 // ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
@@ -576,11 +662,17 @@ async function main(): Promise<void> {
     args: process.argv.slice(2),
     options: {
       'dry-run': { type: 'boolean', default: false },
+      'f399-action': { type: 'string', default: 'skip' },
     },
     strict: true,
   });
 
   const dryRun = values['dry-run'] ?? false;
+  const f399Action = values['f399-action'] ?? 'skip';
+
+  if (f399Action !== 'skip' && f399Action !== 'delete' && f399Action !== 'split') {
+    throw new Error("--f399-action must be one of: 'skip', 'delete', 'split'");
+  }
 
   if (dryRun) {
     console.log('DRY RUN — no changes will be made\n');
@@ -598,7 +690,36 @@ async function main(): Promise<void> {
   }
 
   for (const target of POEM_TARGETS) {
-    await processSplit(target.poemId, db, dryRun, deepSeekApiKey ?? '', target.stanzaLines);
+    if (target.strategy === 'split') {
+      await processSplit(target.poemId, db, dryRun, deepSeekApiKey ?? '', target.stanzaLines);
+      continue;
+    }
+
+    if (target.strategy === 'delete-stale-original') {
+      await processDelete(target.poemId, db, dryRun, {
+        requireSplitAiCoverage: true,
+        label: 'DELETE STALE ORIGINAL',
+      });
+      continue;
+    }
+
+    if (target.strategy === 'delete-artefact') {
+      await processDelete(target.poemId, db, dryRun, { label: 'DELETE ARTEFACT' });
+      continue;
+    }
+
+    if (target.poemId === 'f399fdc5e1ab') {
+      if (f399Action === 'skip') {
+        console.log(
+          '\n[CLASSIFY] f399fdc5e1ab — Skipped. Pass --f399-action=delete or --f399-action=split after classification.',
+        );
+      } else if (f399Action === 'delete') {
+        await processDelete(target.poemId, db, dryRun, { label: 'DELETE CLASSIFIED ARTEFACT' });
+      } else {
+        await processSplit(target.poemId, db, dryRun, deepSeekApiKey ?? '', target.stanzaLines);
+      }
+      continue;
+    }
   }
 
   console.log('\nDone.');

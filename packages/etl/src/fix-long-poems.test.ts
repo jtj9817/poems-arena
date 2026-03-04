@@ -2,13 +2,25 @@ import { describe, expect, test } from 'bun:test';
 import { cleanAndSplit, POEM_TARGETS } from './fix-long-poems';
 
 describe('POEM_TARGETS', () => {
-  test('matches the 5 scoped remediation IDs', () => {
+  test('matches the 6 scoped remediation IDs in execution ticket', () => {
     expect(POEM_TARGETS.map((t) => t.poemId)).toEqual([
       '19176bc9d632',
       'b45e1e960ad8',
       '92273a10aba0',
       'c8d1c4ef3331',
       'f399fdc5e1ab',
+      'd87091e153a9',
+    ]);
+  });
+
+  test('uses explicit strategy per scoped ID', () => {
+    expect(POEM_TARGETS).toEqual([
+      { poemId: '19176bc9d632', strategy: 'delete-stale-original' },
+      { poemId: 'b45e1e960ad8', strategy: 'delete-stale-original' },
+      { poemId: '92273a10aba0', strategy: 'delete-stale-original' },
+      { poemId: 'c8d1c4ef3331', strategy: 'delete-stale-original' },
+      { poemId: 'f399fdc5e1ab', strategy: 'classify' },
+      { poemId: 'd87091e153a9', strategy: 'delete-artefact' },
     ]);
   });
 });
