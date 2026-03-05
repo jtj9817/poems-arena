@@ -17,28 +17,28 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onNavigat
       <header className="w-full px-6 py-6 md:px-12 flex justify-between items-center relative z-40 border-b border-stock/50 shrink-0">
         <div
           className="flex items-center gap-2 cursor-pointer group"
-          onClick={() => onNavigate(ViewState.FOYER)}
+          onClick={() => onNavigate(ViewState.HOME)}
         >
           <span className="material-symbols-outlined text-3xl text-ink transition-transform duration-500 group-hover:rotate-12">
             history_edu
           </span>
           <h1 className="hidden md:block text-xl font-bold tracking-tight italic font-serif text-ink">
-            Classicist's Sanctuary
+            Poem Arena
           </h1>
         </div>
 
         <nav className="flex items-center gap-6 font-sans text-xs tracking-[0.15em] uppercase font-medium text-pencil">
           <button
-            onClick={() => onNavigate(ViewState.ANTHOLOGY)}
-            className={`hover:text-ink transition-colors ${currentView === ViewState.ANTHOLOGY ? 'text-ink underline decoration-1 underline-offset-4' : ''}`}
+            onClick={() => onNavigate(ViewState.PAST_BOUTS)}
+            className={`hover:text-ink transition-colors ${currentView === ViewState.PAST_BOUTS ? 'text-ink underline decoration-1 underline-offset-4' : ''}`}
           >
-            The Anthology
+            Past Bouts
           </button>
           <button
-            onClick={() => onNavigate(ViewState.COLOPHON)}
-            className={`hover:text-ink transition-colors ${currentView === ViewState.COLOPHON ? 'text-ink underline decoration-1 underline-offset-4' : ''}`}
+            onClick={() => onNavigate(ViewState.ABOUT)}
+            className={`hover:text-ink transition-colors ${currentView === ViewState.ABOUT ? 'text-ink underline decoration-1 underline-offset-4' : ''}`}
           >
-            Colophon
+            About
           </button>
         </nav>
       </header>
@@ -49,7 +49,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onNavigat
       {/* Footer */}
       <footer className="w-full py-8 text-center relative z-30 border-t border-stock/50 shrink-0">
         <p className="font-sans text-[10px] tracking-widest text-pencil uppercase">
-          © 2024 Classicist's Sanctuary · Est. MMXXIV
+          © 2024 Poem Arena
         </p>
       </footer>
     </div>

@@ -3,11 +3,11 @@ import { ViewState } from '@sanctuary/shared';
 import { Button } from '../components/Button';
 import { api, type DuelListItem } from '../lib/api';
 
-interface FoyerProps {
+interface HomeProps {
   onNavigate: (view: ViewState, duelId?: string) => void;
 }
 
-export const Foyer: React.FC<FoyerProps> = ({ onNavigate }) => {
+export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
   const [isExiting, setIsExiting] = useState(false);
   const [featuredDuel, setFeaturedDuel] = useState<DuelListItem | null>(null);
   const [loading, setLoading] = useState(true);
@@ -26,7 +26,7 @@ export const Foyer: React.FC<FoyerProps> = ({ onNavigate }) => {
     if (!featuredDuel) return;
     setIsExiting(true);
     setTimeout(() => {
-      onNavigate(ViewState.READING_ROOM, featuredDuel.id);
+      onNavigate(ViewState.THE_RING, featuredDuel.id);
     }, 600); // Match CSS transition
   };
 
@@ -73,7 +73,7 @@ export const Foyer: React.FC<FoyerProps> = ({ onNavigate }) => {
                   </div>
 
                   <Button onClick={handleStart} className="group">
-                    <span className="mr-2">Enter Reading Room</span>
+                    <span className="mr-2">Enter the Ring</span>
                     <span className="material-symbols-outlined text-lg group-hover:translate-x-1 transition-transform">
                       arrow_forward
                     </span>

@@ -19,12 +19,12 @@ const PAGE_SIZE = 10;
 /** Number of upcoming duels to pre-fetch while user reads the current one. */
 const PREFETCH_COUNT = 2;
 
-interface ReadingRoomProps {
+interface TheRingProps {
   duelId: string | null;
   onNavigate: (view: ViewState, duelId?: string) => void;
 }
 
-export const ReadingRoom: React.FC<ReadingRoomProps> = ({ duelId, onNavigate }) => {
+export const TheRing: React.FC<TheRingProps> = ({ duelId, onNavigate }) => {
   const [duel, setDuel] = useState<AnonymousDuel | null>(null);
   const [stats, setStats] = useState<DuelStats | null>(null);
   const [selectedPoemId, setSelectedPoemId] = useState<string | null>(null);
@@ -156,8 +156,8 @@ export const ReadingRoom: React.FC<ReadingRoomProps> = ({ duelId, onNavigate }) 
 
     const nextId = queueCurrentId(nextQueue);
     if (!nextId) {
-      // Queue exhausted — fall back to Anthology
-      onNavigate(ViewState.ANTHOLOGY);
+      // Queue exhausted — fall back to Past Bouts
+      onNavigate(ViewState.PAST_BOUTS);
       return;
     }
 

@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { ViewState } from '@sanctuary/shared';
 import { Layout } from './components/Layout';
-import { Foyer } from './pages/Foyer';
-import { ReadingRoom } from './pages/ReadingRoom';
-import { Anthology } from './pages/Anthology';
-import { Colophon } from './pages/Colophon';
+import { Home } from './pages/Home';
+import { TheRing } from './pages/TheRing';
+import { PastBouts } from './pages/PastBouts';
+import { About } from './pages/About';
 
 const App: React.FC = () => {
-  const [view, setView] = useState<ViewState>(ViewState.FOYER);
+  const [view, setView] = useState<ViewState>(ViewState.HOME);
   const [activeDuelId, setActiveDuelId] = useState<string | null>(null);
 
   const navigate = (newView: ViewState, duelId?: string | null) => {
@@ -17,22 +17,18 @@ const App: React.FC = () => {
 
   const renderView = () => {
     switch (view) {
-      case ViewState.FOYER:
-        return <Foyer onNavigate={navigate} />;
-      case ViewState.READING_ROOM:
+      case ViewState.HOME:
+        return <Home onNavigate={navigate} />;
+      case ViewState.THE_RING:
         return (
-          <ReadingRoom
-            key={activeDuelId || 'fallback'}
-            duelId={activeDuelId}
-            onNavigate={navigate}
-          />
+          <TheRing key={activeDuelId || 'fallback'} duelId={activeDuelId} onNavigate={navigate} />
         );
-      case ViewState.ANTHOLOGY:
-        return <Anthology onNavigate={navigate} />;
-      case ViewState.COLOPHON:
-        return <Colophon onNavigate={navigate} />;
+      case ViewState.PAST_BOUTS:
+        return <PastBouts onNavigate={navigate} />;
+      case ViewState.ABOUT:
+        return <About onNavigate={navigate} />;
       default:
-        return <Foyer onNavigate={navigate} />;
+        return <Home onNavigate={navigate} />;
     }
   };
 

@@ -2,11 +2,11 @@ import React from 'react';
 import { ViewState } from '@sanctuary/shared';
 import { Button } from '../components/Button';
 
-interface ColophonProps {
+interface AboutProps {
   onNavigate: (view: ViewState) => void;
 }
 
-export const Colophon: React.FC<ColophonProps> = ({ onNavigate }) => {
+export const About: React.FC<AboutProps> = ({ onNavigate }) => {
   return (
     <div className="h-full overflow-y-auto no-scrollbar w-full">
       <div className="flex flex-col items-center py-16 px-6 min-h-full">
@@ -16,7 +16,7 @@ export const Colophon: React.FC<ColophonProps> = ({ onNavigate }) => {
               <span className="material-symbols-outlined text-ink/70">stylus_note</span>
             </div>
             <h1 className="text-5xl md:text-6xl font-serif font-bold text-ink tracking-tight italic">
-              The Colophon
+              About
             </h1>
             <p className="text-seal-red font-sans font-medium tracking-widest text-xs uppercase pt-2 border-t border-ink/10 inline-block px-4 mt-4">
               Est. 2024 • Vol. I
@@ -30,10 +30,10 @@ export const Colophon: React.FC<ColophonProps> = ({ onNavigate }) => {
               prediction becomes dangerously thin.
             </p>
             <p className="mt-6">
-              Classicist's Sanctuary was born not from a rejection of technology, but from a
-              curiosity about its limits. Can the machine truly capture the "sublime"—that ineffable
-              quality that connects a poet to their reader across centuries? Or does it merely
-              rearrange the shadows of what has already been said?
+              Poem Arena was born not from a rejection of technology, but from a curiosity about its
+              limits. Can the machine truly capture the "sublime"—that ineffable quality that
+              connects a poet to their reader across centuries? Or does it merely rearrange the
+              shadows of what has already been said?
             </p>
           </section>
 
@@ -73,8 +73,8 @@ export const Colophon: React.FC<ColophonProps> = ({ onNavigate }) => {
           </section>
 
           <div className="pt-8 mt-4 border-t border-stock flex justify-center">
-            <Button variant="ghost" onClick={() => onNavigate(ViewState.FOYER)}>
-              Return to Foyer
+            <Button variant="ghost" onClick={() => onNavigate(ViewState.HOME)}>
+              Back to Home
             </Button>
           </div>
         </article>

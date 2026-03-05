@@ -4,11 +4,11 @@ import { api, type DuelListItem } from '../lib/api';
 import { TopicBar } from '../components/TopicBar';
 import { BottomSheetFilter } from '../components/BottomSheetFilter';
 
-interface AnthologyProps {
+interface PastBoutsProps {
   onNavigate: (view: ViewState, duelId?: string) => void;
 }
 
-export const Anthology: React.FC<AnthologyProps> = ({ onNavigate }) => {
+export const PastBouts: React.FC<PastBoutsProps> = ({ onNavigate }) => {
   const [duels, setDuels] = useState<DuelListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [topics, setTopics] = useState<TopicMeta[]>([]);
@@ -50,11 +50,11 @@ export const Anthology: React.FC<AnthologyProps> = ({ onNavigate }) => {
             auto_stories
           </span>
           <h2 className="text-5xl md:text-6xl font-serif font-bold mb-6 text-ink tracking-tight">
-            The Anthology
+            Past Bouts
           </h2>
           <p className="text-xl text-ink/70 italic font-body">
-            A compendium of past skirmishes. Explore where the human spirit prevailed, and where the
-            machine mirrored it too perfectly.
+            Browse every matchup. See where readers picked the human, and where the machine fooled
+            them.
           </p>
         </div>
 
@@ -89,7 +89,7 @@ export const Anthology: React.FC<AnthologyProps> = ({ onNavigate }) => {
             {duels.map((duel) => (
               <div
                 key={duel.id}
-                onClick={() => onNavigate(ViewState.READING_ROOM, duel.id)}
+                onClick={() => onNavigate(ViewState.THE_RING, duel.id)}
                 className="group cursor-pointer break-inside-avoid relative bg-paper border border-border-pencil p-8 rounded-sm hover:-translate-y-1 hover:shadow-lg transition-all duration-300"
               >
                 <div className="flex justify-between items-start mb-4">
