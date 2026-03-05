@@ -1,0 +1,21 @@
+{
+  "exitCode": 0,
+  "phase": "completed",
+  "startedAt": "2026-03-05T01:10:55.670Z",
+  "completedAt": "2026-03-05T01:12:28.351Z",
+  "durationMs": 92681,
+  "logFile": "/media/josh_emperor/EtherNexus/classicist-sanctuary-proto/logs/generate-20260305T011055.log",
+  "progress": {
+    "processed": 3,
+    "stored": 3,
+    "skipped": 0,
+    "permanentlyFailed": 0
+  },
+  "assemblyResult": {
+    "newDuels": 53,
+    "totalCandidates": 4440
+  },
+  "alerts": [],
+  "dbValidation": null,
+  "nextSteps": []
+}

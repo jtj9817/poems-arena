@@ -6,6 +6,7 @@
   "scripts": {
     "pipeline": "bun run src/index.ts",
     "fix-long-poems": "bun run src/fix-long-poems.ts",
+    "fix-long-poems:report": "bun run src/long-poems-remediation-report.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },

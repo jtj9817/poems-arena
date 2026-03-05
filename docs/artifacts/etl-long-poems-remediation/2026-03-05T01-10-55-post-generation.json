@@ -1,0 +1,61 @@
+{
+  "phase": "postflight",
+  "generatedAt": "2026-03-05T01:13:00.073Z",
+  "scopedIds": [
+    "19176bc9d632",
+    "b45e1e960ad8",
+    "92273a10aba0",
+    "c8d1c4ef3331",
+    "f399fdc5e1ab",
+    "d87091e153a9"
+  ],
+  "baseline": {
+    "human": 500,
+    "ai": 566,
+    "unmatchedHuman": 0,
+    "duels": 7428,
+    "votes": 79
+  },
+  "scoped": {
+    "poems": [],
+    "duelRefsById": [
+      {
+        "poemId": "19176bc9d632",
+        "duelRefs": 0
+      },
+      {
+        "poemId": "b45e1e960ad8",
+        "duelRefs": 0
+      },
+      {
+        "poemId": "92273a10aba0",
+        "duelRefs": 0
+      },
+      {
+        "poemId": "c8d1c4ef3331",
+        "duelRefs": 0
+      },
+      {
+        "poemId": "f399fdc5e1ab",
+        "duelRefs": 0
+      },
+      {
+        "poemId": "d87091e153a9",
+        "duelRefs": 0
+      }
+    ],
+    "counts": {
+      "poemTopics": 0,
+      "scrapeSources": 0,
+      "duels": 0,
+      "votesBySelectedPoem": 0
+    }
+  },
+  "orphans": {
+    "poemTopics": 0,
+    "scrapeSources": 0,
+    "duels": 0,
+    "votes": 0,
+    "featuredDuels": 0
+  }
+}

@@ -183,12 +183,12 @@ WHERE d.id IS NULL;
 
 ## Acceptance Criteria
 
-- [ ] All 6 scoped IDs are handled according to strategy (delete vs split+generate) without orphaning related records.
-- [ ] No scoped stale original remains duel-referenced.
-- [ ] AI generation succeeds for any newly remediated HUMAN splits (or fails only with new, documented reasons).
-- [ ] `Unmatched HUMAN` is reduced from baseline `6`, and scoped IDs are no longer unmatched.
-- [ ] No unplanned deletions outside scoped IDs.
-- [ ] Final validation report captured and linked in ticket update.
+- [x] All 6 scoped IDs are handled according to strategy (delete vs split+generate) without orphaning related records.
+- [x] No scoped stale original remains duel-referenced.
+- [x] AI generation succeeds for any newly remediated HUMAN splits (or fails only with new, documented reasons).
+- [x] `Unmatched HUMAN` is reduced from baseline `6`, and scoped IDs are no longer unmatched.
+- [x] No unplanned deletions outside scoped IDs.
+- [x] Final validation report captured and linked in ticket update.
 
 ## Notes for Decision
 
@@ -196,3 +196,54 @@ WHERE d.id IS NULL;
 - Scripted remediation is preferred for auditability and repeatability.
 - If script behavior includes non-scoped targets, create a temporary scoped variant or guard flag before live execution.
 - Prior docs conflict on `f399fdc5e1ab` classification (non-poem vs valid long poem). This must be resolved before live mutation.
+
+## Execution Log (2026-03-05)
+
+### TODO Checklist (Completed)
+
+- [x] Capture preflight snapshot for scoped IDs and integrity counters.
+- [x] Run dry-run remediation with explicit `--f399-action=split`.
+- [x] Execute live remediation with explicit `--f399-action=split`.
+- [x] Capture immediate postflight snapshot (before generation).
+- [x] Run post-remediation AI generation for newly split HUMAN records.
+- [x] Capture final post-generation snapshot and verify integrity.
+
+### Commands Run
+
+```bash
+# Preflight snapshot
+pnpm --filter @sanctuary/etl exec bun src/long-poems-remediation-report.ts --phase=preflight
+
+# Dry-run with explicit f399 handling
+pnpm --filter @sanctuary/etl run fix-long-poems -- --dry-run --f399-action=split
+
+# Live run
+pnpm --filter @sanctuary/etl run fix-long-poems -- --f399-action=split
+
+# Postflight snapshot (before generation)
+pnpm --filter @sanctuary/etl exec bun src/long-poems-remediation-report.ts --phase=postflight
+
+# Generation for newly split HUMAN rows
+bun scripts/run-generate.ts --concurrency 3
+
+# Final snapshot (after generation)
+pnpm --filter @sanctuary/etl exec bun src/long-poems-remediation-report.ts --phase=postflight --out=data/remediation-snapshots/2026-03-05T01-10-55-post-generation.json
+```
+
+### Outcome Summary
+
+- Live run deleted stale originals for:
+  - `19176bc9d632`, `b45e1e960ad8`, `92273a10aba0`, `c8d1c4ef3331`
+- Live run split `f399fdc5e1ab` into 3 parts and deleted original after successful DeepSeek verification.
+- Live run deleted artefact `d87091e153a9`.
+- Scoped stale originals no longer duel-referenced (`0` refs for all six scoped IDs).
+- Integrity checks remained clean (`orphanPoemTopics=0`, `orphanScrapeSources=0`, `orphanDuels=0`, `orphanVotes=0`, `orphanFeaturedDuels=0`).
+- After generation run, `unmatchedHuman` reached `0`.
+
+### Artifact Files
+
+- `packages/etl/src/long-poems-remediation-report.ts`
+- `docs/artifacts/etl-long-poems-remediation/2026-03-05T00-39-16-606Z-preflight.json`
+- `docs/artifacts/etl-long-poems-remediation/2026-03-05T01-03-21-988Z-postflight.json`
+- `docs/artifacts/etl-long-poems-remediation/2026-03-05T01-10-55-post-generation.json`
+- `docs/artifacts/etl-long-poems-remediation/generate-report-20260305T011055.json`

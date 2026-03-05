@@ -1,0 +1,122 @@
+{
+  "phase": "preflight",
+  "generatedAt": "2026-03-05T00:39:16.606Z",
+  "scopedIds": [
+    "19176bc9d632",
+    "b45e1e960ad8",
+    "92273a10aba0",
+    "c8d1c4ef3331",
+    "f399fdc5e1ab",
+    "d87091e153a9"
+  ],
+  "baseline": {
+    "human": 503,
+    "ai": 563,
+    "unmatchedHuman": 6,
+    "duels": 7435,
+    "votes": 79
+  },
+  "scoped": {
+    "poems": [
+      {
+        "id": "19176bc9d632",
+        "title": "The Ballad of Reading Gaol",
+        "author": "Oscar Wilde",
+        "type": "HUMAN",
+        "year": null,
+        "source": "poets.org",
+        "source_url": "https://poets.org/poem/ballad-reading-gaol",
+        "form": null
+      },
+      {
+        "id": "92273a10aba0",
+        "title": "MONADNOC",
+        "author": "Ralph Waldo Emerson",
+        "type": "HUMAN",
+        "year": null,
+        "source": "gutenberg",
+        "source_url": "https://www.gutenberg.org/files/12843/12843-h/12843-h.htm",
+        "form": null
+      },
+      {
+        "id": "b45e1e960ad8",
+        "title": "MAY-DAY",
+        "author": "Ralph Waldo Emerson",
+        "type": "HUMAN",
+        "year": null,
+        "source": "gutenberg",
+        "source_url": "https://www.gutenberg.org/files/12843/12843-h/12843-h.htm",
+        "form": null
+      },
+      {
+        "id": "c8d1c4ef3331",
+        "title": "THE ADIRONDACS",
+        "author": "Ralph Waldo Emerson",
+        "type": "HUMAN",
+        "year": null,
+        "source": "gutenberg",
+        "source_url": "https://www.gutenberg.org/files/12843/12843-h/12843-h.htm",
+        "form": null
+      },
+      {
+        "id": "d87091e153a9",
+        "title": "INDEX OF FIRST LINES",
+        "author": "Ralph Waldo Emerson",
+        "type": "HUMAN",
+        "year": null,
+        "source": "gutenberg",
+        "source_url": "https://www.gutenberg.org/files/12843/12843-h/12843-h.htm",
+        "form": null
+      },
+      {
+        "id": "f399fdc5e1ab",
+        "title": "FRAGMENTS ON THE POET AND THE POETIC GIFT",
+        "author": "Ralph Waldo Emerson",
+        "type": "HUMAN",
+        "year": null,
+        "source": "gutenberg",
+        "source_url": "https://www.gutenberg.org/files/12843/12843-h/12843-h.htm",
+        "form": null
+      }
+    ],
+    "duelRefsById": [
+      {
+        "poemId": "19176bc9d632",
+        "duelRefs": 10
+      },
+      {
+        "poemId": "b45e1e960ad8",
+        "duelRefs": 10
+      },
+      {
+        "poemId": "92273a10aba0",
+        "duelRefs": 10
+      },
+      {
+        "poemId": "c8d1c4ef3331",
+        "duelRefs": 10
+      },
+      {
+        "poemId": "f399fdc5e1ab",
+        "duelRefs": 10
+      },
+      {
+        "poemId": "d87091e153a9",
+        "duelRefs": 10
+      }
+    ],
+    "counts": {
+      "poemTopics": 18,
+      "scrapeSources": 6,
+      "duels": 60,
+      "votesBySelectedPoem": 0
+    }
+  },
+  "orphans": {
+    "poemTopics": 0,
+    "scrapeSources": 0,
+    "duels": 0,
+    "votes": 0,
+    "featuredDuels": 0
+  }
+}
