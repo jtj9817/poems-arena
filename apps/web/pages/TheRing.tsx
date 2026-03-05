@@ -187,16 +187,21 @@ export const TheRing: React.FC<TheRingProps> = ({ duelId, onNavigate }) => {
 
   if (error) {
     return (
-      <div className="flex-grow flex items-center justify-center">
-        <p className="font-serif text-pencil italic">{error}</p>
+      <div id="the-ring-error-state" className="flex-grow flex items-center justify-center">
+        <p id="the-ring-error-message" className="font-serif text-pencil italic">
+          {error}
+        </p>
       </div>
     );
   }
 
   if (!duel) {
     return (
-      <div className="flex-grow flex items-center justify-center">
-        <p className="font-sans text-xs tracking-widest uppercase text-pencil animate-pulse">
+      <div id="the-ring-loading-state" className="flex-grow flex items-center justify-center">
+        <p
+          id="the-ring-loading-text"
+          className="font-sans text-xs tracking-widest uppercase text-pencil animate-pulse"
+        >
           Loading...
         </p>
       </div>
@@ -214,27 +219,46 @@ export const TheRing: React.FC<TheRingProps> = ({ duelId, onNavigate }) => {
       />
 
       <SwipeContainer
+        id="the-ring-swipe-container"
         swipePhase={swipePhase}
         onSwipeOutComplete={handleSwipeOutComplete}
         onSwipeInComplete={handleSwipeInComplete}
       >
         <div
           key={duel.id}
+          id={`the-ring-duel-${duel.id}`}
           className={`flex flex-col w-full h-full transition-opacity duration-1000 overflow-y-auto lg:overflow-hidden no-scrollbar ${fadeIn ? 'opacity-100' : 'opacity-0'}`}
         >
           {/* Header Info */}
-          <div className="w-full text-center py-6 border-b border-stock/30 shrink-0">
-            <p className="font-sans text-xs tracking-[0.2em] uppercase text-pencil">Subject</p>
-            <p className="font-serif text-2xl italic text-ink mt-1">{duel.topic}</p>
+          <div
+            id="the-ring-subject-header"
+            className="w-full text-center py-6 border-b border-stock/30 shrink-0"
+          >
+            <p
+              id="the-ring-subject-label"
+              className="font-sans text-xs tracking-[0.2em] uppercase text-pencil"
+            >
+              Subject
+            </p>
+            <p id="the-ring-subject-title" className="font-serif text-2xl italic text-ink mt-1">
+              {duel.topic}
+            </p>
           </div>
 
           {/* Split Screen Container */}
-          <div className="flex-grow flex flex-col lg:flex-row relative min-h-0">
+          <div
+            id="the-ring-columns"
+            className="flex-grow flex flex-col lg:flex-row relative min-h-0"
+          >
             {/* Divider (Desktop) */}
-            <div className="hidden lg:block absolute left-1/2 top-0 bottom-0 w-px bg-border-pencil z-10"></div>
+            <div
+              id="the-ring-columns-divider"
+              className="hidden lg:block absolute left-1/2 top-0 bottom-0 w-px bg-border-pencil z-10"
+            ></div>
 
             {/* Poem A */}
             <PoemColumn
+              columnIdPrefix={`the-ring-poem-a-${duel.poemA.id}`}
               poem={duel.poemA}
               revealedPoem={stats?.duel.poemA ?? null}
               label="Exhibit A"
@@ -247,6 +271,7 @@ export const TheRing: React.FC<TheRingProps> = ({ duelId, onNavigate }) => {
 
             {/* Poem B */}
             <PoemColumn
+              columnIdPrefix={`the-ring-poem-b-${duel.poemB.id}`}
               poem={duel.poemB}
               revealedPoem={stats?.duel.poemB ?? null}
               label="Exhibit B"
@@ -263,6 +288,7 @@ export const TheRing: React.FC<TheRingProps> = ({ duelId, onNavigate }) => {
 };
 
 interface PoemColumnProps {
+  columnIdPrefix: string;
   poem: { id: string; title: string; content: string };
   revealedPoem: { author: string; year?: string; type: AuthorType; title: string } | null;
   label: string;
@@ -274,6 +300,7 @@ interface PoemColumnProps {
 }
 
 const PoemColumn: React.FC<PoemColumnProps> = ({
+  columnIdPrefix,
   poem,
   revealedPoem,
   label,
@@ -289,6 +316,7 @@ const PoemColumn: React.FC<PoemColumnProps> = ({
 
   return (
     <div
+      id={`${columnIdPrefix}-column`}
       className={`
         flex-1 relative transition-colors duration-700
         lg:overflow-y-auto lg:h-full letterpress-scroll
@@ -297,42 +325,67 @@ const PoemColumn: React.FC<PoemColumnProps> = ({
       style={{ direction: isLeft ? 'rtl' : 'ltr' }}
     >
       <div
+        id={`${columnIdPrefix}-body`}
         className="flex flex-col min-h-full p-8 md:p-16 lg:p-20 relative"
         style={{ direction: 'ltr' }}
       >
         {/* Reveal Header */}
         <div
+          id={`${columnIdPrefix}-reveal-header`}
           className={`text-center mb-12 h-20 flex flex-col justify-end transition-opacity duration-700 ${revealed ? 'opacity-100' : 'opacity-0'}`}
         >
           {revealedPoem && (
             <>
               <span
+                id={`${columnIdPrefix}-author-type`}
                 className={`font-sans text-[10px] uppercase tracking-[0.2em] font-bold ${authorColor} mb-2 block`}
               >
                 {labelText}
               </span>
-              <h3 className={`text-2xl font-serif font-bold italic ${authorColor}`}>
+              <h3
+                id={`${columnIdPrefix}-author-name`}
+                className={`text-2xl font-serif font-bold italic ${authorColor}`}
+              >
                 {revealedPoem.author}
               </h3>
-              <span className="text-xs font-sans text-pencil mt-1">{revealedPoem.year}</span>
+              <span
+                id={`${columnIdPrefix}-author-year`}
+                className="text-xs font-sans text-pencil mt-1"
+              >
+                {revealedPoem.year}
+              </span>
             </>
           )}
         </div>
 
         {/* Anonymized Header */}
         {!revealed && (
-          <div className="absolute top-16 left-0 right-0 text-center pointer-events-none">
-            <span className="inline-block border-b border-pencil/30 pb-2 px-4 font-serif font-bold text-lg tracking-widest text-pencil/60 uppercase">
+          <div
+            id={`${columnIdPrefix}-anonymized-header`}
+            className="absolute top-16 left-0 right-0 text-center pointer-events-none"
+          >
+            <span
+              id={`${columnIdPrefix}-anonymized-label`}
+              className="inline-block border-b border-pencil/30 pb-2 px-4 font-serif font-bold text-lg tracking-widest text-pencil/60 uppercase"
+            >
               {label}
             </span>
           </div>
         )}
 
         {/* Poem Content */}
-        <div className="prose prose-lg mx-auto max-w-md font-body text-xl leading-relaxed whitespace-pre-line text-ink">
+        <div
+          id={`${columnIdPrefix}-content`}
+          className="prose prose-lg mx-auto max-w-md font-body text-xl leading-relaxed whitespace-pre-line text-ink"
+        >
           {revealed && (
-            <div className="mb-6 text-center md:text-left">
-              <p className="font-serif font-bold italic text-2xl mb-6">{poem.title}</p>
+            <div id={`${columnIdPrefix}-title-wrap`} className="mb-6 text-center md:text-left">
+              <p
+                id={`${columnIdPrefix}-title`}
+                className="font-serif font-bold italic text-2xl mb-6"
+              >
+                {poem.title}
+              </p>
             </div>
           )}
           {poem.content}
@@ -340,8 +393,12 @@ const PoemColumn: React.FC<PoemColumnProps> = ({
 
         {/* Selection Button */}
         {!revealed && (
-          <div className="mt-auto pt-16 flex justify-center sticky bottom-8 z-10">
+          <div
+            id={`${columnIdPrefix}-select-wrap`}
+            className="mt-auto pt-16 flex justify-center sticky bottom-8 z-10"
+          >
             <Button
+              id={`${columnIdPrefix}-select-btn`}
               variant="outline"
               onClick={onSelect}
               disabled={disabled}
@@ -355,10 +412,16 @@ const PoemColumn: React.FC<PoemColumnProps> = ({
 
         {/* Result Badge */}
         {revealed && isSelected && (
-          <div className="absolute top-6 right-6">
-            <div className="flex items-center gap-2 text-ink/60 bg-stock px-3 py-1.5 rounded border border-border-pencil">
+          <div id={`${columnIdPrefix}-selected-badge-wrap`} className="absolute top-6 right-6">
+            <div
+              id={`${columnIdPrefix}-selected-badge`}
+              className="flex items-center gap-2 text-ink/60 bg-stock px-3 py-1.5 rounded border border-border-pencil"
+            >
               <span className="material-symbols-outlined text-sm">check</span>
-              <span className="text-xs font-sans font-medium uppercase tracking-wide">
+              <span
+                id={`${columnIdPrefix}-selected-badge-label`}
+                className="text-xs font-sans font-medium uppercase tracking-wide"
+              >
                 Your Choice
               </span>
             </div>

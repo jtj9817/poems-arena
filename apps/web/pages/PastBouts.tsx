@@ -42,33 +42,54 @@ export const PastBouts: React.FC<PastBoutsProps> = ({ onNavigate }) => {
     activeTopicId === null ? 'All' : (topics.find((t) => t.id === activeTopicId)?.label ?? 'All');
 
   return (
-    <div className="h-full w-full overflow-y-auto no-scrollbar bg-paper">
-      <div className="max-w-7xl mx-auto px-6 py-12 flex flex-col min-h-full">
+    <div id="past-bouts-page" className="h-full w-full overflow-y-auto no-scrollbar bg-paper">
+      <div
+        id="past-bouts-content"
+        className="max-w-7xl mx-auto px-6 py-12 flex flex-col min-h-full"
+      >
         {/* Header */}
-        <div className="text-center mb-16 max-w-2xl mx-auto">
+        <header id="past-bouts-header" className="text-center mb-16 max-w-2xl mx-auto">
           <span className="material-symbols-outlined text-4xl text-pencil/40 mb-4">
             auto_stories
           </span>
-          <h2 className="text-5xl md:text-6xl font-serif font-bold mb-6 text-ink tracking-tight">
+          <h2
+            id="past-bouts-heading"
+            className="text-5xl md:text-6xl font-serif font-bold mb-6 text-ink tracking-tight"
+          >
             Past Bouts
           </h2>
-          <p className="text-xl text-ink/70 italic font-body">
+          <p id="past-bouts-description" className="text-xl text-ink/70 italic font-body">
             Browse every matchup. See where readers picked the human, and where the machine fooled
             them.
           </p>
-        </div>
+        </header>
 
         {/* Topic Bar — desktop (md+) */}
-        <div className="hidden md:block sticky top-0 z-30 bg-paper/95 backdrop-blur-sm py-4 mb-10 border-b border-stock">
-          <TopicBar topics={topics} activeTopicId={activeTopicId} onSelect={setActiveTopicId} />
+        <div
+          id="past-bouts-topicbar-desktop"
+          className="hidden md:block sticky top-0 z-30 bg-paper/95 backdrop-blur-sm py-4 mb-10 border-b border-stock"
+        >
+          <TopicBar
+            idPrefix="past-bouts-topicbar"
+            topics={topics}
+            activeTopicId={activeTopicId}
+            onSelect={setActiveTopicId}
+          />
         </div>
 
         {/* Filter trigger — mobile */}
-        <div className="flex md:hidden sticky top-0 z-30 bg-paper/95 backdrop-blur-sm py-3 mb-8 border-b border-stock justify-between items-center">
-          <span className="text-xs font-sans font-medium uppercase tracking-widest text-pencil">
+        <div
+          id="past-bouts-topic-filter-mobile"
+          className="flex md:hidden sticky top-0 z-30 bg-paper/95 backdrop-blur-sm py-3 mb-8 border-b border-stock justify-between items-center"
+        >
+          <span
+            id="past-bouts-topic-filter-label"
+            className="text-xs font-sans font-medium uppercase tracking-widest text-pencil"
+          >
             Topic: <span className="text-ink">{activeLabel}</span>
           </span>
           <button
+            id="past-bouts-filter-open-btn"
             onClick={() => setIsFilterOpen(true)}
             className="flex items-center gap-1.5 text-xs font-sans font-medium text-ink border border-border-pencil px-3 py-1.5 rounded-full"
           >
@@ -79,24 +100,40 @@ export const PastBouts: React.FC<PastBoutsProps> = ({ onNavigate }) => {
 
         {/* Grid */}
         {loading ? (
-          <div className="flex justify-center py-20">
-            <p className="font-sans text-xs tracking-widest uppercase text-pencil animate-pulse">
+          <div id="past-bouts-loading-state" className="flex justify-center py-20">
+            <p
+              id="past-bouts-loading-text"
+              className="font-sans text-xs tracking-widest uppercase text-pencil animate-pulse"
+            >
               Loading...
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-20">
+          <div
+            id="past-bouts-duels-grid"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-20"
+          >
             {duels.map((duel) => (
               <div
                 key={duel.id}
+                id={`past-bouts-duel-card-${duel.id}`}
                 onClick={() => onNavigate(ViewState.THE_RING, duel.id)}
                 className="group cursor-pointer break-inside-avoid relative bg-paper border border-border-pencil p-8 rounded-sm hover:-translate-y-1 hover:shadow-lg transition-all duration-300"
               >
-                <div className="flex justify-between items-start mb-4">
-                  <span className="text-xs font-bold font-sans tracking-widest uppercase text-seal-red">
+                <div
+                  id={`past-bouts-duel-card-meta-${duel.id}`}
+                  className="flex justify-between items-start mb-4"
+                >
+                  <span
+                    id={`past-bouts-duel-topic-${duel.id}`}
+                    className="text-xs font-bold font-sans tracking-widest uppercase text-seal-red"
+                  >
                     {duel.topicMeta.label}
                   </span>
-                  <span className="text-xs font-medium font-sans text-pencil">
+                  <span
+                    id={`past-bouts-duel-date-${duel.id}`}
+                    className="text-xs font-medium font-sans text-pencil"
+                  >
                     {new Date(duel.createdAt).toLocaleDateString('en-US', {
                       month: 'short',
                       year: 'numeric',
@@ -104,14 +141,26 @@ export const PastBouts: React.FC<PastBoutsProps> = ({ onNavigate }) => {
                   </span>
                 </div>
 
-                <h3 className="text-3xl font-serif font-bold text-ink mb-2 group-hover:text-seal-red transition-colors">
+                <h3
+                  id={`past-bouts-duel-title-${duel.id}`}
+                  className="text-3xl font-serif font-bold text-ink mb-2 group-hover:text-seal-red transition-colors"
+                >
                   On {duel.topicMeta.label}
                 </h3>
 
-                <div className="h-px w-8 bg-pencil/20 my-4"></div>
+                <div
+                  id={`past-bouts-duel-divider-${duel.id}`}
+                  className="h-px w-8 bg-pencil/20 my-4"
+                ></div>
 
-                <div className="flex items-center justify-between mt-6 pt-4 border-t border-stock">
-                  <div className="flex items-center gap-1.5 text-ink">
+                <div
+                  id={`past-bouts-duel-stats-${duel.id}`}
+                  className="flex items-center justify-between mt-6 pt-4 border-t border-stock"
+                >
+                  <div
+                    id={`past-bouts-duel-human-rate-${duel.id}`}
+                    className="flex items-center gap-1.5 text-ink"
+                  >
                     <span
                       className={`material-symbols-outlined text-lg ${duel.humanWinRate > 50 ? 'text-seal-red' : 'text-pencil'}`}
                     >
@@ -130,6 +179,7 @@ export const PastBouts: React.FC<PastBoutsProps> = ({ onNavigate }) => {
 
       {/* Mobile bottom sheet */}
       <BottomSheetFilter
+        idPrefix="past-bouts-mobile-filter"
         topics={topics}
         activeTopicId={activeTopicId}
         onSelect={setActiveTopicId}

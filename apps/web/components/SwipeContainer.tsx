@@ -3,6 +3,7 @@ import React from 'react';
 export type SwipePhase = 'idle' | 'swipe-out' | 'swipe-in';
 
 interface SwipeContainerProps {
+  id?: string;
   children: React.ReactNode;
   swipePhase: SwipePhase;
   onSwipeOutComplete: () => void;
@@ -16,6 +17,7 @@ interface SwipeContainerProps {
  * Keyframes are defined in apps/web/index.html's <style> block.
  */
 export const SwipeContainer: React.FC<SwipeContainerProps> = ({
+  id,
   children,
   swipePhase,
   onSwipeOutComplete,
@@ -35,6 +37,7 @@ export const SwipeContainer: React.FC<SwipeContainerProps> = ({
 
   return (
     <div
+      id={id}
       data-animation-state={swipePhase}
       style={{ ...animationStyle, width: '100%', height: '100%', overflow: 'hidden' }}
       onAnimationEnd={handleAnimationEnd}
