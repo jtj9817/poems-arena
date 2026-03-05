@@ -4,10 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "npx playwright test",
-    "test:cdp": "npx playwright test --project=cdp",
-    "test:api": "npx playwright test --project=api",
-    "test:ui": "npx playwright test --project=ui"
+    "test": "node ./scripts/run-playwright-with-ports.mjs",
+    "test:cdp": "node ./scripts/run-playwright-with-ports.mjs --project=cdp",
+    "test:api": "node ./scripts/run-playwright-with-ports.mjs --project=api",
+    "test:ui": "node ./scripts/run-playwright-with-ports.mjs --project=ui",
+    "test:raw": "playwright test"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
