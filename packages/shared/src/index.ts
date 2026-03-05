@@ -57,10 +57,10 @@ export interface Duel {
 }
 
 export enum ViewState {
-  FOYER = 'FOYER',
-  READING_ROOM = 'READING_ROOM',
-  ANTHOLOGY = 'ANTHOLOGY',
-  COLOPHON = 'COLOPHON',
+  HOME = 'HOME',
+  THE_RING = 'THE_RING',
+  PAST_BOUTS = 'PAST_BOUTS',
+  ABOUT = 'ABOUT',
 }
 
 export interface DuelResult {
