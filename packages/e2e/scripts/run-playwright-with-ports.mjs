@@ -20,7 +20,6 @@ function canListen(port) {
 async function findAvailablePort(start, maxAttempts = 200) {
   for (let offset = 0; offset < maxAttempts; offset += 1) {
     const port = start + offset;
-    // eslint-disable-next-line no-await-in-loop
     if (await canListen(port)) return port;
   }
   throw new Error(`No available port found from ${start}..${start + maxAttempts - 1}`);
