@@ -1,6 +1,6 @@
 # @sanctuary/scraper
 
-A specialized poetry scraping package for the Classicist's Sanctuary project. Built with Bun and Cheerio.
+A specialized poetry scraping package for the Poem Arena project. Built with Bun and Cheerio.
 
 ## Features
 

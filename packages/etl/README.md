@@ -1,6 +1,6 @@
 # @sanctuary/etl
 
-ETL pipeline for the Classicist's Sanctuary. Cleans, deduplicates, tags, and loads scraped poems into the LibSQL (Turso) database.
+ETL pipeline for Poem Arena. Cleans, deduplicates, tags, and loads scraped poems into the LibSQL (Turso) database.
 
 ---
 
