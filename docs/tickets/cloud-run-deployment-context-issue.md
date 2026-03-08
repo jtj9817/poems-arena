@@ -51,7 +51,26 @@ Abandon the `compose up` macro and use a native `cloudbuild.yaml` to explicitly 
 **Result:**
 **Failed / Cancelled.** The `sanctuary-api` build failed at the `bunx drizzle-kit generate` step because it could not find `drizzle-kit`, indicating that despite copying `pnpm-lock.yaml`, the `pnpm install` step did not correctly hydrate the workspace dependencies within the Docker build context. Subsequent debugging attempts to adjust the Dockerfile `COPY` commands were aborted to capture this state.
 
-## Recommended Next Steps
+## Results
 
-1. **Local Build & Push:** Instead of relying on Google Cloud Build to construct the images from source, build the images locally using `docker-compose build`, tag them, and push them directly to Google Artifact Registry. 
-2. **Deploy Pre-Built Images:** Once the images are in the registry, update the `docker-compose.yml` to use `image: <registry-url>` instead of `build:`. Then, use `gcloud beta run compose up` or convert to a native `service.yaml` and deploy using `gcloud run deploy`. This entirely bypasses the fragile remote build context issues.
+### Attempt 3: Local Build & Sidecar Deployment (Successful)
+
+**Strategy:**
+Build images locally to bypass fragile Cloud Build workspace resolution, push to a known functional region, and use `gcloud beta run compose up` with a pre-configured sidecar networking (Nginx proxy on localhost:4000).
+
+**Execution:**
+1.  **Repository Setup:** Created a Docker repository named `sanctuary` in Artifact Registry.
+2.  **Image Build:** Built the `api` and `web` images locally using their respective Dockerfiles.
+3.  **Networking Fix:** Updated `apps/web/Dockerfile` to include an Nginx proxy that routes `/api/v1` to `http://localhost:4000/api/v1`. This ensures the frontend can communicate with the backend sidecar over the private `localhost` network within the Cloud Run pod.
+4.  **Deployment:** Discovered that `us-east1` was blocked by a regional initialization quota (common in newer projects). Successfully deployed the project to `us-west1` (the project's primary active region) using `gcloud beta run compose up`.
+
+**Result:**
+**Success.** The service is live at: `https://classicist-sanctuary-lf4is44nra-uw.a.run.app`
+
+**Key Learnings:**
+- **Local Builds:** Bypass remote workspace dependency resolution issues in Cloud Build for monorepos.
+- **Regional Initialization:** Projects often have a limit on the number of active Cloud Run regions. If `gcloud run compose up` fails with a generic quota error in a new region, switch to a region already hosting active services.
+- **Sidecar Connectivity:** In Cloud Run multi-container, services must communicate via `localhost`. The Nginx proxy in the ingress container is the standard way to bridge frontend-to-backend traffic.
+
+**Status:** Resolved
+**Resolution Date:** 2026-03-08
