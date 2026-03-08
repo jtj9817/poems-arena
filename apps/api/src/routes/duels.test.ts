@@ -115,6 +115,66 @@ const DUEL_1 = {
   poemBId: 'poem-ai-1',
 };
 
+type ArchiveDuelRow = {
+  id: string;
+  topic: string;
+  topicMeta: { id: string | null; label: string };
+  createdAt: string;
+  humanWinRate: number;
+  avgReadingTime: string;
+};
+
+function makeWordContent(count: number, prefix = 'word'): string {
+  return Array.from({ length: count }, (_, index) => `${prefix}${index + 1}`).join(' ');
+}
+
+async function insertArchiveDuelFixture(
+  db: TestDb,
+  fixture: {
+    duelId: string;
+    poemAId: string;
+    poemBId: string;
+    contentA: string;
+    contentB: string;
+    topic?: string;
+    topicId?: string | null;
+  },
+): Promise<void> {
+  const topic = fixture.topic ?? 'Nature';
+  const topicId = fixture.topicId ?? 'topic-nature';
+
+  await db.insert(schema.poems).values([
+    {
+      id: fixture.poemAId,
+      title: `${fixture.poemAId} title`,
+      content: fixture.contentA,
+      author: `${fixture.poemAId} author`,
+      type: 'HUMAN',
+    },
+    {
+      id: fixture.poemBId,
+      title: `${fixture.poemBId} title`,
+      content: fixture.contentB,
+      author: `${fixture.poemBId} author`,
+      type: 'AI',
+    },
+  ]);
+
+  await db.insert(schema.duels).values({
+    id: fixture.duelId,
+    topic,
+    topicId,
+    poemAId: fixture.poemAId,
+    poemBId: fixture.poemBId,
+  });
+}
+
+function getArchiveDuel(rows: ArchiveDuelRow[], duelId: string): ArchiveDuelRow {
+  const duel = rows.find((row) => row.id === duelId);
+  expect(duel).toBeDefined();
+  return duel!;
+}
+
 // ── GET /duels — paginated archive ───────────────────────────────────────────
 
 describe('GET /duels', () => {
@@ -157,6 +217,157 @@ describe('GET /duels', () => {
     }>;
     expect(item.topicMeta.id).toBe('topic-nature');
     expect(item.topicMeta.label).toBe('Nature');
+  });
+
+  test('computes archive avgReadingTime for the best-case scenario', async () => {
+    await insertArchiveDuelFixture(db, {
+      duelId: 'duel-best-case',
+      poemAId: 'poem-human-best',
+      poemBId: 'poem-ai-best',
+      contentA: makeWordContent(1, 'besta'),
+      contentB: makeWordContent(1, 'bestb'),
+    });
+
+    const res = await app.request('/');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as ArchiveDuelRow[];
+
+    expect(getArchiveDuel(body, 'duel-best-case').avgReadingTime).toBe('0m 1s');
+  });
+
+  test('computes archive avgReadingTime for the average-case scenario', async () => {
+    await insertArchiveDuelFixture(db, {
+      duelId: 'duel-average-case',
+      poemAId: 'poem-human-average',
+      poemBId: 'poem-ai-average',
+      contentA: makeWordContent(100, 'averagea'),
+      contentB: makeWordContent(100, 'averageb'),
+    });
+
+    const res = await app.request('/');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as ArchiveDuelRow[];
+
+    expect(getArchiveDuel(body, 'duel-average-case').avgReadingTime).toBe('1m 0s');
+  });
+
+  test('computes archive avgReadingTime for the worst-case scenario', async () => {
+    await insertArchiveDuelFixture(db, {
+      duelId: 'duel-worst-case',
+      poemAId: 'poem-human-worst',
+      poemBId: 'poem-ai-worst',
+      contentA: makeWordContent(1000, 'worsta'),
+      contentB: makeWordContent(1000, 'worstb'),
+    });
+
+    const res = await app.request('/');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as ArchiveDuelRow[];
+
+    expect(getArchiveDuel(body, 'duel-worst-case').avgReadingTime).toBe('10m 0s');
+  });
+
+  test('computes distinct avgReadingTime values for each archive row in the same response', async () => {
+    await insertArchiveDuelFixture(db, {
+      duelId: 'duel-short',
+      poemAId: 'poem-human-short',
+      poemBId: 'poem-ai-short',
+      contentA: makeWordContent(25, 'shorta'),
+      contentB: makeWordContent(25, 'shortb'),
+    });
+    await insertArchiveDuelFixture(db, {
+      duelId: 'duel-medium',
+      poemAId: 'poem-human-medium',
+      poemBId: 'poem-ai-medium',
+      contentA: makeWordContent(150, 'mediuma'),
+      contentB: makeWordContent(150, 'mediumb'),
+    });
+    await insertArchiveDuelFixture(db, {
+      duelId: 'duel-long',
+      poemAId: 'poem-human-long',
+      poemBId: 'poem-ai-long',
+      contentA: makeWordContent(450, 'longa'),
+      contentB: makeWordContent(450, 'longb'),
+    });
+
+    const res = await app.request('/');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as ArchiveDuelRow[];
+
+    expect(getArchiveDuel(body, 'duel-short').avgReadingTime).toBe('0m 15s');
+    expect(getArchiveDuel(body, 'duel-medium').avgReadingTime).toBe('1m 30s');
+    expect(getArchiveDuel(body, 'duel-long').avgReadingTime).toBe('4m 30s');
+  });
+
+  test('normalizes repeated whitespace and newlines when computing archive avgReadingTime', async () => {
+    await insertArchiveDuelFixture(db, {
+      duelId: 'duel-whitespace',
+      poemAId: 'poem-human-whitespace',
+      poemBId: 'poem-ai-whitespace',
+      contentA: 'alpha\n\nbeta\ngamma',
+      contentB: 'delta     epsilon',
+    });
+
+    const res = await app.request('/');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as ArchiveDuelRow[];
+
+    expect(getArchiveDuel(body, 'duel-whitespace').avgReadingTime).toBe('0m 2s');
+  });
+
+  test('rounds archive avgReadingTime consistently around the one-minute threshold', async () => {
+    await insertArchiveDuelFixture(db, {
+      duelId: 'duel-199-words',
+      poemAId: 'poem-human-199',
+      poemBId: 'poem-ai-199',
+      contentA: makeWordContent(99, 'threshold199a'),
+      contentB: makeWordContent(100, 'threshold199b'),
+    });
+    await insertArchiveDuelFixture(db, {
+      duelId: 'duel-200-words',
+      poemAId: 'poem-human-200',
+      poemBId: 'poem-ai-200',
+      contentA: makeWordContent(100, 'threshold200a'),
+      contentB: makeWordContent(100, 'threshold200b'),
+    });
+    await insertArchiveDuelFixture(db, {
+      duelId: 'duel-201-words',
+      poemAId: 'poem-human-201',
+      poemBId: 'poem-ai-201',
+      contentA: makeWordContent(100, 'threshold201a'),
+      contentB: makeWordContent(101, 'threshold201b'),
+    });
+
+    const res = await app.request('/');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as ArchiveDuelRow[];
+
+    expect(getArchiveDuel(body, 'duel-199-words').avgReadingTime).toBe('1m 0s');
+    expect(getArchiveDuel(body, 'duel-200-words').avgReadingTime).toBe('1m 0s');
+    expect(getArchiveDuel(body, 'duel-201-words').avgReadingTime).toBe('1m 0s');
+  });
+
+  test('computes archive avgReadingTime independently of vote aggregation', async () => {
+    await insertArchiveDuelFixture(db, {
+      duelId: 'duel-with-votes',
+      poemAId: 'poem-human-votes',
+      poemBId: 'poem-ai-votes',
+      contentA: makeWordContent(120, 'votea'),
+      contentB: makeWordContent(80, 'voteb'),
+    });
+    await db.insert(schema.votes).values({
+      duelId: 'duel-with-votes',
+      selectedPoemId: 'poem-human-votes',
+      isHuman: true,
+    });
+
+    const res = await app.request('/');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as ArchiveDuelRow[];
+    const duel = getArchiveDuel(body, 'duel-with-votes');
+
+    expect(duel.humanWinRate).toBe(100);
+    expect(duel.avgReadingTime).toBe('1m 0s');
   });
 
   test('falls back to topicMeta: { id: null, label: duel.topic } when topic_id is null', async () => {
