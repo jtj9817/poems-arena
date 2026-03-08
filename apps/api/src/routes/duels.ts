@@ -22,6 +22,8 @@ export function createDuelsRouter(db: Db) {
         topicId: duels.topicId,
         topicLabel: topics.label,
         createdAt: duels.createdAt,
+        poemAId: duels.poemAId,
+        poemBId: duels.poemBId,
       })
       .from(duels)
       .leftJoin(topics, eq(duels.topicId, topics.id))
@@ -31,9 +33,11 @@ export function createDuelsRouter(db: Db) {
       .offset(offset);
 
     const duelIds = rows.map((r) => r.id);
-    const voteStats =
+    const poemIds = rows.flatMap((r) => [r.poemAId, r.poemBId]);
+
+    const [voteStats, poemContents] = await Promise.all([
       duelIds.length > 0
-        ? await db
+        ? db
             .select({
               duelId: votes.duelId,
               totalVotes: sql<number>`count(${votes.id})`,
@@ -42,7 +46,14 @@ export function createDuelsRouter(db: Db) {
             .from(votes)
             .where(inArray(votes.duelId, duelIds))
             .groupBy(votes.duelId)
-        : [];
+        : Promise.resolve([]),
+      poemIds.length > 0
+        ? db
+            .select({ id: poems.id, content: poems.content })
+            .from(poems)
+            .where(inArray(poems.id, poemIds))
+        : Promise.resolve([]),
+    ]);
 
     const voteStatsByDuel = new Map<string, { totalVotes: number; humanVotes: number }>();
     for (const stat of voteStats) {
@@ -52,8 +63,15 @@ export function createDuelsRouter(db: Db) {
       });
     }
 
+    const contentByPoem = new Map<string, string>();
+    for (const poem of poemContents) {
+      contentByPoem.set(poem.id, poem.content);
+    }
+
     const result = rows.map((r) => {
       const stats = voteStatsByDuel.get(r.id) ?? { totalVotes: 0, humanVotes: 0 };
+      const contentA = contentByPoem.get(r.poemAId) ?? '';
+      const contentB = contentByPoem.get(r.poemBId) ?? '';
       return {
         id: r.id,
         topic: r.topic,
@@ -61,7 +79,7 @@ export function createDuelsRouter(db: Db) {
         createdAt: r.createdAt,
         humanWinRate:
           stats.totalVotes > 0 ? Math.round((stats.humanVotes / stats.totalVotes) * 100) : 0,
-        avgReadingTime: '3m 30s',
+        avgReadingTime: computeAvgReadingTime(contentA, contentB),
       };
     });
 
