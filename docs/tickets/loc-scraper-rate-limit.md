@@ -1,11 +1,21 @@
 # [TASK] Improve LOC 180 Scraper — Rate Limit Handling
 
 **Date:** 2026-03-01
-**Status:** Open
+**Status:** Superseded
 **Priority:** Medium
 **Assignee:** —
 **Labels:** `scraper`, `loc-180`, `rate-limiting`
 **Parent:** [`etl-pipeline-activation.md`](etl-pipeline-activation.md)
+
+## Verification Update (2026-03-08)
+
+This ticket no longer matches the current implementation.
+
+- The LOC scraper no longer uses the queue/concurrency design described here.
+- Current code uses the LOC JSON API, sequential poem fetches, retry loops, and a fetch-first transport with Playwright fallbacks.
+- The relevant follow-up work is tracked more accurately in `loc-scraper-waf-bypass.md` and `scraper-loc-180-refinement.md`.
+
+Keep this ticket for historical context only; do not treat it as the active implementation plan.
 
 ## Context
 

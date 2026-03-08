@@ -1,7 +1,7 @@
 # [TASK] LOC 180 Scraper WAF Bypass — Revised Plan
 
 **Date:** 2026-03-02
-**Status:** Open
+**Status:** Partially Complete
 **Priority:** High
 **Assignee:** —
 **Labels:** `scraper`, `etl`, `loc-180`, `waf`, `playwright`
@@ -236,3 +236,13 @@ pnpm --filter @sanctuary/etl run pipeline --include-non-pd
 # Generate AI counterparts for the ~115 new poems
 bun scripts/run-generate.ts --concurrency 3
 ```
+
+## Verification Update (2026-03-08)
+
+Verified against the current scraper implementation:
+
+- The JSON API findings in this ticket are real and reflected in `packages/scraper/src/scrapers/loc-180.ts`.
+- `playwright` is installed and used as a fallback transport.
+- The implementation diverged from this ticket's "Playwright as the primary transport" plan. Current code prefers `fetch`, then falls back to Playwright request/page paths when needed.
+
+Result: this ticket is partially complete, but parts of the plan are stale and should not be treated as the exact current design.

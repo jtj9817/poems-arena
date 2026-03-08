@@ -1,9 +1,23 @@
 # SCRAPER-LOC-180-REFINEMENT
 
-**Status:** OPEN  
+**Status:** PARTIALLY COMPLETE  
 **Priority:** Medium  
 **Created:** 2026-03-02  
 **Related Track:** `packages/scraper`
+
+## Verification Update (2026-03-08)
+
+Most of the refinements proposed here are now present in the code:
+
+- LOC now prefers `fetch` and only falls back to Playwright when needed.
+- Dedupe is keyed by poem number.
+- HTML/challenge detection is broader than URL-only checks.
+- Partial results are returned by default, with `strictValidation` available for fail-hard callers.
+- Request jitter is configurable.
+
+Remaining gap:
+
+- Playwright overhead is reduced but not eliminated, because the browser/context is still created eagerly before the first fetch attempt.
 
 ---
 

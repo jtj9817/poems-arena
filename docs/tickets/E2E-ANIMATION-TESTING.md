@@ -1,9 +1,21 @@
 # E2E-ANIMATION-TESTING
 
-**Status:** OPEN  
+**Status:** PARTIALLY COMPLETE  
 **Priority:** Low  
 **Created:** 2026-02-26  
 **Related Track:** `conductor/tracks/frontend_integration_20260226`
+
+## Verification Update (2026-03-08)
+
+Verified against current frontend and E2E test code:
+
+- Animated components expose `data-animation-state` attributes.
+- Playwright config defaults to `reducedMotion: 'reduce'`.
+- Existing tests cover the reduced-motion path for the Reading Room flow.
+
+Still open:
+
+- I did not find a dedicated smoke test that runs with animations enabled and verifies the full animation lifecycle.
 
 ---
 
