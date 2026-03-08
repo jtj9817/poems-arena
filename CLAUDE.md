@@ -43,7 +43,7 @@ classicist-sanctuary-proto/
 ├── packages/
 │   ├── shared/                 @sanctuary/shared — TypeScript types
 │   │   └── src/
-│   │       └── index.ts        # Shared types (Poem, Duel, Vote, AuthorType, ViewState, DuelResult)
+│   │       └── index.ts        # Shared types (Poem, Duel, Vote, AuthorType, ViewState, DuelResult, TopicMeta, SourceInfo, SourceProvenance)
 │   ├── db/                     @sanctuary/db — Drizzle schema + LibSQL client (shared)
 │   │   └── src/
 │   │       ├── schema.ts       # All DB tables: poems, duels, votes, topics, poem_topics, scrape_sources, featured_duels
@@ -65,6 +65,22 @@ classicist-sanctuary-proto/
 │   │   │       └── id-gen.ts   # Deterministic SHA-256 poem ID generation
 │   │   ├── INPUT_CONTRACT.md   # ScrapedPoem field reference and scraper output conventions
 │   │   ├── .env.example        # Required environment variables for the ETL package
+│   │   ├── package.json
+│   │   └── tsconfig.json
+│   ├── ai-gen/                 @sanctuary/ai-gen — AI poem generation + duel assembly
+│   │   ├── src/
+│   │   │   ├── index.ts              # CLI entry point (parseCliArgs, batch orchestration)
+│   │   │   ├── cli.ts                # CLI flag parsing and run loop
+│   │   │   ├── deepseek-client.ts    # DeepSeek generation client (OpenAI SDK, JSON mode)
+│   │   │   ├── verification-agent.ts # Secondary DeepSeek verification call
+│   │   │   ├── prompt-builder.ts     # Prompt templates and system prompt loading
+│   │   │   ├── generation-service.ts # Generation + verification + validation orchestration
+│   │   │   ├── quality-validator.ts  # Output quality validation rules
+│   │   │   ├── duel-assembly.ts      # Pair HUMAN↔AI poems into duels (fan-out, idempotent)
+│   │   │   └── persistence.ts        # Unmatched selection + idempotent AI poem persistence
+│   │   ├── prompts/
+│   │   │   └── system-instructions.md  # Generation system prompt
+│   │   ├── README.md
 │   │   ├── package.json
 │   │   └── tsconfig.json
 │   ├── scraper/                @sanctuary/scraper — Poem scraper (Poets.org, LOC 180, Gutenberg)
@@ -215,10 +231,38 @@ pnpm --filter @sanctuary/etl run pipeline --include-non-pd
 
 See `packages/etl/README.md` for full stage details, IO conventions, and canonical topics.
 
+## AI Poem Generation — @sanctuary/ai-gen
+
+Generates AI poem counterparts for unmatched HUMAN poems using DeepSeek, then assembles HUMAN↔AI duels.
+
+```bash
+# Generate AI counterparts for all unmatched HUMAN poems
+pnpm --filter @sanctuary/ai-gen run generate
+
+# Restrict to a topic, limit batch size
+pnpm --filter @sanctuary/ai-gen run generate --topic nature --limit 50
+
+# Override concurrency and retry controls
+pnpm --filter @sanctuary/ai-gen run generate --concurrency 5 --max-retries 3
+```
+
+| Flag            | Default         | Description                                               |
+| --------------- | --------------- | --------------------------------------------------------- |
+| `--topic`       | _(all)_         | Restrict to a canonical topic ID or label                 |
+| `--limit`       | _(all)_         | Maximum number of HUMAN poems to process                  |
+| `--model`       | `deepseek-chat` | DeepSeek model name for generation + verification         |
+| `--concurrency` | `3`             | Max concurrent generation tasks                           |
+| `--max-retries` | `2`             | Retry attempts after retryable validation failures        |
+
+Duel assembly runs automatically after generation. Requires `DEEPSEEK_API_KEY` in environment.
+
+See `packages/ai-gen/README.md` for full runtime behavior and prompt documentation.
+
 ## Environment Variables
 
 | Variable                 | Used by        | Purpose                                                                        |
 | ------------------------ | -------------- | ------------------------------------------------------------------------------ |
+| `DEEPSEEK_API_KEY`       | ai-gen         | DeepSeek API key for poem generation and verification                          |
 | `LIBSQL_URL`             | api, etl       | Turso database URL (`libsql://...`) or `file:./local.db` for local SQLite      |
 | `LIBSQL_AUTH_TOKEN`      | api, etl       | Turso auth token (leave blank for local file-backed databases)                 |
 | `LIBSQL_TEST_URL`        | db (test)      | Separate DB URL used when `NODE_ENV=test` (required for `@sanctuary/db` tests) |
