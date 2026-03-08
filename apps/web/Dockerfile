@@ -30,8 +30,8 @@ FROM nginx:alpine AS runner
 
 COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
 
-# SPA fallback — serve index.html for all routes
-RUN printf 'server {\n  listen 80;\n  root /usr/share/nginx/html;\n  index index.html;\n  location / {\n    try_files $uri $uri/ /index.html;\n  }\n}\n' \
+# SPA fallback & API proxy — serve index.html for all routes, proxy /api to localhost:4000
+RUN printf 'server {\n  listen 80;\n  root /usr/share/nginx/html;\n  index index.html;\n  location /api/v1/ {\n    proxy_pass http://localhost:4000/api/v1/;\n    proxy_set_header Host $host;\n    proxy_set_header X-Real-IP $remote_addr;\n  }\n  location / {\n    try_files $uri $uri/ /index.html;\n  }\n}\n' \
     > /etc/nginx/conf.d/default.conf
 
 EXPOSE 80

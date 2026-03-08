@@ -2,21 +2,11 @@ name: classicist-sanctuary
 
 services:
   sanctuary-api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
-    env_file:
-      - .env
+    image: us-west1-docker.pkg.dev/solheim-project/sanctuary/api:latest
     restart: unless-stopped
 
   sanctuary-web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-      args:
-        VITE_API_URL: /api/v1
+    image: us-west1-docker.pkg.dev/solheim-project/sanctuary/web:latest
     ports:
       - '8080:80'
-    depends_on:
-      - sanctuary-api
     restart: unless-stopped
