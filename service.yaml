@@ -1,0 +1,44 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  annotations:
+    run.googleapis.com/ingress: all
+  labels:
+    cloud.googleapis.com/location: us-west1
+  name: classicist-sanctuary
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/execution-environment: gen2
+    spec:
+      containerConcurrency: 80
+      containers:
+        - env:
+            - name: LIBSQL_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  key: 'latest'
+                  name: LIBSQL_AUTH_TOKEN
+            - name: LIBSQL_URL
+              valueFrom:
+                secretKeyRef:
+                  key: 'latest'
+                  name: LIBSQL_URL
+          image: us-west1-docker.pkg.dev/solheim-project/sanctuary/api:latest
+          name: sanctuary-api
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+        - image: us-west1-docker.pkg.dev/solheim-project/sanctuary/web:latest
+          name: sanctuary-web
+          ports:
+            - containerPort: 80
+              name: http1
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+      serviceAccountName: ${SERVICE_ACCOUNT_EMAIL}
+      timeoutSeconds: 300
