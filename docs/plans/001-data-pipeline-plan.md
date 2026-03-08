@@ -352,8 +352,8 @@ packages/ai-gen/
 │   ├── cli.ts                # CLI parsing + orchestration loop
 │   ├── generation-service.ts # Generation + verification + validation orchestration
 │   ├── prompt-builder.ts     # Prompt templates and system prompt loading
-│   ├── gemini-client.ts      # Gemini generation client (JSON mode + schema)
-│   ├── verification-agent.ts # Secondary Gemini verification call
+│   ├── deepseek-client.ts    # DeepSeek generation client (JSON mode, OpenAI SDK)
+│   ├── verification-agent.ts # Secondary DeepSeek verification call
 │   ├── quality-validator.ts  # Output quality validation rules
 │   └── persistence.ts        # Unmatched selection + idempotent AI poem persistence
 ├── package.json
@@ -370,18 +370,18 @@ For each human poem in the database that lacks an AI counterpart:
    - Matches approximate length (line count ± 20%)
    - Does NOT reveal the human poem's text (zero-shot, not imitation)
    - Enforces JSON-only output with `title` and `content` fields and newline-preserving poem content
-3. **Call Gemini API** (`gemini-3-flash-preview`) with JSON mode and response schema:
-   - `responseMimeType: "application/json"`
-   - `responseSchema` enforcing `title` + `content`
-   - Generation `temperature: 1.0` with optional Gemini thinking config support
-4. **Run verification pass** using a secondary Gemini call to score quality and validity.
+3. **Call DeepSeek API** (`deepseek-chat`) with JSON mode via OpenAI-compatible SDK:
+   - `response_format: { type: "json_object" }`
+   - Prompt must include the word "JSON" for structured output compliance
+   - Generation `temperature: 1.5` (DeepSeek recommended for creative writing)
+4. **Run verification pass** using a secondary DeepSeek call to score quality and validity.
 5. **Validate output:**
    - Has ≥ 4 lines
    - Not a refusal or meta-commentary
    - Doesn't contain prompt artifacts
    - Within ±20% of parent poem line count
    - Meets verification score threshold
-6. **Store** with `type = 'AI'`, `author = 'gemini-3-flash-preview'`, `prompt` field populated, `parent_poem_id` linking to the human original
+6. **Store** with `type = 'AI'`, `author = 'deepseek-chat'`, `prompt` field populated, `parent_poem_id` linking to the human original
 
 ### 6.3 Prompt Template & System Instructions
 
@@ -421,7 +421,7 @@ pnpm --filter @sanctuary/ai-gen run generate --topic nature
 pnpm --filter @sanctuary/ai-gen run generate --limit 50
 
 # Use a specific model
-pnpm --filter @sanctuary/ai-gen run generate --model gemini-3-flash-preview
+pnpm --filter @sanctuary/ai-gen run generate --model deepseek-chat
 ```
 
 ---
@@ -458,8 +458,7 @@ Extend `apps/api/src/routes/duels.ts`:
 
 | Variable          | Used by | Purpose                                     |
 | ----------------- | ------- | ------------------------------------------- |
-| `GEMINI_API_KEY`  | ai-gen  | Primary Gemini API key for poem generation  |
-| `GOOGLE_API_KEY`  | ai-gen  | Fallback Gemini API key                     |
+| `DEEPSEEK_API_KEY` | ai-gen | DeepSeek API key for poem generation        |
 | `SCRAPE_DELAY_MS` | scraper | Delay between HTTP requests (default: 1500) |
 | `SCRAPE_DATA_DIR` | scraper | Output directory for scraped data           |
 
@@ -499,7 +498,7 @@ See `packages/etl/README.md` for usage, CLI flags, and IO conventions.
 
 17. Scaffold `packages/ai-gen` package
 18. Implement prompt builder
-19. Implement Gemini API integration (using `@google/genai`)
+19. Implement DeepSeek API integration (using `openai` SDK with DeepSeek base URL)
 20. Implement quality validator
 21. Implement persistence + CLI orchestration for unmatched HUMAN poems
 22. Run regression + quality gate verification for ai-gen flow
@@ -559,7 +558,7 @@ pnpm --filter @sanctuary/etl add drizzle-orm @libsql/client  # DB access
 pnpm --filter @sanctuary/etl add fast-glob                    # File discovery
 
 # packages/ai-gen
-pnpm --filter @sanctuary/ai-gen add @google/genai             # Gemini API
+pnpm --filter @sanctuary/ai-gen add openai                    # DeepSeek API (OpenAI-compatible)
 pnpm --filter @sanctuary/ai-gen add p-limit                   # Rate limiting
 ```
 
