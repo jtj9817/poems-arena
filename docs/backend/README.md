@@ -5,7 +5,7 @@ This directory contains documentation related to the API, database schema, and b
 ## API Documentation
 
 - [**API Reference**](./api-reference.md): Canonical endpoints for duels and error contracts.
-- [**Gemini AI Prompts**](./ai-gen-gemini-prompts.md): Prompts used for poem generation and verification.
+- [**AI Generation Prompts (DeepSeek)**](./ai-gen-gemini-prompts.md): Prompts used for poem generation and verification.
 
 ## Database Schema
 

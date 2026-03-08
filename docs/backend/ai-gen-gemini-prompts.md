@@ -1,4 +1,4 @@
-# AI Generation Prompts (Gemini)
+# AI Generation Prompts (DeepSeek)
 
 This document captures the production prompt contracts used by `@sanctuary/ai-gen` for Phase 4 AI poem generation.
 
@@ -34,7 +34,7 @@ The prompt includes:
 ### 3. Verification Prompt + System Instruction
 
 - Module: `packages/ai-gen/src/verification-agent.ts`
-- Model: `gemini-3-flash-preview` (default)
+- Model: `deepseek-chat` (default)
 
 Verification system instruction defines rubric categories:
 
@@ -53,18 +53,18 @@ Verification response contract (JSON-only):
 }
 ```
 
-## Gemini API Configuration Notes
+## DeepSeek API Configuration Notes
 
 Generation and verification calls both enforce structured JSON output via:
 
-- `responseMimeType: "application/json"`
-- `responseSchema` objects in code
+- `response_format: { type: "json_object" }` (OpenAI-compatible)
+- The word "JSON" must appear in the system or user prompt
 
 Generation defaults:
 
-- Model: `gemini-3-flash-preview`
-- Temperature: `1.0`
-- Optional `thinkingConfig` and `maxOutputTokens` support in the client wrapper
+- Model: `deepseek-chat` (DeepSeek-V3.2)
+- Temperature: `1.5` (DeepSeek recommended for creative writing / poetry)
+- `max_tokens: 2048` required to prevent truncated JSON output
 
 ## Quality Guardrail Linkage
 
