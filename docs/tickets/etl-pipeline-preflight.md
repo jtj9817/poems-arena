@@ -1,10 +1,21 @@
 # [TASK] ETL Pipeline Pre-Flight Setup
 
 **Date:** 2026-02-27
-**Status:** Open
+**Status:** Complete
 **Priority:** High
 **Assignee:** —
 **Labels:** `etl`, `scraper`, `devops`, `observability`
+
+## Verification Update (2026-03-08)
+
+Verified against the current repo state:
+
+- `scripts/run-scrape.ts` exists and orchestrates all three scrapers.
+- `packages/etl/.env` exists, and `.env` files are gitignored at the repo root.
+- ETL timing and summary logging are implemented in `packages/etl/src/index.ts` and `packages/etl/src/logger.ts`.
+- Prior scraper outputs and ETL stage outputs exist under `packages/scraper/data/raw/` and `packages/etl/data/`.
+
+This ticket's pre-flight work is complete and should no longer be tracked as open work.
 
 ## Summary
 

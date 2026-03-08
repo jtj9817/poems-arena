@@ -1,11 +1,21 @@
 # ETL-LONG-POEMS-REMEDIATION-EXECUTION
 
-**Status:** OPEN  
+**Status:** COMPLETE  
 **Priority:** High  
 **Created:** 2026-03-04  
 **Last Validated:** 2026-03-04  
 **Owner:** Data Pipeline / ETL  
 **Related Ticket:** `fix-long-poems.md`
+
+## Verification Update (2026-03-08)
+
+Re-verified from saved remediation artifacts:
+
+- Post-generation snapshot shows `unmatchedHuman = 0`.
+- All six scoped IDs have `0` duel references.
+- Orphan checks remain clean.
+
+This ticket is complete and should no longer be tracked as open work.
 
 ---
 
