@@ -7,6 +7,10 @@ total_phases: 3
 total_commits: 5
 ---
 
+> **Note (2026-03-07):** After Phase 4 the web UI was rebranded as "Poem Arena". Page files were renamed:
+> `ReadingRoom.tsx` → `TheRing.tsx`, `Anthology.tsx` → `PastBouts.tsx`, `Foyer.tsx` → `Home.tsx`, `Colophon.tsx` → `About.tsx`.
+> `ViewState` enum values were updated accordingly. File references in this audit reflect the original names at the time of the commits.
+
 # Phase Commit Audit — Frontend Integration (20260226)
 
 Conductor track: `conductor/tracks/frontend_integration_20260226/plan.md`

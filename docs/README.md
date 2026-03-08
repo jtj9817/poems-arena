@@ -1,6 +1,6 @@
 # Documentation
 
-This directory contains all project documentation for Classicist's Sanctuary.
+This directory contains all project documentation for Poem Arena (formerly Classicist's Sanctuary).
 
 ## Structure
 

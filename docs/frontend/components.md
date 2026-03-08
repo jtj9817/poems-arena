@@ -10,7 +10,7 @@ Implemented in `apps/web` as part of the Phase 6 Frontend Integration track. All
 
 **File:** `apps/web/components/TopicBar.tsx`
 
-A horizontally scrollable chip bar for single-select topic filtering on the Anthology page. Renders an "All" chip plus one chip per `TopicMeta` entry fetched from `GET /api/v1/topics`.
+A horizontally scrollable chip bar for single-select topic filtering on the Past Bouts page. Renders an "All" chip plus one chip per `TopicMeta` entry fetched from `GET /api/v1/topics`.
 
 **Props:**
 
@@ -28,7 +28,7 @@ interface TopicBarProps {
 - Horizontal overflow scrolls without a visible scrollbar (`no-scrollbar` utility class).
 - Selecting "All" calls `onSelect(null)`.
 
-**Usage:** Rendered in `Anthology.tsx` at `md` breakpoint and above (`hidden md:block`). On smaller screens, `BottomSheetFilter` is used instead (triggered by a "Filter" button in the sticky mobile header).
+**Usage:** Rendered in `PastBouts.tsx` at `md` breakpoint and above (`hidden md:block`). On smaller screens, `BottomSheetFilter` is used instead (triggered by a "Filter" button in the sticky mobile header).
 
 ---
 
@@ -64,7 +64,7 @@ interface BottomSheetFilterProps {
 
 **File:** `apps/web/components/VerdictPopup.tsx`
 
-A centered modal overlay revealed after the user votes in the Reading Room. Displays the verdict, per-poem source attribution, community statistics, and navigation actions.
+A centered modal overlay revealed after the user votes in The Ring. Displays the verdict, per-poem source attribution, community statistics, and navigation actions.
 
 **Props:**
 
@@ -99,7 +99,7 @@ interface VerdictPopupProps {
 
 **File:** `apps/web/components/SwipeContainer.tsx`
 
-A thin CSS-keyframe wrapper that drives the duel-to-duel swipe transitions in the Reading Room. Manages three animation phases as a state machine.
+A thin CSS-keyframe wrapper that drives the duel-to-duel swipe transitions in The Ring. Manages three animation phases as a state machine.
 
 **Types:**
 
@@ -128,7 +128,7 @@ interface SwipeContainerProps {
 
 Keyframes are defined in `apps/web/index.html`'s `<style>` block. The intentional use of `60px` (not `100%`) gives a subtle directional nudge rather than a full viewport slide.
 
-**Callbacks:** Fired via `onAnimationEnd`. `ReadingRoom.tsx` uses these to:
+**Callbacks:** Fired via `onAnimationEnd`. `TheRing.tsx` uses these to:
 1. `onSwipeOutComplete` → swap duel content from the pre-fetch cache, then trigger `swipe-in`.
 2. `onSwipeInComplete` → reset to `idle`, pre-fetch the next upcoming duels.
 
@@ -173,7 +173,7 @@ interface SourceInfoProps {
 **File:** `apps/web/lib/duelQueue.ts`
 **Tests:** `apps/web/lib/duelQueue.test.ts` (23 unit tests)
 
-Pure immutable utility module managing the ordered list of duel IDs consumed by `ReadingRoom.tsx`. All functions return a new state object; no mutation.
+Pure immutable utility module managing the ordered list of duel IDs consumed by `TheRing.tsx`. All functions return a new state object; no mutation.
 
 **State shape:**
 
@@ -204,7 +204,7 @@ interface DuelQueueState {
 | `PAGE_SIZE` | `10` | Threshold for last-page detection (`ids.length < PAGE_SIZE → isLastPage`). Note: the API returns 12 per page; using 10 means the last-page flag may trigger one page early — a conservative safe guard. |
 | `PREFETCH_COUNT` | `2` | Number of upcoming duels pre-fetched into the in-memory cache while the user reads the current duel. |
 
-**Integration in `ReadingRoom.tsx`:**
+**Integration in `TheRing.tsx`:**
 
 ```
 Mount
@@ -232,16 +232,16 @@ User clicks "Next Duel"
 
 ## Page Updates
 
-### `Foyer.tsx`
+### `Home.tsx`
 
 Updated in Phase 6 to use `topicMeta.label` instead of the raw `topic` string for the featured duel card.
 
 - Fetches the first page of duels via `api.getDuels()` on mount.
 - Displays `duels[0].topicMeta.label` as "Featured Topic" in the landing card.
-- Navigates to `ReadingRoom` with the featured duel's ID on "Enter Reading Room".
+- Navigates to `TheRing` with the featured duel's ID on "Enter the Ring".
 - The 600ms `setTimeout` before navigation matches the CSS `opacity` exit transition.
 
-### `Anthology.tsx`
+### `PastBouts.tsx`
 
 Updated in Phase 6 to support dynamic topic filtering.
 
@@ -253,10 +253,10 @@ Updated in Phase 6 to support dynamic topic filtering.
 
 ---
 
-## Interaction Flow: Reading Room
+## Interaction Flow: The Ring
 
 ```
-Entry (direct link or from Anthology)
+Entry (direct link or from Past Bouts)
   ├─ queue initializes with page 1 of duel IDs
   └─ if entering with specific duelId:
        ├─ fetch page 1, locate duelId in results
@@ -289,7 +289,7 @@ Defined in `apps/web/index.html` `<style>` block. Applied via inline `animation`
 | `swipeOutLeft` | `SwipeContainer` | `translateX(0)→translateX(-60px)` + `opacity 1→0` |
 | `swipeInRight` | `SwipeContainer` | `translateX(60px)→translateX(0)` + `opacity 0→1` |
 | `verdictIn` | `VerdictPopup` | `translateY(-12px) scale(0.97)→normal` + `opacity 0→1` |
-| `fadeIn` | `ReadingRoom` initial load | `opacity 0→1` |
+| `fadeIn` | `TheRing` initial load | `opacity 0→1` |
 
 **E2E compatibility:** `packages/e2e/playwright.config.ts` sets `reducedMotion: 'reduce'` globally, collapsing all keyframe animations to their end state so tests can assert final conditions without timing dependencies.
 

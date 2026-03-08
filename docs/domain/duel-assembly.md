@@ -2,7 +2,7 @@
 
 ## Overview
 
-Duel Assembly is the process by which HUMAN and AI poems are paired together to form "duels" for users to evaluate in the Reading Room. This process is handled by the `@sanctuary/ai-gen` package.
+Duel Assembly is the process by which HUMAN and AI poems are paired together to form "duels" for users to evaluate in The Ring. This process is performed offline via a standalone duel-assembly script that runs after the ETL pipeline (`@sanctuary/etl`) loads poems into the database.
 
 ## Core Rules & Policies
 

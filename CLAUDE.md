@@ -20,12 +20,12 @@ classicist-sanctuary-proto/
 │   │   ├── package.json
 │   │   └── tsconfig.json
 │   │
-│   └── web/                    @sanctuary/web — React 19 + Vite SPA (port 3000)
+│   └── web/                    @sanctuary/web — React 19 + Vite SPA (port 3000) — branded "Poem Arena"
 │       ├── pages/
-│       │   ├── Foyer.tsx       # Landing view
-│       │   ├── ReadingRoom.tsx # Active duel voting view
-│       │   ├── Anthology.tsx   # Archive of past duels
-│       │   └── Colophon.tsx    # About/credits page
+│       │   ├── Home.tsx        # Landing view
+│       │   ├── TheRing.tsx     # Active duel voting view
+│       │   ├── PastBouts.tsx   # Archive of past duels
+│       │   └── About.tsx       # About/credits page
 │       ├── components/
 │       │   ├── Layout.tsx      # Shell wrapper
 │       │   └── Button.tsx      # Reusable UI
@@ -46,7 +46,7 @@ classicist-sanctuary-proto/
 │   │       └── index.ts        # Shared types (Poem, Duel, Vote, AuthorType, ViewState, DuelResult)
 │   ├── db/                     @sanctuary/db — Drizzle schema + LibSQL client (shared)
 │   │   └── src/
-│   │       ├── schema.ts       # All DB tables: poems, duels, votes, topics, poem_topics, scrape_sources
+│   │       ├── schema.ts       # All DB tables: poems, duels, votes, topics, poem_topics, scrape_sources, featured_duels
 │   │       ├── client.ts       # createDb() factory using @libsql/client
 │   │       ├── config.ts       # resolveDbConfig() — reads env vars, handles test overrides
 │   │       └── index.ts        # Re-exports schema types
@@ -161,6 +161,7 @@ Schema lives at `packages/db/src/schema.ts` (`@sanctuary/db`). Tables:
 // topics:        id, label, created_at
 // poem_topics:   poem_id, topic_id  (composite PK — many-to-many)
 // scrape_sources: id, poem_id, source, source_url, scraped_at, raw_html, is_public_domain
+// featured_duels: id, duel_id, featured_on, created_at
 ```
 
 The `@sanctuary/db` package is imported by both `apps/api` and `packages/etl`. The API package retains its own `drizzle.config.ts` for schema push/migrate operations.
@@ -333,7 +334,7 @@ All routes are prefixed `/api/v1/`.
       "id": "p2",
       "title": "...",
       "content": "...",
-      "author": "gemini-3-flash-preview",
+      "author": "deepseek-chat",
       "type": "AI",
       "sourceInfo": { "primary": { "source": null, "sourceUrl": null }, "provenances": [] }
     }
@@ -372,7 +373,7 @@ export interface Poem {
   id: string;
   title: string;
   content: string;
-  author: string; // "Emily Dickinson" or "gemini-3-flash-preview"
+  author: string; // "Emily Dickinson" or "deepseek-chat"
   type: AuthorType;
   year?: string;
   source?: string;
@@ -394,10 +395,10 @@ export interface Duel {
 }
 
 export enum ViewState {
-  FOYER = 'FOYER',
-  READING_ROOM = 'READING_ROOM',
-  ANTHOLOGY = 'ANTHOLOGY',
-  COLOPHON = 'COLOPHON',
+  HOME = 'HOME',
+  THE_RING = 'THE_RING',
+  PAST_BOUTS = 'PAST_BOUTS',
+  ABOUT = 'ABOUT',
 }
 
 export interface DuelResult {

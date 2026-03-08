@@ -31,7 +31,7 @@ All error responses follow a standardized JSON envelope:
 
 ### 1. `GET /topics`
 
-Returns all canonical topics, ordered alphabetically by label. Used to populate the Anthology topic filter bar.
+Returns all canonical topics, ordered alphabetically by label. Used to populate the Past Bouts topic filter bar.
 
 - **Query Parameters:** none
 - **Response `200 OK`:**
@@ -49,7 +49,7 @@ Returns all canonical topics, ordered alphabetically by label. Used to populate 
 
 ### 2. `GET /duels`
 
-Returns a paginated list of duel cards for the Anthology/Archive view.
+Returns a paginated list of duel cards for the Past Bouts view.
 
 - **Query Parameters:**
   - `page` (optional): Positive integer. Defaults to `1`.
@@ -78,7 +78,7 @@ Returns a paginated list of duel cards for the Anthology/Archive view.
 
 ### 3. `GET /duels/:id`
 
-**Canonical endpoint for duel retrieval.** Used when entering the Reading Room.
+**Canonical endpoint for duel retrieval.** Used when entering The Ring.
 Calling this endpoint logs a "featured" event in the `featured_duels` table for analytics.
 
 - **URL Parameters:**
