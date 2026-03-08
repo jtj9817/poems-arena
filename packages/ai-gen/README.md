@@ -1,6 +1,6 @@
 # @sanctuary/ai-gen
 
-AI poem generation service for Classicist's Sanctuary.
+AI poem generation service for Poem Arena.
 
 This package generates AI counterparts for HUMAN poems in the `poems` table using DeepSeek (`deepseek-chat`), validates quality, and persists idempotent AI rows linked by `parent_poem_id`.
 
@@ -87,7 +87,7 @@ pnpm --filter @sanctuary/ai-gen run generate --model deepseek-chat --concurrency
 
 - System instructions file: `packages/ai-gen/prompts/system-instructions.md`
 - Prompt builder module: `packages/ai-gen/src/prompt-builder.ts`
-- Project-level prompt documentation: `docs/backend/ai-gen-gemini-prompts.md`
+- Project-level prompt documentation: `docs/backend/ai-gen-prompts.md`
 
 ## Testing
 
