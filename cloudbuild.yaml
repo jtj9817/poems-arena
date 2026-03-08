@@ -1,0 +1,28 @@
+steps:
+  # Build the API image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      [
+        'build',
+        '-t',
+        'us-east4-docker.pkg.dev/solheim-project/cloud-run-source-deploy/sanctuary-api:latest',
+        '-f',
+        'apps/api/Dockerfile',
+        '.',
+      ]
+  # Build the Web image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      [
+        'build',
+        '-t',
+        'us-east4-docker.pkg.dev/solheim-project/cloud-run-source-deploy/sanctuary-web:latest',
+        '--build-arg',
+        'VITE_API_URL=/api/v1',
+        '-f',
+        'apps/web/Dockerfile',
+        '.',
+      ]
+images:
+  - 'us-east4-docker.pkg.dev/solheim-project/cloud-run-source-deploy/sanctuary-api:latest'
+  - 'us-east4-docker.pkg.dev/solheim-project/cloud-run-source-deploy/sanctuary-web:latest'

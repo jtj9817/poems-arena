@@ -4,15 +4,17 @@ FROM oven/bun:1 AS builder
 WORKDIR /app
 
 # Copy root workspace manifests
-COPY package.json pnpm-workspace.yaml ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages/shared/package.json ./packages/shared/package.json
+COPY packages/db/package.json ./packages/db/package.json
 COPY apps/api/package.json ./apps/api/package.json
 
 # Install all workspace deps
-RUN bun install --frozen-lockfile
+RUN bunx pnpm i --frozen-lockfile
 
 # Copy source
 COPY packages/shared ./packages/shared
+COPY packages/db ./packages/db
 COPY apps/api ./apps/api
 
 # Generate drizzle migrations

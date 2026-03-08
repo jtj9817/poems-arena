@@ -7,7 +7,7 @@ RUN npm install -g pnpm
 WORKDIR /app
 
 # Copy root workspace manifests
-COPY package.json pnpm-workspace.yaml ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages/shared/package.json ./packages/shared/package.json
 COPY apps/web/package.json ./apps/web/package.json
 
