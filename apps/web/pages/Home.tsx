@@ -1,26 +1,73 @@
 import React, { useState, useEffect } from 'react';
 import { ViewState } from '@sanctuary/shared';
 import { Button } from '../components/Button';
-import { api, type DuelListItem } from '../lib/api';
+import { ApiRequestError, api, type DuelListItem } from '../lib/api';
 
 interface HomeProps {
   onNavigate: (view: ViewState, duelId?: string) => void;
+}
+
+const COLD_START_RETRY_DELAYS_MS = [500, 900, 1400, 2000];
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryableColdStartError(error: unknown): boolean {
+  return error instanceof ApiRequestError && error.status === 503;
 }
 
 export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
   const [isExiting, setIsExiting] = useState(false);
   const [featuredDuel, setFeaturedDuel] = useState<DuelListItem | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const [loadCycle, setLoadCycle] = useState(0);
 
   useEffect(() => {
-    api
-      .getDuels()
-      .then((duels) => {
-        if (duels.length > 0) setFeaturedDuel(duels[0]);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []);
+    let isCurrent = true;
+
+    const loadFeaturedDuel = async () => {
+      setLoading(true);
+      setLoadError(null);
+      setRetryCount(0);
+      setFeaturedDuel(null);
+
+      for (let attempt = 0; attempt <= COLD_START_RETRY_DELAYS_MS.length; attempt += 1) {
+        try {
+          const duels = await api.getDuels();
+          if (!isCurrent) return;
+          if (duels.length > 0) {
+            setFeaturedDuel(duels[0]);
+          }
+          setLoading(false);
+          return;
+        } catch (error) {
+          if (!isCurrent) return;
+
+          const canRetry =
+            isRetryableColdStartError(error) && attempt < COLD_START_RETRY_DELAYS_MS.length;
+
+          if (!canRetry) {
+            console.error(error);
+            setLoadError('The archive is still waking up. Please try again.');
+            setLoading(false);
+            return;
+          }
+
+          setRetryCount(attempt + 1);
+          await sleep(COLD_START_RETRY_DELAYS_MS[attempt]!);
+        }
+      }
+    };
+
+    void loadFeaturedDuel();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [loadCycle]);
 
   const handleStart = () => {
     if (!featuredDuel) return;
@@ -28,6 +75,10 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
     setTimeout(() => {
       onNavigate(ViewState.THE_RING, featuredDuel.id);
     }, 600); // Match CSS transition
+  };
+
+  const handleRetry = () => {
+    setLoadCycle((value) => value + 1);
   };
 
   return (
@@ -74,12 +125,56 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
               className="border border-pencil/30 border-dashed p-10 bg-paper flex flex-col items-center gap-8"
             >
               {loading ? (
-                <p
+                <div
                   id="home-featured-duel-loading"
-                  className="font-sans text-xs tracking-widest uppercase text-pencil animate-pulse"
+                  className="w-full max-w-xs text-center space-y-4 animate-[fadeIn_0.35s_ease-out_forwards]"
                 >
-                  Loading...
-                </p>
+                  <p
+                    id="home-featured-duel-loading-heading"
+                    className="font-sans text-xs tracking-widest uppercase text-pencil"
+                  >
+                    Preparing the ring
+                  </p>
+
+                  <div id="home-featured-duel-loading-bars" className="space-y-2">
+                    <div
+                      className="h-2 rounded-sm bg-stock animate-pulse motion-reduce:animate-none"
+                      aria-hidden
+                    />
+                    <div
+                      className="h-2 w-5/6 mx-auto rounded-sm bg-stock animate-pulse motion-reduce:animate-none [animation-delay:150ms]"
+                      aria-hidden
+                    />
+                    <div
+                      className="h-2 w-2/3 mx-auto rounded-sm bg-stock animate-pulse motion-reduce:animate-none [animation-delay:300ms]"
+                      aria-hidden
+                    />
+                  </div>
+
+                  <p
+                    id="home-featured-duel-loading-status"
+                    className="font-body text-sm italic text-pencil"
+                  >
+                    {retryCount > 0
+                      ? `Warming the archive connection (retry ${retryCount}/${COLD_START_RETRY_DELAYS_MS.length})`
+                      : 'Establishing archive connection...'}
+                  </p>
+                </div>
+              ) : loadError ? (
+                <div
+                  id="home-featured-duel-unavailable"
+                  className="w-full max-w-sm text-center space-y-5 animate-[fadeIn_0.35s_ease-out_forwards]"
+                >
+                  <p
+                    id="home-featured-duel-unavailable-copy"
+                    className="font-serif text-pencil italic"
+                  >
+                    {loadError}
+                  </p>
+                  <Button id="home-featured-duel-retry-btn" onClick={handleRetry}>
+                    Retry
+                  </Button>
+                </div>
               ) : featuredDuel ? (
                 <>
                   <div id="home-featured-topic" className="text-center space-y-2">
@@ -98,7 +193,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
                   </div>
 
                   <Button id="home-enter-ring-btn" onClick={handleStart} className="group">
-                    <span className="mr-2">Enter the Ring</span>
+                    <span className="mr-2">Enter Reading Room</span>
                     <span className="material-symbols-outlined text-lg group-hover:translate-x-1 transition-transform">
                       arrow_forward
                     </span>

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { api } from './api';
+import { ApiRequestError, api } from './api';
 import { AuthorType } from '@sanctuary/shared';
 
 const mockOkResponse = (data: unknown) =>
@@ -181,5 +181,62 @@ describe('api.getDuels', () => {
 
     const [url] = fetchMock.mock.calls[0] as [string, ...unknown[]];
     expect(url).toContain('page=1');
+  });
+});
+
+describe('request error handling', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('throws ApiRequestError with status and code for structured API errors', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 503,
+        text: () =>
+          Promise.resolve(
+            JSON.stringify({
+              error: 'Database is not ready',
+              code: 'SERVICE_UNAVAILABLE',
+            }),
+          ),
+      }),
+    );
+
+    const result = await api.getDuels().then(
+      () => null,
+      (error) => error,
+    );
+
+    expect(result).toBeInstanceOf(ApiRequestError);
+    const requestError = result as ApiRequestError;
+    expect(requestError.status).toBe(503);
+    expect(requestError.code).toBe('SERVICE_UNAVAILABLE');
+    expect(requestError.message).toBe('Database is not ready');
+  });
+
+  it('throws ApiRequestError with raw body when API response is not JSON', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 502,
+        text: () => Promise.resolve('bad gateway'),
+      }),
+    );
+
+    const result = await api.getDuels().then(
+      () => null,
+      (error) => error,
+    );
+
+    expect(result).toBeInstanceOf(ApiRequestError);
+    const requestError = result as ApiRequestError;
+    expect(requestError.status).toBe(502);
+    expect(requestError.message).toContain('API error 502');
+    expect(requestError.message).toContain('bad gateway');
+    expect(requestError.code).toBeUndefined();
   });
 });
