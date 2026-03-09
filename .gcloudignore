@@ -1,0 +1,16 @@
+# .gcloudignore - Prevent uploading large local artifacts
+node_modules/
+.git/
+.pnpm-store/
+packages/*/node_modules/
+apps/*/node_modules/
+apps/web/dist/
+.env
+.gemini_security/
+.playwright-mcp/
+conductor/
+docs/
+logs/
+scripts/
+PHASE_AUDIT.md
+PHASE_AUDIT.json

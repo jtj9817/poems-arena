@@ -1,3 +1,6 @@
+options:
+  logging: CLOUD_LOGGING_ONLY
+timeout: 1800s
 steps:
   # Build the API image
   - name: 'gcr.io/cloud-builders/docker'
@@ -5,7 +8,7 @@ steps:
       [
         'build',
         '-t',
-        'us-east4-docker.pkg.dev/solheim-project/cloud-run-source-deploy/sanctuary-api:latest',
+        'us-west1-docker.pkg.dev/solheim-project/sanctuary/api:latest',
         '-f',
         'apps/api/Dockerfile',
         '.',
@@ -16,13 +19,21 @@ steps:
       [
         'build',
         '-t',
-        'us-east4-docker.pkg.dev/solheim-project/cloud-run-source-deploy/sanctuary-web:latest',
+        'us-west1-docker.pkg.dev/solheim-project/sanctuary/web:latest',
         '--build-arg',
         'VITE_API_URL=/api/v1',
         '-f',
         'apps/web/Dockerfile',
         '.',
       ]
+  # Deploy the service using service.yaml
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        sed "s/\${SERVICE_ACCOUNT_EMAIL}/237062568374-compute@developer.gserviceaccount.com/g" service.yaml > service.deployed.yaml
+        gcloud run services replace service.deployed.yaml --region us-west1
 images:
-  - 'us-east4-docker.pkg.dev/solheim-project/cloud-run-source-deploy/sanctuary-api:latest'
-  - 'us-east4-docker.pkg.dev/solheim-project/cloud-run-source-deploy/sanctuary-web:latest'
+  - 'us-west1-docker.pkg.dev/solheim-project/sanctuary/api:latest'
+  - 'us-west1-docker.pkg.dev/solheim-project/sanctuary/web:latest'
