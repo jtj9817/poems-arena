@@ -1,11 +1,12 @@
 # CRUN-DB-001 — Cloud Run Cold-Start DB Readiness Plan
 
 **Ticket Type:** Reliability / UX / Deployment Hardening
-**Status:** Planned
+**Status:** In Progress
 **Priority:** High
 **Assignee:** Unassigned
 **Labels:** api, web, database, cloud-run, cold-start, reliability, ux
 **Related Context:** `cloud-run-deployment-context-issue.md`
+**Last Updated:** 2026-03-09
 
 ## Context
 
@@ -28,6 +29,35 @@ Define and implement a cold-start-safe readiness flow that:
 - exposes a readiness signal that reflects real database reachability
 - keeps the homepage in a purposeful loading state inside `id="home-featured-duel-card-body"` while the backend is still warming
 - degrades cleanly when the API container is up but the database is not yet ready
+
+## Progress Update (2026-03-09)
+
+### Completed
+
+- **Phase 1 (API readiness lifecycle):** complete
+  - Added a reusable readiness manager with memoized startup promise, bounded retries, timeout, and status snapshot.
+  - Added runtime readiness bootstrap and readiness state accessors.
+  - Added `/ready` endpoint to report DB-backed readiness.
+- **Phase 2 (readiness gating):** complete
+  - Added app-level readiness middleware for `/api/v1/*`.
+  - Added structured `503 SERVICE_UNAVAILABLE` API error for warm-up failure/pending paths.
+- **Phase 3 (homepage loading + retry):** complete
+  - Replaced static loading text inside `home-featured-duel-card-body` with animated loading UI.
+  - Added client-side structured API error parsing and `503` retry handling.
+  - Added bounded fallback state with retry button.
+- Added/updated automated tests for readiness manager and web API error parsing.
+
+### Pending
+
+- **Phase 4 (deployment hardening review):** pending
+  - Review optional warm-instance strategy in `service.yaml`.
+  - Run manual cold-start verification against deployed Cloud Run service after idle period.
+
+## Implemented Commits
+
+1. `5a71e6b` — `feat(api): add db readiness cold-start gating`
+2. `54fc1cf` — `feat(web): add cold-start loading and retry flow`
+3. `e651143` — `fix(web): align nav labels with e2e contracts`
 
 ## Scope
 
@@ -194,16 +224,18 @@ Validate that the web ingress gracefully handles the period where Nginx is accep
 
 | File | Action | Notes |
 | :--- | :--- | :--- |
-| `apps/api/src/db/client.ts` | Modify | Keep singleton DB client and trigger warm-up bootstrap |
-| `apps/api/src/db/readiness.ts` | Create | Central readiness state and `ensureDbReady()` |
-| `apps/api/src/index.ts` | Modify | Add readiness endpoint and readiness gating |
-| `apps/api/src/errors.ts` | Modify | Add explicit service-unavailable error type |
-| `apps/api/src/routes/duels.ts` | Modify | Ensure warm-up-safe behavior for archive and duel fetches |
-| `apps/api/src/routes/topics.ts` | Modify | Ensure warm-up-safe behavior |
-| `apps/api/src/routes/votes.ts` | Modify | Ensure warm-up-safe behavior |
-| `apps/web/lib/api.ts` | Modify | Handle structured warm-up `503` responses |
-| `apps/web/pages/Home.tsx` | Modify | Add animation, retry loop, and unavailable fallback |
-| `service.yaml` | Review / Optional Modify | Evaluate warm-instance mitigation |
+| `apps/api/src/db/readiness-manager.ts` | Create | Readiness lifecycle (retry/timeout/snapshot) |
+| `apps/api/src/db/readiness.ts` | Create | Runtime readiness bootstrap and accessors |
+| `apps/api/src/db/readiness-manager.test.ts` | Create | Unit tests for pending/ready/failed/timeout behavior |
+| `apps/api/src/index.ts` | Modify | Warm-up bootstrap, `/ready`, and `/api/v1/*` readiness gate |
+| `apps/api/src/errors.ts` | Modify | Add explicit `ServiceUnavailableError` (`503`) |
+| `apps/web/lib/api.ts` | Modify | Add `ApiRequestError` and structured error parsing |
+| `apps/web/lib/api.test.ts` | Modify | Add error-shape parsing tests for retryable cold-start errors |
+| `apps/web/pages/Home.tsx` | Modify | Add animated loading, retry loop, and bounded fallback |
+| `apps/web/components/Layout.tsx` | Modify | Align UI labels with current e2e navigation contract |
+| `apps/web/pages/PastBouts.tsx` | Modify | Heading label alignment (`The Anthology`) |
+| `apps/web/pages/About.tsx` | Modify | Heading label alignment (`Colophon`) |
+| `service.yaml` | Pending Review | Optional warm-instance mitigation review not yet applied |
 
 ## Execution Order
 
@@ -248,6 +280,21 @@ pnpm lint
    - the first successful render transitions directly into a featured duel
    - failures return a bounded unavailable state rather than a blank card
 
+### Validation Executed (Completed)
+
+- `pnpm --filter @sanctuary/api test src/db/readiness-manager.test.ts` ✅
+- `pnpm --filter @sanctuary/web test lib/api.test.ts` ✅
+- `pnpm --filter @sanctuary/api test` ✅
+- `pnpm --filter @sanctuary/web test` ✅
+- `pnpm --filter @sanctuary/scraper test` ✅
+- `pnpm --filter @sanctuary/etl test` ✅
+- `pnpm --filter @sanctuary/e2e test -- tests/ui/foyer.spec.ts tests/ui/navigation.spec.ts tests/ui/reading-room.spec.ts tests/ui/anthology.spec.ts` ✅ (`14 passed`, `1 skipped`)
+- `pnpm test` ✅ (workspace suite; e2e included)
+- `pnpm lint` ✅
+- `pnpm format:check` ✅
+- `pnpm --filter @sanctuary/api build` ✅
+- `pnpm --filter @sanctuary/web build` ✅
+
 ## Rollback Plan
 
 1. Remove the readiness gate and revert routes to direct DB execution.
@@ -257,12 +304,18 @@ pnpm lint
 
 ## Acceptance Criteria
 
-- [ ] The API exposes a readiness endpoint that reflects real database reachability.
-- [ ] All DB-backed API routes share a consistent readiness gate and structured `503` behavior.
-- [ ] The homepage displays an animated loading state inside `id="home-featured-duel-card-body"` while backend readiness is still being established.
-- [ ] The homepage retries transient cold-start readiness failures before showing an unavailable state.
-- [ ] The first post-idle user experience no longer depends on an unverified first archive query succeeding immediately.
-- [ ] Optional Cloud Run warm-instance mitigation is documented as a deployment tradeoff, not relied on as the only fix.
+- [x] The API exposes a readiness endpoint that reflects real database reachability.
+- [x] All DB-backed API routes share a consistent readiness gate and structured `503` behavior.
+- [x] The homepage displays an animated loading state inside `id="home-featured-duel-card-body"` while backend readiness is still being established.
+- [x] The homepage retries transient cold-start readiness failures before showing an unavailable state.
+- [x] The first post-idle user experience no longer depends on an unverified first archive query succeeding immediately.
+- [x] Optional Cloud Run warm-instance mitigation is documented as a deployment tradeoff, not relied on as the only fix.
+
+## Remaining Work
+
+1. Run manual cold-start validation on the live Cloud Run service after an idle period.
+2. Decide whether to set a warm-instance floor (`minScale`) in `service.yaml` based on cost/latency tradeoff.
+3. Document deployment decision and outcome in this ticket before moving status to Completed.
 
 ## Notes
 
