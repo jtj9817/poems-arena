@@ -2,7 +2,8 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { db } from './db/client';
-import { ApiError } from './errors';
+import { ensureDbReady, getDbReadinessSnapshot, startDbWarmup } from './db/readiness';
+import { ApiError, ServiceUnavailableError } from './errors';
 import { createDuelsRouter } from './routes/duels';
 import { createTopicsRouter } from './routes/topics';
 import { votesRouter } from './routes/votes';
@@ -23,7 +24,46 @@ app.use(
   }),
 );
 
+startDbWarmup().catch((error) => {
+  console.error('DB warm-up failed during bootstrap:', error);
+});
+
 app.get('/health', (c) => c.json({ status: 'ok' }));
+
+app.get('/ready', async (c) => {
+  try {
+    await ensureDbReady();
+    return c.json({ status: 'ok', ready: true });
+  } catch {
+    const snapshot = getDbReadinessSnapshot();
+    return c.json(
+      {
+        status: 'degraded',
+        ready: false,
+        code: 'SERVICE_UNAVAILABLE',
+        reason: snapshot.status,
+        error: snapshot.lastError,
+      },
+      503,
+    );
+  }
+});
+
+app.use('/api/v1/*', async (c, next) => {
+  if (c.req.method === 'OPTIONS') {
+    return next();
+  }
+
+  try {
+    await ensureDbReady();
+  } catch {
+    const snapshot = getDbReadinessSnapshot();
+    const detail = snapshot.lastError ? `: ${snapshot.lastError}` : '';
+    throw new ServiceUnavailableError(`Database is not ready (${snapshot.status})${detail}`);
+  }
+
+  await next();
+});
 
 app.route('/api/v1/duels', createDuelsRouter(db));
 app.route('/api/v1/topics', createTopicsRouter(db));
@@ -33,7 +73,7 @@ app.route('/api/v1/votes', votesRouter);
 // and formats them as stable { error, code } JSON payloads.
 app.onError((err, c) => {
   if (err instanceof ApiError) {
-    return c.json({ error: err.message, code: err.code }, err.statusCode as 400 | 404 | 500);
+    return c.json({ error: err.message, code: err.code }, err.statusCode as 400 | 404 | 500 | 503);
   }
   console.error('Unhandled error:', err);
   return c.json({ error: 'Internal server error', code: 'INTERNAL_ERROR' }, 500);

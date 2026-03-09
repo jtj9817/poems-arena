@@ -33,3 +33,11 @@ export class EndpointNotFoundError extends ApiError {
     this.name = 'EndpointNotFoundError';
   }
 }
+
+/** 503 – service is alive but required dependencies are not ready yet. */
+export class ServiceUnavailableError extends ApiError {
+  constructor(message = 'Service temporarily unavailable') {
+    super(message, 'SERVICE_UNAVAILABLE', 503);
+    this.name = 'ServiceUnavailableError';
+  }
+}
