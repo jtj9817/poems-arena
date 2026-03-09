@@ -34,7 +34,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onNavigat
             history_edu
           </span>
           <h1 className="hidden md:block text-xl font-bold tracking-tight italic font-serif text-ink">
-            Poem Arena
+            Classicist&apos;s Sanctuary
           </h1>
         </button>
 
@@ -47,14 +47,14 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onNavigat
             onClick={() => onNavigate(ViewState.PAST_BOUTS)}
             className={`hover:text-ink transition-colors ${currentView === ViewState.PAST_BOUTS ? 'text-ink underline decoration-1 underline-offset-4' : ''}`}
           >
-            Past Bouts
+            Anthology
           </button>
           <button
             id="site-header-nav-about-btn"
             onClick={() => onNavigate(ViewState.ABOUT)}
             className={`hover:text-ink transition-colors ${currentView === ViewState.ABOUT ? 'text-ink underline decoration-1 underline-offset-4' : ''}`}
           >
-            About
+            Colophon
           </button>
         </nav>
       </header>

@@ -56,7 +56,7 @@ export const PastBouts: React.FC<PastBoutsProps> = ({ onNavigate }) => {
             id="past-bouts-heading"
             className="text-5xl md:text-6xl font-serif font-bold mb-6 text-ink tracking-tight"
           >
-            Past Bouts
+            The Anthology
           </h2>
           <p id="past-bouts-description" className="text-xl text-ink/70 italic font-body">
             Browse every matchup. See where readers picked the human, and where the machine fooled

@@ -22,7 +22,7 @@ export const About: React.FC<AboutProps> = ({ onNavigate }) => {
               id="about-heading"
               className="text-5xl md:text-6xl font-serif font-bold text-ink tracking-tight italic"
             >
-              About
+              Colophon
             </h1>
             <p
               id="about-edition"
