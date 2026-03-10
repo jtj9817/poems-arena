@@ -87,7 +87,7 @@ Server tracks seen duels per user via cookies or a session store.
    - rows whose `duels.id >= pivotId` first,
    - then `duels.id ASC` within each group.
 5. Because duel IDs are already SHA-256-derived in duel assembly, `duels.id ASC` is already a stable pseudo-random traversal of the corpus. The pivot simply rotates the starting point per session.
-6. **PastBouts** never sends a seed, so it gets the existing `created_at DESC` ordering.
+6. **PastBouts** explicitly sends `sort=recent` so it can continue using `created_at DESC` while Home and TheRing use seeded ordering.
 
 ### 4.2 SQL Strategy
 
@@ -100,7 +100,7 @@ ORDER BY
   duels.id ASC
 LIMIT 12 OFFSET 0;
 
--- When seed is absent (backwards compatible):
+-- When sort=recent is present:
 SELECT ... FROM duels
 WHERE ...
 ORDER BY duels.created_at DESC
@@ -119,8 +119,8 @@ const rows = await db
   .from(duels)
   .where(...)
   .orderBy(
-    pivotId !== null ? orderBucket! : desc(duels.createdAt),
-    pivotId !== null ? duels.id : undefined,
+    sort === 'recent' ? desc(duels.createdAt) : orderBucket!,
+    sort === 'recent' ? undefined : duels.id,
   )
   .limit(limit)
   .offset(offset);
@@ -155,11 +155,12 @@ If a "duel of the day" concept is wanted later, that's a separate feature using 
 |-----------|------|---------|-------------|
 | `page` | integer | `1` | Page number (unchanged) |
 | `topic_id` | string | _(none)_ | Optional topic filter (unchanged) |
-| `seed` | integer | _(none)_ | **New.** When present, results are ordered by a deterministic pseudo-random permutation seeded by this value. When absent, results are ordered by `created_at DESC`. |
+| `seed` | integer | _(none)_ | **New. Required unless `sort=recent` is provided.** Determines the deterministic pseudo-random rotation pivot. |
+| `sort` | string | _(none)_ | **New.** `recent` is the only supported bypass value and preserves chronological archive ordering. |
 
-**Backwards compatibility:** Fully backwards compatible. `seed` is optional. Omitting it produces identical behavior to today.
+**Backwards compatibility:** Not fully backwards compatible at the API contract level. Requests that omit both `seed` and `sort=recent` now fail with `400`.
 
-**Validation:** `seed` must be a non-negative integer when provided. Invalid values return `400` with code `INVALID_SEED`.
+**Validation:** `seed` must be a non-negative integer when provided. Invalid values return `400` with code `INVALID_SEED`. Missing `seed` without `sort=recent` returns `400` with code `MISSING_SEED`.
 
 **Response shape:** Unchanged.
 
@@ -187,13 +188,14 @@ export function getSessionSeed(): number {
 
 **File:** `apps/web/lib/api.ts`
 
-Add optional `seed` parameter to `getDuels()`:
+Add `seed` and `sort` parameters to `getDuels()`:
 
 ```typescript
-getDuels(page = 1, topicId?: string, seed?: number): Promise<DuelListItem[]> {
+getDuels(page = 1, topicId?: string, seed?: number, sort?: 'recent'): Promise<DuelListItem[]> {
   const params = new URLSearchParams({ page: String(page) });
   if (topicId !== undefined) params.set('topic_id', topicId);
   if (seed !== undefined) params.set('seed', String(seed));
+  if (sort !== undefined) params.set('sort', sort);
   return request(`/duels?${params}`);
 }
 ```
@@ -210,9 +212,9 @@ getDuels(page = 1, topicId?: string, seed?: number): Promise<DuelListItem[]> {
 - Pass seed to all `api.getDuels(page, undefined, seed)` calls.
 - Fix `PAGE_SIZE` to `12` or move the archive page size into a shared constant so queue exhaustion is detected correctly.
 
-### 6.5 Unchanged: PastBouts.tsx
+### 6.5 Modified: PastBouts.tsx
 
-No changes. Omits `seed`, retains chronological ordering.
+- Pass `sort: 'recent'` so the archive keeps chronological ordering while the API enforces seed usage elsewhere.
 
 ### 6.6 Unchanged: duelQueue.ts
 
@@ -257,18 +259,18 @@ Review adjustment: this is a deliberate UX change and should be called out in im
 
 | File | Action | Description |
 |------|--------|-------------|
-| `apps/api/src/routes/duels.ts` | Modify | Add `seed` query param parsing; conditional ordering |
-| `apps/api/src/errors.ts` | Modify | Add `InvalidSeedError` class |
+| `apps/api/src/routes/duels.ts` | Modify | Add `seed` and `sort` query param parsing; conditional ordering |
+| `apps/api/src/errors.ts` | Modify | Add `InvalidSeedError` and `MissingSeedError` classes |
 | `apps/api/src/routes/duels.test.ts` | Modify | Add seeded-ordering, pagination, and validation coverage |
 | `apps/web/lib/session.ts` | Create | `getSessionSeed()` utility |
 | `apps/web/lib/session.test.ts` | Create | Cover session seed persistence semantics |
-| `apps/web/lib/api.ts` | Modify | Add `seed` parameter to `getDuels()` |
-| `apps/web/lib/api.test.ts` | Modify | Cover seeded query-param serialization |
+| `apps/web/lib/api.ts` | Modify | Add `seed` and `sort` parameters to `getDuels()` |
+| `apps/web/lib/api.test.ts` | Modify | Cover seeded and chronological query-param serialization |
 | `apps/web/pages/Home.tsx` | Modify | Pass session seed to `getDuels` |
 | `apps/web/pages/TheRing.tsx` | Modify | Pass session seed to all `getDuels` calls and fix page-size handling |
 | `apps/web/lib/duelQueue.ts` | No change | Queue is ordering-agnostic |
-| `apps/web/pages/PastBouts.tsx` | No change | Retains chronological ordering |
-| `docs/backend/api-reference.md` | Modify | Document the optional `seed` query param and `INVALID_SEED` |
+| `apps/web/pages/PastBouts.tsx` | Modify | Pass `sort=recent` for chronological archive browsing |
+| `docs/backend/api-reference.md` | Modify | Document required `seed`, `sort=recent`, `INVALID_SEED`, and `MISSING_SEED` |
 | `docs/frontend/components.md` | Modify | Update `api.getDuels` signature and Home/TheRing behavior notes |
 
 ---
@@ -280,7 +282,8 @@ Review adjustment: this is a deliberate UX change and should be called out in im
 - Same seed → same ordering across multiple requests.
 - Different seeds → different first-page orderings when enough duel rows exist.
 - Pagination consistency: page 2 with seed does not repeat page 1 IDs.
-- No seed → chronological ordering (backwards compatibility).
+- Missing seed without `sort=recent` → `400 MISSING_SEED`.
+- `sort=recent` bypasses the seed requirement and preserves chronological ordering.
 - Seed validation: non-integer, negative, missing values.
 - Seed + `topic_id` filter works correctly.
 - Seeded ordering rotates over `duels.id`, not `created_at`, so new tests must seed enough duel IDs to prove the order shift.
@@ -291,14 +294,14 @@ Review adjustment: this is a deliberate UX change and should be called out in im
 - `getSessionSeed()` generates a new value when `sessionStorage` is empty.
 - `getSessionSeed()` preserves the same value across reload-equivalent calls within the same tab session.
 - `getDuels` correctly includes `seed` in URL params when provided.
-- `getDuels` omits `seed` from URL params when not provided.
+- `getDuels` appends `sort=recent` for archive consumers.
 - `TheRing` uses the API page size expected by the backend when determining `hasMore`.
 
 ### 9.3 Integration / E2E
 
 - Load Home page in separate browser sessions, verify featured duel varies between sessions.
 - Navigate through TheRing queue, verify no duplicate duels within a session.
-- PastBouts shows chronological order regardless of session seed.
+- PastBouts shows chronological order via `sort=recent` regardless of session seed.
 - Playwright API coverage validates the live duel flow (`GET /duels` → `GET /duels/:id` → `GET /duels/:id/stats`) and treats `GET /duels/today` only as explicit deprecation coverage.
 
 ---
@@ -307,12 +310,12 @@ Review adjustment: this is a deliberate UX change and should be called out in im
 
 ### Deployment Order
 
-1. **API first** (or simultaneously with frontend). The `seed` parameter is additive and ignored when absent.
-2. **Frontend second.** Even if deployed before the API, Hono does not reject unknown query params — the frontend would just get chronological results until the API catches up.
+1. **Frontend first** (or simultaneous deployment). The old API ignores unknown `seed` and `sort` params, so this is safe.
+2. **API second.** Deploying the API first would break old clients because `seed` is mandatory unless `sort=recent` is supplied.
 
 ### Rollback
 
-Remove `seed` from frontend calls → reverts to chronological ordering. No database migration to undo. No data changes.
+Revert the API seed requirement and remove frontend `seed` / `sort` usage together. No database migration to undo. No data changes.
 
 ---
 
