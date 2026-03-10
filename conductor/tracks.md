@@ -22,3 +22,8 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 - [x] **Track: Implement the Extract, Transform, Load (ETL) pipeline for processing scraped poems.**
       _Link: [./archive/etl_pipeline_20260220/](./archive/etl_pipeline_20260220/)_
+
+---
+
+- [ ] **Track: Create a new track based on the @docs/plans/002-duel-randomization-plan.md plan.**
+*Link: [./tracks/randomized_duel_ordering_20260310/](./tracks/randomized_duel_ordering_20260310/)*
