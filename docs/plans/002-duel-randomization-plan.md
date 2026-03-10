@@ -299,7 +299,7 @@ Review adjustment: this is a deliberate UX change and should be called out in im
 - Load Home page in separate browser sessions, verify featured duel varies between sessions.
 - Navigate through TheRing queue, verify no duplicate duels within a session.
 - PastBouts shows chronological order regardless of session seed.
-- Review adjustment: the existing Playwright API suite still contains stale `/duels/today` coverage and should not be treated as the acceptance gate for this feature until that unrelated test debt is corrected.
+- Playwright API coverage validates the live duel flow (`GET /duels` → `GET /duels/:id` → `GET /duels/:id/stats`) and treats `GET /duels/today` only as explicit deprecation coverage.
 
 ---
 

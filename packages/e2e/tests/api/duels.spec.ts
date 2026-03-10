@@ -28,17 +28,12 @@ test.describe('Duels API', () => {
     expect(Array.isArray(body)).toBe(true);
   });
 
-  test('GET /duels/today returns anonymous duel (no author/type on poems)', async () => {
-    const { status, body } = await apiGet<AnonymousDuelShape | { error: string }>('/duels/today');
+  test('GET /duels/today returns 404 ENDPOINT_NOT_FOUND (deprecated)', async () => {
+    const { status, body } = await apiGet<{ error: string; code: string }>('/duels/today');
 
-    // Could be 404 if no duels seeded
-    if (status === 404) {
-      expect(body).toHaveProperty('error');
-      return;
-    }
-
-    expect(status).toBe(200);
-    assertAnonymousDuel(body);
+    expect(status).toBe(404);
+    expect(body.code).toBe('ENDPOINT_NOT_FOUND');
+    expect(typeof body.error).toBe('string');
   });
 
   test('GET /duels/:id with invalid ID returns 404', async () => {
@@ -48,19 +43,35 @@ test.describe('Duels API', () => {
     expect(body).toHaveProperty('error');
   });
 
-  test('GET /duels/:id/stats returns full reveal with author and type', async () => {
-    // First get a valid duel
-    const { body: todayBody, status: todayStatus } = await apiGet<
-      AnonymousDuelShape | { error: string }
-    >('/duels/today');
+  test('GET /duels/:id returns anonymous duel (no author/type on poems)', async () => {
+    const { status: listStatus, body: listBody } = await apiGet<DuelListItemShape[]>('/duels');
 
-    if (todayStatus === 404) {
+    expect(listStatus).toBe(200);
+    expect(Array.isArray(listBody)).toBe(true);
+
+    if (listBody.length === 0) {
+      test.skip(true, 'No duels available for duel details test');
+      return;
+    }
+
+    const { status, body } = await apiGet<AnonymousDuelShape>(`/duels/${listBody[0].id}`);
+
+    expect(status).toBe(200);
+    assertAnonymousDuel(body);
+  });
+
+  test('GET /duels/:id/stats returns full reveal with author and type', async () => {
+    const { status: listStatus, body: listBody } = await apiGet<DuelListItemShape[]>('/duels');
+
+    expect(listStatus).toBe(200);
+    expect(Array.isArray(listBody)).toBe(true);
+
+    if (listBody.length === 0) {
       test.skip(true, 'No duels available for stats test');
       return;
     }
 
-    const duel = todayBody as AnonymousDuelShape;
-    const { status, body } = await apiGet<DuelStatsShape>(`/duels/${duel.id}/stats`);
+    const { status, body } = await apiGet<DuelStatsShape>(`/duels/${listBody[0].id}/stats`);
 
     expect(status).toBe(200);
     assertDuelStats(body);
