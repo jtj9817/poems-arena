@@ -2,6 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { ViewState } from '@sanctuary/shared';
 import { Button } from '../components/Button';
 import { ApiRequestError, api, type DuelListItem } from '../lib/api';
+import metadataJson from '../metadata.json';
+
+const appVersion =
+  typeof (metadataJson as Record<string, unknown>).version === 'string' &&
+  /^\d+\.\d+$/.test((metadataJson as Record<string, unknown>).version as string)
+    ? ((metadataJson as Record<string, unknown>).version as string)
+    : null;
 
 interface HomeProps {
   onNavigate: (view: ViewState, duelId?: string) => void;
@@ -207,6 +214,15 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
             </div>
           </div>
         </div>
+
+        {appVersion !== null && (
+          <p
+            id="home-version-indicator"
+            className="font-sans text-xs text-pencil/40 mt-8 select-none"
+          >
+            v{appVersion}
+          </p>
+        )}
       </div>
     </div>
   );
