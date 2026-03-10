@@ -1,6 +1,6 @@
 import type { DbReadinessSnapshot } from './db/readiness-manager';
 
-type ReadinessFailureContext = 'check' | 'middleware';
+type ReadinessFailureContext = 'bootstrap' | 'check' | 'middleware';
 type ReadinessLogSnapshot = Pick<DbReadinessSnapshot, 'status' | 'lastError'>;
 
 export function formatDbReadinessFailureLog(

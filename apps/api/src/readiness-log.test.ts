@@ -2,6 +2,15 @@ import { describe, expect, test } from 'bun:test';
 import { formatDbReadinessFailureLog } from './readiness-log';
 
 describe('formatDbReadinessFailureLog', () => {
+  test('redacts infrastructure details for bootstrap failures', () => {
+    const message = formatDbReadinessFailureLog('bootstrap', {
+      status: 'failed',
+      lastError: 'connect ECONNREFUSED libsql.internal.cluster.local:443',
+    });
+
+    expect(message).toBe('DB readiness bootstrap failed (failed): details redacted');
+  });
+
   test('redacts infrastructure details when lastError is present', () => {
     const message = formatDbReadinessFailureLog('check', {
       status: 'failed',

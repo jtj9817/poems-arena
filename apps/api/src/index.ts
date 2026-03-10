@@ -37,8 +37,9 @@ app.use(
   }),
 );
 
-startDbWarmup().catch((error) => {
-  console.error('DB warm-up failed during bootstrap:', error);
+startDbWarmup().catch(() => {
+  const snapshot = getDbReadinessSnapshot();
+  console.error(formatDbReadinessFailureLog('bootstrap', snapshot));
 });
 
 app.get('/health', (c) => c.json({ status: 'ok', version: appVersion }));
