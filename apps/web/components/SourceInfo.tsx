@@ -1,5 +1,5 @@
 import React, { useId } from 'react';
-import { AuthorType } from '@sanctuary/shared';
+import { AuthorType, sanitizeExternalHttpUrl } from '@sanctuary/shared';
 import type { SourceInfo as SourceInfoData } from '@sanctuary/shared';
 
 interface SourceInfoProps {
@@ -21,6 +21,7 @@ export const SourceInfo: React.FC<SourceInfoProps> = ({
   const authorColor = isHuman ? 'text-seal-red' : 'text-binding-blue';
   const reactId = useId();
   const baseId = idPrefix ?? `source-info-${reactId.replace(/:/g, '')}`;
+  const safeSourceUrl = sanitizeExternalHttpUrl(sourceInfo?.primary.sourceUrl);
 
   return (
     <div id={`${baseId}-container`} className="text-left space-y-0.5">
@@ -40,10 +41,10 @@ export const SourceInfo: React.FC<SourceInfoProps> = ({
       )}
       {isHuman && sourceInfo?.primary.source && (
         <p id={`${baseId}-source`} className="font-sans text-xs text-pencil/60">
-          {sourceInfo.primary.sourceUrl ? (
+          {safeSourceUrl ? (
             <a
               id={`${baseId}-source-link`}
-              href={sourceInfo.primary.sourceUrl}
+              href={safeSourceUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="underline underline-offset-2 hover:text-ink transition-colors"

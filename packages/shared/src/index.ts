@@ -3,6 +3,29 @@ export enum AuthorType {
   AI = 'AI',
 }
 
+const SAFE_EXTERNAL_PROTOCOLS = new Set(['http:', 'https:']);
+
+export function sanitizeExternalHttpUrl(url: string | null | undefined): string | null {
+  if (!url) {
+    return null;
+  }
+
+  const trimmedUrl = url.trim();
+  if (trimmedUrl.length === 0) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(trimmedUrl);
+    if (!SAFE_EXTERNAL_PROTOCOLS.has(parsed.protocol)) {
+      return null;
+    }
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
 /** Canonical topic reference returned by the API. id is null when the duel has no linked topic row. */
 export interface TopicMeta {
   id: string | null;

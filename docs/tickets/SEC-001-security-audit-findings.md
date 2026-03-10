@@ -3,7 +3,7 @@
 ## Summary
 A security and privacy audit of the Classicist's Sanctuary codebase identified two vulnerabilities: a high-severity Cross-Site Scripting (XSS) vulnerability in the frontend and a medium-severity information disclosure risk in backend logging.
 
-## Status: OPEN
+## Status: RESOLVED
 **Severity:** High  
 **Priority:** P1  
 **Reporter:** Gemini Security Agent  
@@ -65,7 +65,7 @@ Redact or sanitize error messages before logging to the console in production en
 ---
 
 ## Acceptance Criteria
-- [ ] Shared utility for URL protocol validation exists in `@sanctuary/shared`.
-- [ ] `SourceInfo.tsx` uses the validation utility to sanitize `sourceUrl`.
-- [ ] API readiness logging in `index.ts` is sanitized to remove internal infrastructure details.
-- [ ] All unit tests pass.
+- [x] Shared utility for URL protocol validation exists in `@sanctuary/shared`.
+- [x] `SourceInfo.tsx` uses the validation utility to sanitize `sourceUrl`.
+- [x] API readiness logging in `index.ts` is sanitized to remove internal infrastructure details.
+- [x] All unit tests pass.

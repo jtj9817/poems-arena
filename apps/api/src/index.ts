@@ -4,6 +4,7 @@ import { logger } from 'hono/logger';
 import { db } from './db/client';
 import { ensureDbReady, getDbReadinessSnapshot, startDbWarmup } from './db/readiness';
 import { ApiError, ServiceUnavailableError } from './errors';
+import { formatDbReadinessFailureLog } from './readiness-log';
 import { createDuelsRouter } from './routes/duels';
 import { createTopicsRouter } from './routes/topics';
 import { votesRouter } from './routes/votes';
@@ -48,9 +49,7 @@ app.get('/ready', async (c) => {
     return c.json({ status: 'ok', ready: true });
   } catch {
     const snapshot = getDbReadinessSnapshot();
-    console.error(
-      `DB readiness check failed (${snapshot.status}): ${snapshot.lastError ?? 'unknown error'}`,
-    );
+    console.error(formatDbReadinessFailureLog('check', snapshot));
     return c.json(
       {
         status: 'degraded',
@@ -73,9 +72,7 @@ app.use('/api/v1/*', async (c, next) => {
     await ensureDbReady();
   } catch {
     const snapshot = getDbReadinessSnapshot();
-    console.error(
-      `DB readiness middleware failed (${snapshot.status}): ${snapshot.lastError ?? 'unknown error'}`,
-    );
+    console.error(formatDbReadinessFailureLog('middleware', snapshot));
     throw new ServiceUnavailableError('Database is not ready');
   }
 

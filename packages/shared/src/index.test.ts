@@ -8,7 +8,7 @@
  */
 import { describe, expect, test } from 'bun:test';
 import type { SourceInfo, TopicMeta } from './index';
-import { AuthorType } from './index';
+import { AuthorType, sanitizeExternalHttpUrl } from './index';
 
 describe('TopicMeta', () => {
   test('can be constructed with a non-null id and label', () => {
@@ -95,5 +95,31 @@ describe('Poem with sourceInfo', () => {
       } satisfies SourceInfo,
     };
     expect(poem.sourceInfo.primary.source).toBe('PF');
+  });
+});
+
+describe('sanitizeExternalHttpUrl', () => {
+  test('keeps valid https URL', () => {
+    expect(sanitizeExternalHttpUrl('https://poetryfoundation.org/poems/1')).toBe(
+      'https://poetryfoundation.org/poems/1',
+    );
+  });
+
+  test('keeps valid http URL', () => {
+    expect(sanitizeExternalHttpUrl('http://example.com/path')).toBe('http://example.com/path');
+  });
+
+  test('rejects javascript protocol', () => {
+    expect(sanitizeExternalHttpUrl("javascript:alert('xss')")).toBeNull();
+  });
+
+  test('rejects non-http protocols', () => {
+    expect(sanitizeExternalHttpUrl('data:text/html,hi')).toBeNull();
+  });
+
+  test('rejects invalid and empty URLs', () => {
+    expect(sanitizeExternalHttpUrl('not-a-url')).toBeNull();
+    expect(sanitizeExternalHttpUrl('   ')).toBeNull();
+    expect(sanitizeExternalHttpUrl(null)).toBeNull();
   });
 });
