@@ -16,6 +16,13 @@ interface HomeProps {
 
 const COLD_START_RETRY_DELAYS_MS = [500, 900, 1400, 2000];
 
+const STATUS_MESSAGES = [
+  'Establishing archive connection',
+  'Warming the ring',
+  'Preparing the contestants',
+  'Retrieving from the stacks',
+];
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -31,6 +38,18 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [loadCycle, setLoadCycle] = useState(0);
+  const [statusIndex, setStatusIndex] = useState(0);
+
+  useEffect(() => {
+    if (!loading) {
+      setStatusIndex(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setStatusIndex((i) => (i + 1) % STATUS_MESSAGES.length);
+    }, 2400);
+    return () => clearInterval(interval);
+  }, [loading]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -134,38 +153,41 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
               {loading ? (
                 <div
                   id="home-featured-duel-loading"
-                  className="w-full max-w-xs text-center space-y-4 animate-[fadeIn_0.35s_ease-out_forwards]"
+                  className="w-full max-w-xs text-center space-y-5 animate-[fadeIn_0.35s_ease-out_forwards]"
                 >
-                  <p
-                    id="home-featured-duel-loading-heading"
-                    className="font-sans text-xs tracking-widest uppercase text-pencil"
-                  >
-                    Preparing the ring
-                  </p>
-
-                  <div id="home-featured-duel-loading-bars" className="space-y-2">
+                  <div className="flex justify-center">
                     <div
-                      className="h-2 rounded-sm bg-stock animate-pulse motion-reduce:animate-none"
-                      aria-hidden
-                    />
-                    <div
-                      className="h-2 w-5/6 mx-auto rounded-sm bg-stock animate-pulse motion-reduce:animate-none [animation-delay:150ms]"
-                      aria-hidden
-                    />
-                    <div
-                      className="h-2 w-2/3 mx-auto rounded-sm bg-stock animate-pulse motion-reduce:animate-none [animation-delay:300ms]"
-                      aria-hidden
+                      id="home-featured-duel-spinner"
+                      className="w-10 h-10 rounded-full border-2 border-stock border-t-seal-red animate-spin motion-reduce:animate-none"
+                      role="status"
+                      aria-label="Loading"
                     />
                   </div>
 
                   <p
                     id="home-featured-duel-loading-status"
-                    className="font-body text-sm italic text-pencil"
+                    className="font-body text-sm italic text-pencil transition-opacity duration-300"
                   >
                     {retryCount > 0
-                      ? `Warming the archive connection (retry ${retryCount}/${COLD_START_RETRY_DELAYS_MS.length})`
-                      : 'Establishing archive connection...'}
+                      ? `Reconnecting to archive (${retryCount}/${COLD_START_RETRY_DELAYS_MS.length})…`
+                      : `${STATUS_MESSAGES[statusIndex]}…`}
                   </p>
+
+                  {retryCount > 0 && (
+                    <div
+                      id="home-featured-duel-retry-progress"
+                      className="flex justify-center gap-1.5"
+                    >
+                      {COLD_START_RETRY_DELAYS_MS.map((_, i) => (
+                        <div
+                          key={i}
+                          className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${
+                            i < retryCount ? 'bg-seal-red' : 'bg-stock'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               ) : loadError ? (
                 <div
