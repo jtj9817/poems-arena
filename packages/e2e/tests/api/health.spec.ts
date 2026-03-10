@@ -6,6 +6,6 @@ test.describe('Health endpoint', () => {
     const { status, body } = await apiRootGet<{ status: string }>('/health');
 
     expect(status).toBe(200);
-    expect(body).toEqual({ status: 'ok' });
+    expect(body).toMatchObject({ status: 'ok' });
   });
 });

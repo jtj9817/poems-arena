@@ -1,7 +1,7 @@
 # Security Review: Branch main — 2026-03-09
 
 **Ticket Type**: Security Review
-**Status**: Closed — No Actionable Findings
+**Status**: Closed — Hardening Applied
 **Priority**: Informational
 **Labels**: security, review, api, deployment
 **Scope**: 30 commits ahead of `origin/main`
@@ -56,6 +56,7 @@ All areas reviewed were assessed as secure under the applied threat model.
 - **Description:** The `/ready` endpoint returns `snapshot.lastError` (raw LibSQL connection error message) in 503 responses. The `/api/v1/*` readiness middleware appends the same error string to thrown `ServiceUnavailableError` messages.
 - **Why filtered:** Error messages originate from LibSQL connection failures against a Turso-hosted database. They do not contain auth tokens, raw env var values, or credentials — only generic network/connection strings. Turso database hostnames are anonymized subdomains. This is a hardening consideration rather than a concrete exploitable vulnerability.
 - **Hardening note (non-blocking):** Log `lastError` server-side and return a generic `"Database is not ready"` message to clients. No remediation required before deployment.
+- **Resolution:** Applied. `apps/api/src/index.ts` updated: both the `/ready` 503 response and the `/api/v1/*` readiness middleware now log the raw `snapshot.lastError` to `console.error` server-side and return the fixed string `"Database is not ready"` to clients. The e2e health assertion was also corrected (`toEqual` → `toMatchObject`) to account for the `version` field added in commit `0c42bfa`.
 
 ---
 

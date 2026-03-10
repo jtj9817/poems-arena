@@ -48,13 +48,16 @@ app.get('/ready', async (c) => {
     return c.json({ status: 'ok', ready: true });
   } catch {
     const snapshot = getDbReadinessSnapshot();
+    console.error(
+      `DB readiness check failed (${snapshot.status}): ${snapshot.lastError ?? 'unknown error'}`,
+    );
     return c.json(
       {
         status: 'degraded',
         ready: false,
         code: 'SERVICE_UNAVAILABLE',
         reason: snapshot.status,
-        error: snapshot.lastError,
+        error: 'Database is not ready',
       },
       503,
     );
@@ -70,8 +73,10 @@ app.use('/api/v1/*', async (c, next) => {
     await ensureDbReady();
   } catch {
     const snapshot = getDbReadinessSnapshot();
-    const detail = snapshot.lastError ? `: ${snapshot.lastError}` : '';
-    throw new ServiceUnavailableError(`Database is not ready (${snapshot.status})${detail}`);
+    console.error(
+      `DB readiness middleware failed (${snapshot.status}): ${snapshot.lastError ?? 'unknown error'}`,
+    );
+    throw new ServiceUnavailableError('Database is not ready');
   }
 
   await next();
