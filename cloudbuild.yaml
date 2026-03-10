@@ -1,3 +1,21 @@
+# ── Version bump precondition ──────────────────────────────────────────────────
+# This pipeline is the required gate before any version bump.
+# The bump script (scripts/bump-version.ts) queries the last successful run of
+# THIS pipeline on the main branch via:
+#
+#   gcloud builds list \
+#     --filter="substitutions.BRANCH_NAME=main AND status=SUCCESS" \
+#     --format="value(id,startTime)" \
+#     --limit=1
+#
+# If no successful run is found, the script exits non-zero and no version files
+# are modified. After a successful build, run:
+#
+#   pnpm version:minor   # increment x.y → x.(y+1)  [or (x+1).0 if y >= 10]
+#   pnpm version:major   # increment x.y → (x+1).0
+#
+# See scripts/bump-version.ts for full documentation.
+# ──────────────────────────────────────────────────────────────────────────────
 options:
   logging: CLOUD_LOGGING_ONLY
 timeout: 1800s
