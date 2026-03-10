@@ -39,8 +39,54 @@ COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
 # SPA fallback & API proxy — serve index.html for all routes, proxy API and readiness
 # paths to the localhost sidecar, and normalize sidecar startup failures into
 # a stable JSON 503 payload for browser retry logic and smoke tests.
-RUN printf 'server {\n  listen 80;\n  root /usr/share/nginx/html;\n  index index.html;\n  location /api/v1/ {\n    proxy_pass http://localhost:4000/api/v1/;\n    proxy_set_header Host $host;\n    proxy_set_header X-Real-IP $remote_addr;\n    proxy_connect_timeout 2s;\n    proxy_read_timeout 30s;\n    proxy_intercept_errors on;\n    error_page 502 503 504 = @api_unavailable;\n  }\n  location = /health {\n    proxy_pass http://localhost:4000/health;\n    proxy_set_header Host $host;\n    proxy_set_header X-Real-IP $remote_addr;\n    proxy_connect_timeout 2s;\n    proxy_read_timeout 15s;\n    proxy_intercept_errors on;\n    error_page 502 503 504 = @api_unavailable;\n  }\n  location = /ready {\n    proxy_pass http://localhost:4000/ready;\n    proxy_set_header Host $host;\n    proxy_set_header X-Real-IP $remote_addr;\n    proxy_connect_timeout 2s;\n    proxy_read_timeout 15s;\n    proxy_intercept_errors on;\n    error_page 502 503 504 = @api_unavailable;\n  }\n  location @api_unavailable {\n    default_type application/json;\n    return 503 \"{\\\"error\\\":\\\"Archive is not ready\\\",\\\"code\\\":\\\"SERVICE_UNAVAILABLE\\\"}\";\n  }\n  location / {\n    try_files $uri $uri/ /index.html;\n  }\n}\n' \
-    > /etc/nginx/conf.d/default.conf
+RUN cat > /etc/nginx/conf.d/default.conf <<'NGINX_CONF'
+server {
+  listen 80;
+  root /usr/share/nginx/html;
+  index index.html;
+
+  location /api/v1/ {
+    proxy_pass http://localhost:4000/api/v1/;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_connect_timeout 2s;
+    proxy_read_timeout 30s;
+    proxy_intercept_errors on;
+    error_page 502 503 504 = @api_unavailable;
+  }
+
+  location = /health {
+    proxy_pass http://localhost:4000/health;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_connect_timeout 2s;
+    proxy_read_timeout 15s;
+    proxy_intercept_errors on;
+    error_page 502 503 504 = @api_unavailable;
+  }
+
+  location = /ready {
+    proxy_pass http://localhost:4000/ready;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_connect_timeout 2s;
+    proxy_read_timeout 15s;
+    proxy_intercept_errors on;
+    error_page 502 503 504 = @api_unavailable;
+  }
+
+  location @api_unavailable {
+    default_type application/json;
+    return 503 '{"error":"Archive is not ready","code":"SERVICE_UNAVAILABLE"}';
+  }
+
+  location / {
+    try_files $uri $uri/ /index.html;
+  }
+}
+NGINX_CONF
+
+RUN nginx -t
 
 EXPOSE 80
 
