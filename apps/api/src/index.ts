@@ -8,6 +8,18 @@ import { createDuelsRouter } from './routes/duels';
 import { createTopicsRouter } from './routes/topics';
 import { votesRouter } from './routes/votes';
 
+// Read version from root package.json at startup; degrades gracefully to "unknown".
+let appVersion = 'unknown';
+try {
+  const pkgText = await Bun.file(new URL('../../../package.json', import.meta.url)).text();
+  const pkg = JSON.parse(pkgText) as { version?: unknown };
+  if (typeof pkg.version === 'string' && /^\d+\.\d+$/.test(pkg.version)) {
+    appVersion = pkg.version;
+  }
+} catch {
+  // version stays 'unknown' — root package.json not available in this environment
+}
+
 const app = new Hono();
 
 app.use('*', logger());
@@ -28,7 +40,7 @@ startDbWarmup().catch((error) => {
   console.error('DB warm-up failed during bootstrap:', error);
 });
 
-app.get('/health', (c) => c.json({ status: 'ok' }));
+app.get('/health', (c) => c.json({ status: 'ok', version: appVersion }));
 
 app.get('/ready', async (c) => {
   try {
