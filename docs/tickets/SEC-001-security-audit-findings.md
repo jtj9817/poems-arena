@@ -3,7 +3,7 @@
 ## Summary
 A security and privacy audit of the Classicist's Sanctuary codebase identified two vulnerabilities: a high-severity Cross-Site Scripting (XSS) vulnerability in the frontend and a medium-severity information disclosure risk in backend logging.
 
-## Status: RESOLVED
+## Status: CLOSED
 **Severity:** High  
 **Priority:** P1  
 **Reporter:** Gemini Security Agent  
