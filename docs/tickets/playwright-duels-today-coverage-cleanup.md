@@ -3,7 +3,7 @@
 **Component:** `packages/e2e/tests/api/duels.spec.ts`
 **Severity:** Medium
 **Type:** Test Debt / Regression Risk
-**Status:** Open
+**Status:** Resolved
 
 ---
 
@@ -80,13 +80,26 @@ The frontend migration away from `/duels/today` was completed, but the Playwrigh
 
 ---
 
+## Resolution
+
+**Resolved on:** 2026-03-10  
+**Commit:** `3f2449c566d67512f1986144a6779883d812160d` (`test(e2e): align duels coverage with live endpoints`)
+
+### Changes Made
+
+- Updated `packages/e2e/tests/api/duels.spec.ts` to discover duel IDs from `GET /duels` for happy-path coverage.
+- Kept `/duels/today` only as explicit deprecation coverage (`404 ENDPOINT_NOT_FOUND`), not as happy-path setup.
+- Updated `docs/plans/002-duel-randomization-plan.md` note so it matches the current Playwright contract coverage.
+
+---
+
 ## Acceptance Criteria
 
-- [ ] `packages/e2e/tests/api/duels.spec.ts` no longer uses `/duels/today` for happy-path duel retrieval.
-- [ ] The `GET /duels/:id/stats` happy-path test sources its duel ID from `GET /duels`.
-- [ ] Any remaining `/duels/today` coverage is explicitly framed as deprecation coverage, not feature coverage.
-- [ ] Duel API Playwright tests remain green against the current API contract.
-- [ ] Duel randomization work can reference Playwright coverage without caveats about stale `/today` setup.
+- [x] `packages/e2e/tests/api/duels.spec.ts` no longer uses `/duels/today` for happy-path duel retrieval.
+- [x] The `GET /duels/:id/stats` happy-path test sources its duel ID from `GET /duels`.
+- [x] Any remaining `/duels/today` coverage is explicitly framed as deprecation coverage, not feature coverage.
+- [x] Duel API Playwright tests remain green against the current API contract.
+- [x] Duel randomization work can reference Playwright coverage without caveats about stale `/today` setup.
 
 ---
 
