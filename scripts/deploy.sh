@@ -9,16 +9,54 @@ cleanup() {
 
 trap cleanup EXIT
 
+require_command() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "❌ Missing required command: $1" >&2
+    exit 1
+  fi
+}
+
+wait_for_http_200() {
+  local url="$1"
+  local label="$2"
+  local attempts="${3:-15}"
+  local sleep_seconds="${4:-2}"
+  local attempt
+  local status
+
+  for ((attempt = 1; attempt <= attempts; attempt += 1)); do
+    status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 10 "$url" || true)"
+
+    if [[ "$status" == "200" ]]; then
+      echo "✅ ${label} responded with HTTP 200"
+      return 0
+    fi
+
+    echo "⏳ Waiting for ${label} (${attempt}/${attempts}) — HTTP ${status:-000}"
+    sleep "$sleep_seconds"
+  done
+
+  echo "❌ ${label} failed to reach HTTP 200: $url" >&2
+  return 1
+}
+
 # Configuration
 PROJECT_ID="solheim-project"
 REGION="us-west1"
+SERVICE_NAME="classicist-sanctuary"
 ARTIFACT_REGISTRY="us-west1-docker.pkg.dev/solheim-project/sanctuary"
 API_IMAGE="${ARTIFACT_REGISTRY}/api:latest"
 WEB_IMAGE="${ARTIFACT_REGISTRY}/web:latest"
 SERVICE_ACCOUNT="237062568374-compute@developer.gserviceaccount.com"
 DOCKER_BUILD_PROGRESS="${DOCKER_BUILD_PROGRESS:-plain}"
+DEPLOY_VERIFY_ATTEMPTS="${DEPLOY_VERIFY_ATTEMPTS:-20}"
+DEPLOY_VERIFY_SLEEP_SECONDS="${DEPLOY_VERIFY_SLEEP_SECONDS:-3}"
 
 echo "🚀 Starting Local Build & Push for Classicist's Sanctuary..."
+
+require_command gcloud
+require_command docker
+require_command curl
 
 # 1. Ensure we are in the correct project
 gcloud config set project "$PROJECT_ID"
@@ -55,5 +93,19 @@ echo "🚀 Deploying to Cloud Run via service.yaml..."
 sed "s/\${SERVICE_ACCOUNT_EMAIL}/$SERVICE_ACCOUNT/g" service.yaml > service.deployed.yaml
 gcloud run services replace service.deployed.yaml --region "$REGION"
 
+SERVICE_URL="$(gcloud run services describe "$SERVICE_NAME" --region "$REGION" --format='value(status.url)')"
+
+echo "🔎 Verifying deployed service..."
+wait_for_http_200 \
+  "${SERVICE_URL}/health" \
+  "service health" \
+  "$DEPLOY_VERIFY_ATTEMPTS" \
+  "$DEPLOY_VERIFY_SLEEP_SECONDS"
+wait_for_http_200 \
+  "${SERVICE_URL}/ready" \
+  "service readiness" \
+  "$DEPLOY_VERIFY_ATTEMPTS" \
+  "$DEPLOY_VERIFY_SLEEP_SECONDS"
+
 echo "✅ Deployment SUCCESSFUL!"
-echo "🌐 Service URL: $(gcloud run services describe classicist-sanctuary --region "$REGION" --format='value(status.url)')"
+echo "🌐 Service URL: ${SERVICE_URL}"

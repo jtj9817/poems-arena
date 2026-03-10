@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.2",
   "type": "module",
+  "packageManager": "pnpm@10.30.2",
   "scripts": {
     "dev": "concurrently \"pnpm --filter @sanctuary/api dev\" \"pnpm --filter @sanctuary/web dev\"",
     "build": "pnpm --filter @sanctuary/shared build && pnpm --filter @sanctuary/web build && pnpm --filter @sanctuary/api build",

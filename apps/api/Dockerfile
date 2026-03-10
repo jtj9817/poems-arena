@@ -1,6 +1,8 @@
 # ── Stage 1: builder ──────────────────────────────────────────────────────────
 FROM oven/bun:1 AS builder
 
+ARG PNPM_VERSION=10.30.2
+
 WORKDIR /app
 
 # Copy root workspace manifests
@@ -10,7 +12,7 @@ COPY packages/db/package.json ./packages/db/package.json
 COPY apps/api/package.json ./apps/api/package.json
 
 # Install only runtime dependencies for the API workspace and its local workspace dependencies.
-RUN bunx pnpm install --filter @sanctuary/api... --prod --frozen-lockfile
+RUN bunx "pnpm@${PNPM_VERSION}" install --filter @sanctuary/api... --prod --frozen-lockfile
 
 # Copy source
 COPY packages/shared ./packages/shared
