@@ -4,7 +4,7 @@
 **Status:** Open
 **Priority:** Medium
 **Assignee:** Unassigned
-**Labels:** versioning, ci-cd, cloud-build, scripts, api, web
+**Labels:** versioning, ci-cd, cloud-build, scripts, api, web, frontend
 
 ---
 
@@ -25,6 +25,7 @@ Implement a version incrementing system that:
 - requires a successful Cloud Build pipeline run as a precondition before any version bump is accepted
 - propagates the canonical version to all consumers from a single source of truth
 - produces an annotated git tag for each release
+- displays the current version as a visible indicator on the application homepage
 
 ---
 
@@ -46,6 +47,7 @@ Implement a version incrementing system that:
 - Automated version bumps triggered inside Cloud Build (auth complexity; bump remains a deliberate local action)
 - Semantic-release or Changesets tooling adoption
 - API URL prefix changes (`/api/v1/` is a separate compatibility era, not coupled to app semver)
+- version badge placement outside the homepage (e.g. nav bar, footer across all pages)
 
 ---
 
@@ -168,9 +170,30 @@ This keeps the contract visible to anyone reading the deploy config. No executab
 
 ---
 
-### Phase 4 — Root `pnpm` Script Wiring
+### Phase 4 — Homepage Version Indicator
 
-#### Task 4.1 — Add `version:minor` and `version:major` scripts
+#### Task 4.1 — Read version at build time
+
+Import the version from `apps/web/metadata.json` (written by the bump script) in the web app. Because `metadata.json` is a static JSON file co-located with the frontend source, it can be imported directly in the component without a runtime fetch.
+
+#### Task 4.2 — Render version badge on the homepage
+
+Add a small, unobtrusive version label to `apps/web/pages/Home.tsx`. Placement should be in a low-attention area of the page (e.g. bottom of the hero section or inline with the page footer region) so it does not compete with primary content.
+
+Requirements:
+- Display the value as `v{x.y}` (e.g. `v1.4`)
+- Styled as secondary/muted text — not a prominent heading
+- Must not render if the version value is absent or malformed (fail silently)
+
+#### Task 4.3 — Keep the indicator homepage-only
+
+The version badge lives exclusively on `Home.tsx`. It does not appear in the global `Layout.tsx`, the nav bar, or any other page. This is a soft informational signal for users landing on the root URL, not a persistent chrome element.
+
+---
+
+### Phase 5 — Root `pnpm` Script Wiring
+
+#### Task 5.1 — Add `version:minor` and `version:major` scripts
 
 Add to root `package.json` `"scripts"`:
 
@@ -190,6 +213,7 @@ These give a consistent entry point regardless of how the caller invokes Bun dir
 | `scripts/bump-version.ts` | Create | Core bump script: parse, validate CI, compute, write, commit, tag |
 | `package.json` | Modify | Add `version:minor` and `version:major` scripts |
 | `apps/web/metadata.json` | Modify | Add `"version"` field (maintained by bump script going forward) |
+| `apps/web/pages/Home.tsx` | Modify | Add muted `v{x.y}` version badge in low-attention area |
 | `apps/api/src/routes/health.ts` (or `index.ts`) | Modify | Include `"version"` in `GET /health` response |
 | `cloudbuild.yaml` | Modify | Add precondition documentation comment block |
 
@@ -199,9 +223,10 @@ These give a consistent entry point regardless of how the caller invokes Bun dir
 
 1. Write and validate `scripts/bump-version.ts` locally (dry-run against current version).
 2. Update `GET /health` to include version.
-3. Add pnpm scripts to root `package.json`.
-4. Add documentation comment to `cloudbuild.yaml`.
-5. Run a first bump (`pnpm version:minor`) after the next successful Cloud Build to exercise the full flow end-to-end.
+3. Add version badge to `apps/web/pages/Home.tsx` reading from `metadata.json`.
+4. Add pnpm scripts to root `package.json`.
+5. Add documentation comment to `cloudbuild.yaml`.
+6. Run a first bump (`pnpm version:minor`) after the next successful Cloud Build to exercise the full flow end-to-end, then verify the badge reflects the new version.
 
 ---
 
@@ -213,6 +238,7 @@ These give a consistent entry point regardless of how the caller invokes Bun dir
 4. **`gcloud` not installed or not authenticated:** `--skip-ci-check` allows local development use; must print a warning when used.
 5. **Uncommitted working tree:** Script should warn (but not hard-fail) if there are unstaged changes at bump time, so the version commit is clean.
 6. **Version unknown at API startup:** `GET /health` degrades to `"version": "unknown"` rather than throwing or returning a non-200.
+7. **Missing or malformed version in `metadata.json`:** The homepage badge renders nothing rather than displaying `"v0.0.0"` or an error string.
 
 ---
 
@@ -222,7 +248,8 @@ These give a consistent entry point regardless of how the caller invokes Bun dir
 2. **Roll-over:** manually set `"version": "1.10"` in `package.json`, run `--minor`, confirm result is `2.0`.
 3. **CI gate:** without `--skip-ci-check`, confirm the script exits non-zero when no successful Cloud Build run exists for `main`.
 4. **Health endpoint:** call `GET /health` and confirm the response contains a `"version"` field matching the value in `package.json`.
-5. **Git artifacts:** confirm annotated tag `vX.Y` exists after bump and that the commit message matches `chore(release): vX.Y`.
+5. **Homepage badge:** load the homepage and confirm a `v{x.y}` label is visible with muted styling; confirm it is absent on all other pages.
+6. **Git artifacts:** confirm annotated tag `vX.Y` exists after bump and that the commit message matches `chore(release): vX.Y`.
 
 ---
 
@@ -234,4 +261,6 @@ These give a consistent entry point regardless of how the caller invokes Bun dir
 - [ ] Root `package.json` is the single source of truth; `apps/web/metadata.json` and the API health response derive from it.
 - [ ] Each bump produces an annotated git tag `vX.Y` and a commit `chore(release): vX.Y`.
 - [ ] `GET /health` returns `"version"` alongside `"status"`.
+- [ ] The homepage displays a muted `v{x.y}` badge sourced from `apps/web/metadata.json`; it renders nothing if the version is absent or malformed.
+- [ ] The version badge does not appear on any page other than the homepage.
 - [ ] `pnpm version:minor` and `pnpm version:major` invoke the script from the repo root.
