@@ -9,17 +9,13 @@ COPY packages/shared/package.json ./packages/shared/package.json
 COPY packages/db/package.json ./packages/db/package.json
 COPY apps/api/package.json ./apps/api/package.json
 
-# Install all workspace deps
-RUN bunx pnpm i --frozen-lockfile
+# Install only runtime dependencies for the API workspace and its local workspace dependencies.
+RUN bunx pnpm install --filter @sanctuary/api... --prod --frozen-lockfile
 
 # Copy source
 COPY packages/shared ./packages/shared
 COPY packages/db ./packages/db
 COPY apps/api ./apps/api
-
-# Generate drizzle migrations
-WORKDIR /app/apps/api
-RUN bunx drizzle-kit generate
 
 # ── Stage 2: runner ───────────────────────────────────────────────────────────
 FROM oven/bun:1-alpine AS runner
