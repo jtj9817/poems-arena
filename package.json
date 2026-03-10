@@ -1,7 +1,7 @@
 {
   "name": "classicist-sanctuary",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.2",
   "type": "module",
   "scripts": {
     "dev": "concurrently \"pnpm --filter @sanctuary/api dev\" \"pnpm --filter @sanctuary/web dev\"",
@@ -12,7 +12,9 @@
     "format:check": "prettier --check . \"!**/*.md\"",
     "coverage:phase4": "node scripts/check-phase4-coverage-gate.mjs",
     "quality:phase4": "pnpm run coverage:phase4 && pnpm lint && pnpm format:check",
-    "test": "pnpm -r --if-present test"
+    "test": "pnpm -r --if-present test",
+    "version:minor": "bun scripts/bump-version.ts --minor",
+    "version:major": "bun scripts/bump-version.ts --major"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
