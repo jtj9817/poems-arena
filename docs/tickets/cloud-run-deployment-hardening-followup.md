@@ -21,6 +21,26 @@ The local build-and-push deployment path now works, but the current logs still e
 
 This ticket tracks the next hardening pass so deployment failures become more diagnosable and less dependent on best-case network and startup timing.
 
+## Implementation Progress
+
+### Completed
+
+- Added deploy-time public smoke checks for `/health` and `/ready` before reporting success.
+- Added ingress proxy coverage for `/health` and `/ready`.
+- Normalized ingress-side sidecar startup failures into a stable retryable JSON `503`.
+- Pinned pnpm usage in repository and container paths.
+- Added root `.dockerignore` for Docker context hygiene.
+- Switched deployment flow to immutable image references:
+  - build/push unique run tags (defaulting to git SHA fallback)
+  - resolve pushed digests
+  - render `service.deployed.yaml` with digest refs
+- Removed `gcloud config set project` mutation from deploy flow and now pass `--project` explicitly.
+
+### Remaining
+
+- Web image install remains large (`+270` packages) because the web build toolchain itself is heavy and includes test tooling (`vitest`) in package-level dev dependencies.
+- Transient npm registry `ETIMEDOUT` retries are still observed during web image install, though retry budget is now increased.
+
 ## Problem Statement
 
 The deployment succeeded, but the success path still relied on favorable conditions:
@@ -106,13 +126,13 @@ Out of scope:
 
 ## Acceptance Criteria
 
-- The deploy script fails fast when required local tooling is missing.
-- The deploy script verifies the deployed service through its public Cloud Run URL before reporting success.
-- The web ingress exposes `/health` and `/ready` to support smoke tests and diagnostics.
-- Container builds use a pinned pnpm version instead of whatever release happens to be current.
-- A root `.dockerignore` excludes local artifacts that should never enter Docker build context.
-- Sidecar startup failures at the ingress boundary surface as stable retryable responses instead of opaque HTML gateway errors.
-- Remaining work on immutable image references is captured explicitly if not completed in the first implementation slice.
+- [x] The deploy script fails fast when required local tooling is missing.
+- [x] The deploy script verifies the deployed service through its public Cloud Run URL before reporting success.
+- [x] The web ingress exposes `/health` and `/ready` to support smoke tests and diagnostics.
+- [x] Container builds use a pinned pnpm version instead of whatever release happens to be current.
+- [x] A root `.dockerignore` excludes local artifacts that should never enter Docker build context.
+- [x] Sidecar startup failures at the ingress boundary surface as stable retryable responses instead of opaque HTML gateway errors.
+- [x] Immutable image references are used for deployment instead of relying only on `:latest`.
 
 ## Initial Implementation Slice
 
@@ -127,4 +147,4 @@ This issue has been started with the following first-pass focus:
 ## Notes
 
 - The environment-tag warning from `gcloud` is informational and not currently a blocker.
-- The immutable image-reference work is still important, but it can be staged after liveness/readiness verification is in place.
+- `:latest` is still pushed as an operator convenience alias, but deploy resolution now uses digests.

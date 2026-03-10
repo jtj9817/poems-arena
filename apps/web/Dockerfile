@@ -13,8 +13,12 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages/shared/package.json ./packages/shared/package.json
 COPY apps/web/package.json ./apps/web/package.json
 
-# Install workspace dependencies
-RUN pnpm install --frozen-lockfile
+# Install only the web workspace from within its package directory.
+RUN cd apps/web && pnpm install \
+  --config.recursive-install=false \
+  --frozen-lockfile \
+  --fetch-retries=5 \
+  --fetch-timeout=120000
 
 # Copy source
 COPY packages/shared ./packages/shared

@@ -25,13 +25,13 @@ spec:
                 secretKeyRef:
                   key: 'latest'
                   name: LIBSQL_URL
-          image: us-west1-docker.pkg.dev/solheim-project/sanctuary/api:latest
+          image: ${API_IMAGE_REF}
           name: sanctuary-api
           resources:
             limits:
               cpu: 1000m
               memory: 2Gi
-        - image: us-west1-docker.pkg.dev/solheim-project/sanctuary/web:latest
+        - image: ${WEB_IMAGE_REF}
           name: sanctuary-web
           ports:
             - containerPort: 80
