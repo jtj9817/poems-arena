@@ -20,7 +20,9 @@
   - [x] Add tests proving different seeds shift the first-page ordering when enough duel rows exist.
   - [x] Add tests proving seeded pagination does not repeat IDs across page boundaries for a stable dataset.
   - [x] Add tests proving `sort=recent` bypasses the seed requirement and still supports `topic_id` filtering.
-- [~] Task: Conductor - User Manual Verification 'Phase 1: API Seeded Rotation Logic' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: API Seeded Rotation Logic' (Protocol in workflow.md) (0b5f773)
+  - Verification script: `scripts/verify-phase1-randomized-duel-ordering.ts`
+  - Result: 23/23 checks passed
 
 ## Phase 2: Frontend Integration & Pagination Fix
 
