@@ -53,21 +53,22 @@
 
 **Goal:** Lock in correctness with a regression pass before writing final documentation.
 
-- [ ] Task: Coverage and Regression Verification
-  - [ ] Execute `pnpm --filter @sanctuary/api test` and resolve failures related to this track.
-  - [ ] Execute `pnpm --filter @sanctuary/web test` and resolve failures related to this track.
-  - [ ] Execute `pnpm run lint`.
-  - [ ] Execute `pnpm format:check` (or `pnpm format` to fix).
-- [ ] Task: Regression Checklist (Feature Behaviors)
-  - [ ] Verify the same browser tab keeps the same Home featured duel across reloads.
-  - [ ] Verify a new browser tab or cleared `sessionStorage` produces a different Home/The Ring ordering.
-  - [ ] Verify The Ring paginates through seeded duel IDs without duplicates in a stable dataset.
-  - [ ] Verify Past Bouts continues to render chronological results and topic filtering still works through `sort=recent`.
-  - [ ] Verify missing `seed` requests fail with `400` and `MISSING_SEED`.
-  - [ ] Verify invalid `seed` values receive `400` with `INVALID_SEED`.
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Regression & Quality Gate' (Protocol in workflow.md)
-  - [ ] Automation script: `scripts/verify-phase3-randomized-duel-ordering.ts`.
-  - [ ] Shell wrapper: `scripts/run-manual-verification-phase-3.sh`.
+- [x] Task: Coverage and Regression Verification (4aa3cca)
+  - [x] Execute `pnpm --filter @sanctuary/api test` and resolve failures related to this track.
+  - [x] Execute `pnpm --filter @sanctuary/web test` and resolve failures related to this track.
+  - [x] Execute `pnpm run lint`.
+  - [x] Execute `pnpm format:check` (or `pnpm format` to fix).
+- [x] Task: Regression Checklist (Feature Behaviors) (4aa3cca)
+  - [x] Verify the same browser tab keeps the same Home featured duel across reloads.
+  - [x] Verify a new browser tab or cleared `sessionStorage` produces a different Home/The Ring ordering.
+  - [x] Verify The Ring paginates through seeded duel IDs without duplicates in a stable dataset.
+  - [x] Verify Past Bouts continues to render chronological results and topic filtering still works through `sort=recent`.
+  - [x] Verify missing `seed` requests fail with `400` and `MISSING_SEED`.
+  - [x] Verify invalid `seed` values receive `400` with `INVALID_SEED`.
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Regression & Quality Gate' (Protocol in workflow.md) (4aa3cca)
+  - [x] Automation script: `scripts/verify-phase3-randomized-duel-ordering.ts`.
+  - [x] Shell wrapper: `scripts/run-manual-verification-phase-3-randomized-duel-ordering.sh`.
+  - Result: 14/14 checks passed (`phase3_randomized_duel_ordering_2026-03-11T05_07_45_831Z`).
 
 ## Phase 4: Documentation
 
