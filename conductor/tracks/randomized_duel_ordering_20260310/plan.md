@@ -4,23 +4,23 @@
 
 **Goal:** Add deterministic seeded rotation to `GET /duels` while enforcing seed usage for random consumers and preserving archive chronology through an explicit bypass.
 
-- [ ] Task: Implement `buildSeedPivot` Utility
-  - [ ] Add a small helper in `apps/api/src/routes/duels.ts` or a new adjacent utility file that hashes a numeric seed into a stable duel-shaped pivot ID (`duel-<12 hex chars>`).
-  - [ ] Reuse the existing SHA-256 approach already used for duel ID generation so the pivot format matches the duel corpus.
-  - [ ] Write focused tests for `buildSeedPivot` to verify deterministic output and stable formatting.
-- [ ] Task: Update `GET /duels` Route
-  - [ ] Modify `apps/api/src/routes/duels.ts` to accept `seed` and `sort` query parameters alongside the existing `page` and `topic_id` params.
-  - [ ] Validate `seed` when present. Reject non-integer or negative values with `400 Bad Request` and an `INVALID_SEED` error code.
-  - [ ] Reject requests that omit `seed` unless `sort=recent` is supplied, returning `400 Bad Request` with a `MISSING_SEED` error code.
-  - [ ] Preserve chronological `created_at DESC` ordering only for the explicit `sort=recent` bypass used by archive consumers.
-  - [ ] When `seed` is present, order by `CASE WHEN duels.id >= pivotId THEN 0 ELSE 1 END`, then `duels.id ASC`, so the seed rotates a stable traversal over the existing hash-distributed duel IDs.
-- [ ] Task: Update API Tests
-  - [ ] Extend `apps/api/src/routes/duels.test.ts` with failing tests first for missing and invalid seed validation.
-  - [ ] Add tests proving the same seed returns the same first-page ordering across repeated requests.
-  - [ ] Add tests proving different seeds shift the first-page ordering when enough duel rows exist.
-  - [ ] Add tests proving seeded pagination does not repeat IDs across page boundaries for a stable dataset.
-  - [ ] Add tests proving `sort=recent` bypasses the seed requirement and still supports `topic_id` filtering.
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: API Seeded Rotation Logic' (Protocol in workflow.md)
+- [x] Task: Implement `buildSeedPivot` Utility (8d58265)
+  - [x] Add a small helper in `apps/api/src/routes/duels.ts` or a new adjacent utility file that hashes a numeric seed into a stable duel-shaped pivot ID (`duel-<12 hex chars>`).
+  - [x] Reuse the existing SHA-256 approach already used for duel ID generation so the pivot format matches the duel corpus.
+  - [x] Write focused tests for `buildSeedPivot` to verify deterministic output and stable formatting.
+- [x] Task: Update `GET /duels` Route (f49b369)
+  - [x] Modify `apps/api/src/routes/duels.ts` to accept `seed` and `sort` query parameters alongside the existing `page` and `topic_id` params.
+  - [x] Validate `seed` when present. Reject non-integer or negative values with `400 Bad Request` and an `INVALID_SEED` error code.
+  - [x] Reject requests that omit `seed` unless `sort=recent` is supplied, returning `400 Bad Request` with a `MISSING_SEED` error code.
+  - [x] Preserve chronological `created_at DESC` ordering only for the explicit `sort=recent` bypass used by archive consumers.
+  - [x] When `seed` is present, order by `CASE WHEN duels.id >= pivotId THEN 0 ELSE 1 END`, then `duels.id ASC`, so the seed rotates a stable traversal over the existing hash-distributed duel IDs.
+- [x] Task: Update API Tests (f49b369)
+  - [x] Extend `apps/api/src/routes/duels.test.ts` with failing tests first for missing and invalid seed validation.
+  - [x] Add tests proving the same seed returns the same first-page ordering across repeated requests.
+  - [x] Add tests proving different seeds shift the first-page ordering when enough duel rows exist.
+  - [x] Add tests proving seeded pagination does not repeat IDs across page boundaries for a stable dataset.
+  - [x] Add tests proving `sort=recent` bypasses the seed requirement and still supports `topic_id` filtering.
+- [~] Task: Conductor - User Manual Verification 'Phase 1: API Seeded Rotation Logic' (Protocol in workflow.md)
 
 ## Phase 2: Frontend Integration & Pagination Fix
 
