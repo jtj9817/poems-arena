@@ -33,9 +33,13 @@ const testRunId = `phase2_randomized_duel_ordering_${new Date().toISOString().re
 const repoRoot = path.resolve(import.meta.dir, '..');
 const logFile = TestLogger.init(testRunId, path.join(repoRoot, 'logs', 'manual_tests'));
 
-const MAX_SESSION_SEED = 2_147_483_647;
-const SEED_KEY = 'duel-seed';
-const EXPECTED_PAGE_SIZE = 12;
+const SESSION_FILE_PATH = path.join(repoRoot, 'apps', 'web', 'lib', 'session.ts');
+const DUELS_ROUTE_FILE_PATH = path.join(repoRoot, 'apps', 'api', 'src', 'routes', 'duels.ts');
+
+const STACK_TRACE_MAX_CHARS = readPositiveIntEnv('MANUAL_TEST_STACK_TRACE_MAX_CHARS', 600);
+const STDOUT_TAIL_CHARS = readPositiveIntEnv('MANUAL_TEST_STDOUT_TAIL_CHARS', 1200);
+const STDERR_TAIL_CHARS = readPositiveIntEnv('MANUAL_TEST_STDERR_TAIL_CHARS', 400);
+const INDEPENDENT_SEED_RUNS = readPositiveIntEnv('MANUAL_TEST_INDEPENDENT_SEED_RUNS', 5);
 
 const HOME_PATH = path.join(repoRoot, 'apps', 'web', 'pages', 'Home.tsx');
 const THE_RING_PATH = path.join(repoRoot, 'apps', 'web', 'pages', 'TheRing.tsx');
@@ -46,6 +50,79 @@ const PAST_BOUTS_PATH = path.join(repoRoot, 'apps', 'web', 'pages', 'PastBouts.t
 // ---------------------------------------------------------------------------
 
 type CheckFn = () => void | Promise<void>;
+
+function readPositiveIntEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined) return fallback;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed <= 0) return fallback;
+  return parsed;
+}
+
+function tail(text: string, maxChars: number): string {
+  const trimmed = text.trimEnd();
+  if (trimmed.length <= maxChars) return trimmed;
+  return trimmed.slice(-maxChars);
+}
+
+function hashToNonNegativeInt(input: string): number {
+  // FNV-1a 32-bit
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
+}
+
+function fixtureSeed(label: string, maxInclusive: number): number {
+  if (!Number.isSafeInteger(maxInclusive) || maxInclusive <= 0) return 0;
+  return hashToNonNegativeInt(`${testRunId}:${label}`) % (maxInclusive + 1);
+}
+
+function findConstNumber(source: string, name: string): number | null {
+  const pattern = new RegExp(`(?:export\\s+)?const\\s+${name}\\s*=\\s*([0-9_]+)\\s*;`);
+  const match = source.match(pattern);
+  if (!match) return null;
+  const normalized = match[1]!.replaceAll('_', '');
+  const parsed = Number.parseInt(normalized, 10);
+  return Number.isSafeInteger(parsed) ? parsed : null;
+}
+
+function findConstString(source: string, name: string): string | null {
+  const pattern = new RegExp(`(?:export\\s+)?const\\s+${name}\\s*=\\s*(['"])(.*?)\\1\\s*;`);
+  const match = source.match(pattern);
+  return match ? match[2]! : null;
+}
+
+type Contracts = {
+  seedKey: string;
+  maxSessionSeed: number;
+  duelsArchivePageSize: number;
+};
+
+async function loadContracts(): Promise<Contracts> {
+  const [sessionSource, duelsRouteSource] = await Promise.all([
+    Bun.file(SESSION_FILE_PATH).text(),
+    Bun.file(DUELS_ROUTE_FILE_PATH).text(),
+  ]);
+
+  const seedKey = findConstString(sessionSource, 'SEED_KEY');
+  const maxSessionSeed = findConstNumber(sessionSource, 'MAX_SESSION_SEED');
+  const duelsArchivePageSize = findConstNumber(duelsRouteSource, 'DUELS_ARCHIVE_PAGE_SIZE');
+
+  if (seedKey === null || seedKey.length === 0) {
+    throw new Error(`Unable to read SEED_KEY from ${SESSION_FILE_PATH}`);
+  }
+  if (maxSessionSeed === null) {
+    throw new Error(`Unable to read MAX_SESSION_SEED from ${SESSION_FILE_PATH}`);
+  }
+  if (duelsArchivePageSize === null) {
+    throw new Error(`Unable to read DUELS_ARCHIVE_PAGE_SIZE from ${DUELS_ROUTE_FILE_PATH}`);
+  }
+
+  return { seedKey, maxSessionSeed, duelsArchivePageSize };
+}
 
 function getAssertionFailureCount(): number {
   return TestAssertion.counts().failed;
@@ -66,7 +143,7 @@ async function runCheck(name: string, fn: CheckFn): Promise<boolean> {
   } catch (error) {
     TestLogger.error(`FAIL: ${name}`, {
       message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack?.slice(0, 600) : undefined,
+      stack: error instanceof Error ? error.stack?.slice(0, STACK_TRACE_MAX_CHARS) : undefined,
     });
     return false;
   }
@@ -151,7 +228,9 @@ function createFetchCapture(): { captured: CapturedRequest[]; mock: typeof fetch
   const mock = ((input: string | URL | Request, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     captured.push({ url, init });
-    return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
+    return Promise.resolve(
+      new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    );
   }) as typeof fetch;
   return { captured, mock };
 }
@@ -178,6 +257,9 @@ async function main(): Promise<void> {
     logFile,
   });
 
+  const contracts = await loadContracts();
+  TestLogger.info('Loaded contracts', contracts);
+
   let passed = 0;
   let failed = 0;
   const tally = (result: boolean) => {
@@ -197,8 +279,8 @@ async function main(): Promise<void> {
       const seed = withSessionStorage(mock, () => getSessionSeed());
 
       TestAssertion.assertTrue(
-        Number.isSafeInteger(seed) && seed >= 0 && seed <= MAX_SESSION_SEED,
-        `generated seed ${seed} must be a safe integer in [0, ${MAX_SESSION_SEED}]`,
+        Number.isSafeInteger(seed) && seed >= 0 && seed <= contracts.maxSessionSeed,
+        `generated seed ${seed} must be a safe integer in [0, ${contracts.maxSessionSeed}]`,
       );
       TestAssertion.assertEquals(
         1,
@@ -206,9 +288,9 @@ async function main(): Promise<void> {
         'setItem must be called exactly once to persist the new seed',
       );
       TestAssertion.assertEquals(
-        SEED_KEY,
+        contracts.seedKey,
         mock.setItemCallArgs[0]![0],
-        `stored key must be "${SEED_KEY}"`,
+        `stored key must be "${contracts.seedKey}"`,
       );
       TestAssertion.assertEquals(
         String(seed),
@@ -221,10 +303,11 @@ async function main(): Promise<void> {
 
   tally(
     await runCheck('A2: same-session reuse returns the stored seed without calling setItem', () => {
-      const mock = createSessionStorageMock({ [SEED_KEY]: '98765' });
+      const storedSeed = fixtureSeed('A2-stored-seed', contracts.maxSessionSeed);
+      const mock = createSessionStorageMock({ [contracts.seedKey]: String(storedSeed) });
       const seed = withSessionStorage(mock, () => getSessionSeed());
 
-      TestAssertion.assertEquals(98765, seed, 'must return the stored integer seed');
+      TestAssertion.assertEquals(storedSeed, seed, 'must return the stored integer seed');
       TestAssertion.assertEquals(
         0,
         mock.setItemCallArgs.length,
@@ -236,11 +319,12 @@ async function main(): Promise<void> {
 
   tally(
     await runCheck('A3: malformed stored value triggers regeneration', () => {
-      const mock = createSessionStorageMock({ [SEED_KEY]: 'not-a-number' });
+      const malformedValue = `seed_${testRunId}`;
+      const mock = createSessionStorageMock({ [contracts.seedKey]: malformedValue });
       const seed = withSessionStorage(mock, () => getSessionSeed());
 
       TestAssertion.assertTrue(
-        Number.isSafeInteger(seed) && seed >= 0 && seed <= MAX_SESSION_SEED,
+        Number.isSafeInteger(seed) && seed >= 0 && seed <= contracts.maxSessionSeed,
         `replacement seed ${seed} must be a valid integer`,
       );
       TestAssertion.assertEquals(
@@ -254,11 +338,12 @@ async function main(): Promise<void> {
 
   tally(
     await runCheck('A4: negative stored value triggers regeneration', () => {
-      const mock = createSessionStorageMock({ [SEED_KEY]: '-5' });
+      const negativeValue = String(-1 - (hashToNonNegativeInt(`${testRunId}:A4-negative`) % 100));
+      const mock = createSessionStorageMock({ [contracts.seedKey]: negativeValue });
       const seed = withSessionStorage(mock, () => getSessionSeed());
 
       TestAssertion.assertTrue(
-        Number.isSafeInteger(seed) && seed >= 0 && seed <= MAX_SESSION_SEED,
+        Number.isSafeInteger(seed) && seed >= 0 && seed <= contracts.maxSessionSeed,
         `replacement seed ${seed} must be non-negative`,
       );
       TestAssertion.assertEquals(
@@ -271,16 +356,19 @@ async function main(): Promise<void> {
   );
 
   tally(
-    await runCheck('A5: generated seed is always within valid range (5 independent runs)', () => {
-      for (let i = 0; i < 5; i++) {
-        const mock = createSessionStorageMock();
-        const seed = withSessionStorage(mock, () => getSessionSeed());
-        TestAssertion.assertTrue(
-          Number.isSafeInteger(seed) && seed >= 0 && seed <= MAX_SESSION_SEED,
-          `run ${i + 1}: seed ${seed} must be in [0, ${MAX_SESSION_SEED}]`,
-        );
-      }
-    }),
+    await runCheck(
+      `A5: generated seed is always within valid range (${INDEPENDENT_SEED_RUNS} independent runs)`,
+      () => {
+        for (let i = 0; i < INDEPENDENT_SEED_RUNS; i++) {
+          const mock = createSessionStorageMock();
+          const seed = withSessionStorage(mock, () => getSessionSeed());
+          TestAssertion.assertTrue(
+            Number.isSafeInteger(seed) && seed >= 0 && seed <= contracts.maxSessionSeed,
+            `run ${i + 1}: seed ${seed} must be in [0, ${contracts.maxSessionSeed}]`,
+          );
+        }
+      },
+    ),
   );
 
   // =========================================================================
@@ -292,11 +380,15 @@ async function main(): Promise<void> {
   tally(
     await runCheck('B1: seed param is appended when seed is provided', async () => {
       const { captured, mock } = createFetchCapture();
-      await withFetchMock(mock, () => api.getDuels(1, undefined, 42));
+      const seed = fixtureSeed('B1-seed', contracts.maxSessionSeed);
+      await withFetchMock(mock, () => api.getDuels(1, undefined, seed));
 
       TestAssertion.assertEquals(1, captured.length, 'fetch must be called exactly once');
       const url = captured[0]!.url;
-      TestAssertion.assertTrue(url.includes('seed=42'), `URL must contain seed=42 (got: ${url})`);
+      TestAssertion.assertTrue(
+        url.includes(`seed=${seed}`),
+        `URL must contain seed=${seed} (got: ${url})`,
+      );
       TestAssertion.assertTrue(url.includes('page=1'), `URL must contain page=1 (got: ${url})`);
       TestAssertion.assertTrue(
         !url.includes('sort='),
@@ -327,13 +419,18 @@ async function main(): Promise<void> {
   tally(
     await runCheck('B3: topic_id is included alongside seed', async () => {
       const { captured, mock } = createFetchCapture();
-      await withFetchMock(mock, () => api.getDuels(1, 'nature', 99));
+      const topicId = `topic_${hashToNonNegativeInt(`${testRunId}:B3-topic`)}`;
+      const seed = fixtureSeed('B3-seed', contracts.maxSessionSeed);
+      await withFetchMock(mock, () => api.getDuels(1, topicId, seed));
 
       const url = captured[0]!.url;
-      TestAssertion.assertTrue(url.includes('seed=99'), `URL must contain seed=99 (got: ${url})`);
       TestAssertion.assertTrue(
-        url.includes('topic_id=nature'),
-        `URL must contain topic_id=nature (got: ${url})`,
+        url.includes(`seed=${seed}`),
+        `URL must contain seed=${seed} (got: ${url})`,
+      );
+      TestAssertion.assertTrue(
+        url.includes(`topic_id=${topicId}`),
+        `URL must contain topic_id=${topicId} (got: ${url})`,
       );
       TestLogger.info('B3 URL', { url });
     }),
@@ -342,7 +439,8 @@ async function main(): Promise<void> {
   tally(
     await runCheck('B4: topic_id is included alongside sort=recent', async () => {
       const { captured, mock } = createFetchCapture();
-      await withFetchMock(mock, () => api.getDuels(1, 'love', undefined, 'recent'));
+      const topicId = `topic_${hashToNonNegativeInt(`${testRunId}:B4-topic`)}`;
+      await withFetchMock(mock, () => api.getDuels(1, topicId, undefined, 'recent'));
 
       const url = captured[0]!.url;
       TestAssertion.assertTrue(
@@ -350,8 +448,8 @@ async function main(): Promise<void> {
         `URL must contain sort=recent (got: ${url})`,
       );
       TestAssertion.assertTrue(
-        url.includes('topic_id=love'),
-        `URL must contain topic_id=love (got: ${url})`,
+        url.includes(`topic_id=${topicId}`),
+        `URL must contain topic_id=${topicId} (got: ${url})`,
       );
       TestLogger.info('B4 URL', { url });
     }),
@@ -409,12 +507,22 @@ async function main(): Promise<void> {
   );
 
   tally(
-    await runCheck(`C3: TheRing.tsx defines PAGE_SIZE = ${EXPECTED_PAGE_SIZE}`, () => {
-      TestAssertion.assertTrue(
-        ringSource.includes(`PAGE_SIZE = ${EXPECTED_PAGE_SIZE}`),
-        `TheRing.tsx must define PAGE_SIZE = ${EXPECTED_PAGE_SIZE} to match the API page size`,
-      );
-    }),
+    await runCheck(
+      `C3: TheRing.tsx PAGE_SIZE matches API page size (${contracts.duelsArchivePageSize})`,
+      () => {
+        const match = ringSource.match(/const\s+PAGE_SIZE\s*=\s*(\d+)\s*;/);
+        TestAssertion.assertTrue(
+          match !== null,
+          'TheRing.tsx must define const PAGE_SIZE = <number>;',
+        );
+        const parsed = match ? Number.parseInt(match[1]!, 10) : Number.NaN;
+        TestAssertion.assertEquals(
+          contracts.duelsArchivePageSize,
+          parsed,
+          `TheRing.tsx PAGE_SIZE must equal DUELS_ARCHIVE_PAGE_SIZE (${contracts.duelsArchivePageSize})`,
+        );
+      },
+    ),
   );
 
   tally(
@@ -475,8 +583,9 @@ async function main(): Promise<void> {
         ['pnpm', '--filter', '@sanctuary/web', 'test'],
         { env: { CI: 'true' } },
       );
-      TestLogger.info('D1 test output', { exitCode, stdout: stdout.trim().slice(-1200) });
-      if (stderr.trim()) TestLogger.warning('D1 stderr', { output: stderr.trim().slice(-400) });
+      TestLogger.info('D1 test output', { exitCode, stdout: tail(stdout, STDOUT_TAIL_CHARS) });
+      if (stderr.trim())
+        TestLogger.warning('D1 stderr', { output: tail(stderr, STDERR_TAIL_CHARS) });
       TestAssertion.assertEquals(0, exitCode, '@sanctuary/web test suite must exit 0');
     }),
   );
