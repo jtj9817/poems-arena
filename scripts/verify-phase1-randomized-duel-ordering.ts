@@ -19,8 +19,12 @@ import process from 'node:process';
 
 import { createDb } from '../packages/db/src/client';
 import { TestAssertion, TestEnvironment, TestLogger } from './manual-test-helpers';
-import { createDuelsRouter } from '../apps/api/src/routes/duels';
-import { buildSeedPivot } from '../apps/api/src/routes/seed-pivot';
+import { DUELS_ARCHIVE_PAGE_SIZE, createDuelsRouter } from '../apps/api/src/routes/duels';
+import {
+  buildSeedPivot,
+  DUEL_ID_HEX_LENGTH,
+  DUEL_ID_PREFIX,
+} from '../apps/api/src/routes/seed-pivot';
 
 // ---------------------------------------------------------------------------
 // Config
@@ -31,6 +35,13 @@ const repoRoot = path.resolve(import.meta.dir, '..');
 const logFile = TestLogger.init(testRunId, path.join(repoRoot, 'logs', 'manual_tests'));
 
 const shortId = testRunId.slice(-12).replace(/[^a-zA-Z0-9]/g, '');
+const REQUEST_BASE_URL = 'http://localhost';
+const DUEL_ID_MAX_HEX = Number.parseInt('f'.repeat(DUEL_ID_HEX_LENGTH), 16);
+const DETERMINISTIC_SEEDS = [0, 1, 42, 99999] as const;
+const DISTINCT_SEED_A = 1;
+const DISTINCT_SEED_B = 999999;
+const DEFAULT_TEST_SEED = 42;
+const COVERAGE_TEST_SEED = 7;
 
 // ---------------------------------------------------------------------------
 // Infrastructure
@@ -39,8 +50,7 @@ const shortId = testRunId.slice(-12).replace(/[^a-zA-Z0-9]/g, '');
 type CheckFn = () => void | Promise<void>;
 
 function getAssertionFailureCount(): number {
-  const state = TestAssertion as unknown as { failed?: number };
-  return typeof state.failed === 'number' ? state.failed : 0;
+  return TestAssertion.counts().failed;
 }
 
 async function runCheck(name: string, fn: CheckFn): Promise<boolean> {
@@ -188,12 +198,12 @@ async function seedSpanningDuels(db: TestDb, prefix: string, count: number): Pro
     args: [`${prefix}_topic`, 'Nature'],
   });
 
-  const step = Math.floor(0xffffffffffff / (count - 1));
+  const step = Math.floor(DUEL_ID_MAX_HEX / (count - 1));
   const ids: string[] = [];
 
   for (let i = 0; i < count; i++) {
-    const hex = (step * i).toString(16).padStart(12, '0');
-    const duelId = `duel-${hex}`;
+    const hex = (step * i).toString(16).padStart(DUEL_ID_HEX_LENGTH, '0');
+    const duelId = `${DUEL_ID_PREFIX}${hex}`;
     ids.push(duelId);
     const poemH = `${prefix}_h${i}`;
     const poemA = `${prefix}_a${i}`;
@@ -216,7 +226,7 @@ async function seedSpanningDuels(db: TestDb, prefix: string, count: number): Pro
 
 /** Send a request to a fresh duels router backed by the given DB. */
 async function fetch(db: TestDb, path: string): Promise<Response> {
-  return createDuelsRouter(db).fetch(new Request(`http://localhost${path}`));
+  return createDuelsRouter(db).fetch(new Request(`${REQUEST_BASE_URL}${path}`));
 }
 
 // ---------------------------------------------------------------------------
@@ -246,10 +256,10 @@ async function main(): Promise<void> {
 
   tally(
     await runCheck('A1: output matches duel-<12 hex chars> format', () => {
-      const pivot = buildSeedPivot(42);
+      const pivot = buildSeedPivot(DEFAULT_TEST_SEED);
       TestAssertion.assertTrue(
-        /^duel-[0-9a-f]{12}$/.test(pivot),
-        `"${pivot}" must match duel-<12 hex>`,
+        new RegExp(`^${DUEL_ID_PREFIX}[0-9a-f]{${DUEL_ID_HEX_LENGTH}}$`).test(pivot),
+        `"${pivot}" must match ${DUEL_ID_PREFIX}<${DUEL_ID_HEX_LENGTH} hex>`,
       );
       TestLogger.info('A1 pivot', { pivot });
     }),
@@ -257,21 +267,24 @@ async function main(): Promise<void> {
 
   tally(
     await runCheck('A2: same seed always returns the same pivot (determinism)', () => {
-      for (const seed of [0, 1, 42, 99999]) {
+      for (const seed of DETERMINISTIC_SEEDS) {
         const a = buildSeedPivot(seed);
         const b = buildSeedPivot(seed);
         TestAssertion.assertEquals(a, b, `seed ${seed} must be deterministic`);
       }
-      TestLogger.info('A2 determinism verified for seeds 0,1,42,99999');
+      TestLogger.info('A2 determinism verified', { seeds: DETERMINISTIC_SEEDS });
     }),
   );
 
   tally(
     await runCheck('A3: different seeds produce different pivots', () => {
-      const p1 = buildSeedPivot(1);
-      const p2 = buildSeedPivot(999999);
-      TestAssertion.assertTrue(p1 !== p2, 'seeds 1 and 999999 must produce distinct pivots');
-      TestLogger.info('A3 pivots', { seed1: p1, seed999999: p2 });
+      const p1 = buildSeedPivot(DISTINCT_SEED_A);
+      const p2 = buildSeedPivot(DISTINCT_SEED_B);
+      TestAssertion.assertTrue(
+        p1 !== p2,
+        `seeds ${DISTINCT_SEED_A} and ${DISTINCT_SEED_B} must produce distinct pivots`,
+      );
+      TestLogger.info('A3 pivots', { seedA: p1, seedB: p2 });
     }),
   );
 
@@ -393,7 +406,7 @@ async function main(): Promise<void> {
       const db = await createTestDb();
       try {
         await seedBase(db, `d1_${shortId}`);
-        const res = await fetch(db, '/?seed=42');
+        const res = await fetch(db, `/?seed=${DEFAULT_TEST_SEED}`);
         TestAssertion.assertEquals(200, res.status, 'status must be 200');
         const body = (await res.json()) as unknown[];
         TestAssertion.assertTrue(Array.isArray(body), 'body must be an array');
@@ -448,8 +461,8 @@ async function main(): Promise<void> {
         const db = await createTestDb();
         try {
           await seedSpanningDuels(db, `e1_${shortId}`, 5);
-          const res1 = await fetch(db, '/?seed=42');
-          const res2 = await fetch(db, '/?seed=42');
+          const res1 = await fetch(db, `/?seed=${DEFAULT_TEST_SEED}`);
+          const res2 = await fetch(db, `/?seed=${DEFAULT_TEST_SEED}`);
           TestAssertion.assertEquals(200, res1.status, 'first call must be 200');
           TestAssertion.assertEquals(200, res2.status, 'second call must be 200');
           const ids1 = ((await res1.json()) as Array<{ id: string }>).map((d) => d.id);
@@ -459,7 +472,7 @@ async function main(): Promise<void> {
             ids2.join(','),
             'ordering must be identical for same seed',
           );
-          TestLogger.info('E1 ids (seed=42)', { ids: ids1 });
+          TestLogger.info(`E1 ids (seed=${DEFAULT_TEST_SEED})`, { ids: ids1 });
         } finally {
           await closeTestDb(db);
         }
@@ -474,18 +487,18 @@ async function main(): Promise<void> {
         const db = await createTestDb();
         try {
           await seedSpanningDuels(db, `e2_${shortId}`, 16);
-          const res1 = await fetch(db, '/?seed=1');
-          const res2 = await fetch(db, '/?seed=999999');
-          TestAssertion.assertEquals(200, res1.status, 'seed=1 must be 200');
-          TestAssertion.assertEquals(200, res2.status, 'seed=999999 must be 200');
+          const res1 = await fetch(db, `/?seed=${DISTINCT_SEED_A}`);
+          const res2 = await fetch(db, `/?seed=${DISTINCT_SEED_B}`);
+          TestAssertion.assertEquals(200, res1.status, `seed=${DISTINCT_SEED_A} must be 200`);
+          TestAssertion.assertEquals(200, res2.status, `seed=${DISTINCT_SEED_B} must be 200`);
           const ids1 = ((await res1.json()) as Array<{ id: string }>).map((d) => d.id);
           const ids2 = ((await res2.json()) as Array<{ id: string }>).map((d) => d.id);
           TestAssertion.assertTrue(
             JSON.stringify(ids1) !== JSON.stringify(ids2),
             'different seeds must produce different orderings',
           );
-          TestLogger.info('E2 seed=1 first 3 ids', { ids: ids1.slice(0, 3) });
-          TestLogger.info('E2 seed=999999 first 3 ids', { ids: ids2.slice(0, 3) });
+          TestLogger.info(`E2 seed=${DISTINCT_SEED_A} first 3 ids`, { ids: ids1.slice(0, 3) });
+          TestLogger.info(`E2 seed=${DISTINCT_SEED_B} first 3 ids`, { ids: ids2.slice(0, 3) });
         } finally {
           await closeTestDb(db);
         }
@@ -500,13 +513,17 @@ async function main(): Promise<void> {
         const db = await createTestDb();
         try {
           await seedSpanningDuels(db, `e3_${shortId}`, 14);
-          const res1 = await fetch(db, '/?seed=42&page=1');
-          const res2 = await fetch(db, '/?seed=42&page=2');
+          const res1 = await fetch(db, `/?seed=${DEFAULT_TEST_SEED}&page=1`);
+          const res2 = await fetch(db, `/?seed=${DEFAULT_TEST_SEED}&page=2`);
           TestAssertion.assertEquals(200, res1.status, 'page 1 must be 200');
           TestAssertion.assertEquals(200, res2.status, 'page 2 must be 200');
           const ids1 = ((await res1.json()) as Array<{ id: string }>).map((d) => d.id);
           const ids2 = ((await res2.json()) as Array<{ id: string }>).map((d) => d.id);
-          TestAssertion.assertEquals(12, ids1.length, 'page 1 must have 12 duels');
+          TestAssertion.assertEquals(
+            DUELS_ARCHIVE_PAGE_SIZE,
+            ids1.length,
+            `page 1 must have ${DUELS_ARCHIVE_PAGE_SIZE} duels`,
+          );
           TestAssertion.assertTrue(ids2.length > 0, 'page 2 must have at least 1 duel');
           const overlap = ids1.filter((id) => ids2.includes(id));
           TestAssertion.assertEquals(0, overlap.length, 'no duel ID should appear on both pages');
@@ -529,8 +546,8 @@ async function main(): Promise<void> {
         const db = await createTestDb();
         try {
           const allIds = await seedSpanningDuels(db, `e4_${shortId}`, 14);
-          const res1 = await fetch(db, '/?seed=7&page=1');
-          const res2 = await fetch(db, '/?seed=7&page=2');
+          const res1 = await fetch(db, `/?seed=${COVERAGE_TEST_SEED}&page=1`);
+          const res2 = await fetch(db, `/?seed=${COVERAGE_TEST_SEED}&page=2`);
           const ids1 = ((await res1.json()) as Array<{ id: string }>).map((d) => d.id);
           const ids2 = ((await res2.json()) as Array<{ id: string }>).map((d) => d.id);
           const combined = [...ids1, ...ids2];

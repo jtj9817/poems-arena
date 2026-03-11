@@ -99,6 +99,10 @@ export class TestAssertion {
   private static passed = 0;
   private static failed = 0;
 
+  static counts(): { passed: number; failed: number } {
+    return { passed: this.passed, failed: this.failed };
+  }
+
   static assertEquals<T>(expected: T, actual: T, message: string): boolean {
     if (expected === actual) {
       this.passed += 1;

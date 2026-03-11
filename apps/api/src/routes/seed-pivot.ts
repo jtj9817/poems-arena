@@ -9,6 +9,9 @@
  * The output format `duel-<12 hex chars>` matches the duel ID namespace so the
  * lexicographic comparison in the SQL CASE expression is meaningful.
  */
+export const DUEL_ID_PREFIX = 'duel-';
+export const DUEL_ID_HEX_LENGTH = 12;
+
 export function buildSeedPivot(seed: number): string {
   if (!Number.isSafeInteger(seed) || seed < 0) {
     throw new RangeError('Seed must be a non-negative safe integer');
@@ -16,6 +19,6 @@ export function buildSeedPivot(seed: number): string {
 
   const hasher = new Bun.CryptoHasher('sha256');
   hasher.update(String(seed));
-  const hex = hasher.digest('hex').slice(0, 12);
-  return `duel-${hex}`;
+  const hex = hasher.digest('hex').slice(0, DUEL_ID_HEX_LENGTH);
+  return `${DUEL_ID_PREFIX}${hex}`;
 }

@@ -12,6 +12,8 @@ import {
 } from '../errors';
 import { buildSeedPivot } from './seed-pivot';
 
+export const DUELS_ARCHIVE_PAGE_SIZE = 12;
+
 export function createDuelsRouter(db: Db) {
   const router = new Hono();
 
@@ -22,7 +24,7 @@ export function createDuelsRouter(db: Db) {
     const topicId = c.req.query('topic_id');
     const rawSeed = c.req.query('seed');
     const sort = c.req.query('sort');
-    const limit = 12;
+    const limit = DUELS_ARCHIVE_PAGE_SIZE;
     const offset = (page - 1) * limit;
 
     // Determine ordering mode: sort=recent bypasses seed requirement; otherwise seed is required.
