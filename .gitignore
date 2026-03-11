@@ -70,7 +70,7 @@ packages/etl/data/03-tag/*
 
 # Phase commit audit system
 phase-commit-audit/
-ai-gen-20260223-commit-audit.local.md
+*-commit-audit.local.md
 
 # Deployment artifacts
 service.deployed.yaml
