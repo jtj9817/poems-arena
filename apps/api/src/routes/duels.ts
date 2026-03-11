@@ -1,21 +1,48 @@
 import { Hono } from 'hono';
-import { desc, eq, inArray, sql } from 'drizzle-orm';
+import { asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { Db } from '@sanctuary/db';
 import { duels, featuredDuels, poems, scrapeSources, topics, votes } from '../db/schema';
-import { ApiError, DuelNotFoundError, EndpointNotFoundError, InvalidPageError } from '../errors';
+import {
+  ApiError,
+  DuelNotFoundError,
+  EndpointNotFoundError,
+  InvalidPageError,
+  InvalidSeedError,
+  MissingSeedError,
+} from '../errors';
+import { buildSeedPivot } from './seed-pivot';
 
 export function createDuelsRouter(db: Db) {
   const router = new Hono();
 
-  // GET /duels — paginated archive with topicMeta; supports optional topic_id filter
+  // GET /duels — paginated archive with topicMeta; supports seed, sort, page, and topic_id params
   router.get('/', async (c) => {
     const rawPage = c.req.query('page');
     const page = parsePage(rawPage);
     const topicId = c.req.query('topic_id');
+    const rawSeed = c.req.query('seed');
+    const sort = c.req.query('sort');
     const limit = 12;
     const offset = (page - 1) * limit;
 
-    const rows = await db
+    // Determine ordering mode: sort=recent bypasses seed requirement; otherwise seed is required.
+    const useRecentSort = sort === 'recent';
+    let seedPivot: string | null = null;
+
+    if (!useRecentSort) {
+      if (rawSeed === undefined) {
+        throw new MissingSeedError();
+      }
+      const n = Number(rawSeed);
+      if (!Number.isInteger(n) || n < 0) {
+        throw new InvalidSeedError(
+          `Invalid seed value: "${rawSeed}" — must be a non-negative integer`,
+        );
+      }
+      seedPivot = buildSeedPivot(n);
+    }
+
+    const baseQuery = db
       .select({
         id: duels.id,
         topic: duels.topic,
@@ -27,8 +54,16 @@ export function createDuelsRouter(db: Db) {
       })
       .from(duels)
       .leftJoin(topics, eq(duels.topicId, topics.id))
-      .where(topicId !== undefined ? eq(duels.topicId, topicId) : undefined)
-      .orderBy(desc(duels.createdAt))
+      .where(topicId !== undefined ? eq(duels.topicId, topicId) : undefined);
+
+    const rows = await (
+      useRecentSort
+        ? baseQuery.orderBy(desc(duels.createdAt))
+        : baseQuery.orderBy(
+            sql`CASE WHEN ${duels.id} >= ${seedPivot} THEN 0 ELSE 1 END`,
+            asc(duels.id),
+          )
+    )
       .limit(limit)
       .offset(offset);
 

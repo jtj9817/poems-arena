@@ -34,6 +34,24 @@ export class EndpointNotFoundError extends ApiError {
   }
 }
 
+/** 400 – `seed` query param is absent and `sort=recent` was not provided. */
+export class MissingSeedError extends ApiError {
+  constructor(
+    message = 'seed parameter is required; supply a non-negative integer or use sort=recent for chronological ordering',
+  ) {
+    super(message, 'MISSING_SEED', 400);
+    this.name = 'MissingSeedError';
+  }
+}
+
+/** 400 – `seed` query param is present but is not a non-negative integer. */
+export class InvalidSeedError extends ApiError {
+  constructor(message: string) {
+    super(message, 'INVALID_SEED', 400);
+    this.name = 'InvalidSeedError';
+  }
+}
+
 /** 503 – service is alive but required dependencies are not ready yet. */
 export class ServiceUnavailableError extends ApiError {
   constructor(message = 'Service temporarily unavailable') {

@@ -196,7 +196,7 @@ describe('GET /duels', () => {
   });
 
   test('returns paginated list of duels with topicMeta', async () => {
-    const res = await app.request('/');
+    const res = await app.request('/?sort=recent');
     expect(res.status).toBe(200);
     const body = (await res.json()) as Array<{
       id: string;
@@ -211,7 +211,7 @@ describe('GET /duels', () => {
   });
 
   test('includes topicMeta.id and topicMeta.label when topic join succeeds', async () => {
-    const res = await app.request('/');
+    const res = await app.request('/?sort=recent');
     const [item] = (await res.json()) as Array<{
       topicMeta: { id: string | null; label: string };
     }>;
@@ -228,7 +228,7 @@ describe('GET /duels', () => {
       contentB: makeWordContent(1, 'bestb'),
     });
 
-    const res = await app.request('/');
+    const res = await app.request('/?sort=recent');
     expect(res.status).toBe(200);
     const body = (await res.json()) as ArchiveDuelRow[];
 
@@ -244,7 +244,7 @@ describe('GET /duels', () => {
       contentB: makeWordContent(100, 'averageb'),
     });
 
-    const res = await app.request('/');
+    const res = await app.request('/?sort=recent');
     expect(res.status).toBe(200);
     const body = (await res.json()) as ArchiveDuelRow[];
 
@@ -260,7 +260,7 @@ describe('GET /duels', () => {
       contentB: makeWordContent(1000, 'worstb'),
     });
 
-    const res = await app.request('/');
+    const res = await app.request('/?sort=recent');
     expect(res.status).toBe(200);
     const body = (await res.json()) as ArchiveDuelRow[];
 
@@ -290,7 +290,7 @@ describe('GET /duels', () => {
       contentB: makeWordContent(450, 'longb'),
     });
 
-    const res = await app.request('/');
+    const res = await app.request('/?sort=recent');
     expect(res.status).toBe(200);
     const body = (await res.json()) as ArchiveDuelRow[];
 
@@ -308,7 +308,7 @@ describe('GET /duels', () => {
       contentB: 'delta     epsilon',
     });
 
-    const res = await app.request('/');
+    const res = await app.request('/?sort=recent');
     expect(res.status).toBe(200);
     const body = (await res.json()) as ArchiveDuelRow[];
 
@@ -338,7 +338,7 @@ describe('GET /duels', () => {
       contentB: makeWordContent(101, 'threshold201b'),
     });
 
-    const res = await app.request('/');
+    const res = await app.request('/?sort=recent');
     expect(res.status).toBe(200);
     const body = (await res.json()) as ArchiveDuelRow[];
 
@@ -361,7 +361,7 @@ describe('GET /duels', () => {
       isHuman: true,
     });
 
-    const res = await app.request('/');
+    const res = await app.request('/?sort=recent');
     expect(res.status).toBe(200);
     const body = (await res.json()) as ArchiveDuelRow[];
     const duel = getArchiveDuel(body, 'duel-with-votes');
@@ -394,7 +394,7 @@ describe('GET /duels', () => {
       poemBId: 'poem-ai-2',
     });
 
-    const res = await app.request('/');
+    const res = await app.request('/?sort=recent');
     const items = (await res.json()) as Array<{
       id: string;
       topicMeta: { id: string | null; label: string };
@@ -406,7 +406,8 @@ describe('GET /duels', () => {
   });
 
   test('returns 400 with INVALID_PAGE code for page=0', async () => {
-    const res = await app.request('/?page=0');
+    // Page validation runs before seed validation; seed=42 ensures we reach page check.
+    const res = await app.request('/?page=0&seed=42');
     expect(res.status).toBe(400);
     const body = (await res.json()) as { error: string; code: string };
     expect(body.code).toBe('INVALID_PAGE');
@@ -414,33 +415,33 @@ describe('GET /duels', () => {
   });
 
   test('returns 400 with INVALID_PAGE code for negative page', async () => {
-    const res = await app.request('/?page=-1');
+    const res = await app.request('/?page=-1&seed=42');
     expect(res.status).toBe(400);
     const body = (await res.json()) as { code: string };
     expect(body.code).toBe('INVALID_PAGE');
   });
 
   test('returns 400 with INVALID_PAGE code for non-integer page', async () => {
-    const res = await app.request('/?page=1.5');
+    const res = await app.request('/?page=1.5&seed=42');
     expect(res.status).toBe(400);
     const body = (await res.json()) as { code: string };
     expect(body.code).toBe('INVALID_PAGE');
   });
 
   test('returns 400 with INVALID_PAGE code for non-numeric page', async () => {
-    const res = await app.request('/?page=abc');
+    const res = await app.request('/?page=abc&seed=42');
     expect(res.status).toBe(400);
     const body = (await res.json()) as { code: string };
     expect(body.code).toBe('INVALID_PAGE');
   });
 
   test('uses page=1 when page query param is absent', async () => {
-    const res = await app.request('/');
+    const res = await app.request('/?sort=recent');
     expect(res.status).toBe(200);
   });
 
   test('accepts positive integer page query values', async () => {
-    const res = await app.request('/?page=2');
+    const res = await app.request('/?page=2&sort=recent');
     expect(res.status).toBe(200);
     const body = (await res.json()) as unknown[];
     expect(Array.isArray(body)).toBe(true);
@@ -469,7 +470,7 @@ describe('GET /duels', () => {
       poemBId: 'poem-ai-2',
     });
 
-    const listRes = await app.request('/');
+    const listRes = await app.request('/?sort=recent');
     expect(listRes.status).toBe(200);
     const listBody = (await listRes.json()) as Array<{ id: string }>;
     const ids = listBody.map((item) => item.id);
@@ -523,7 +524,7 @@ describe('GET /duels?topic_id', () => {
   });
 
   test('returns only duels matching the given topic_id', async () => {
-    const res = await app.request('/?topic_id=topic-nature');
+    const res = await app.request('/?sort=recent&topic_id=topic-nature');
     expect(res.status).toBe(200);
     const body = (await res.json()) as Array<{ id: string }>;
     expect(body).toHaveLength(1);
@@ -531,21 +532,21 @@ describe('GET /duels?topic_id', () => {
   });
 
   test('returns empty array when no duels match the topic_id', async () => {
-    const res = await app.request('/?topic_id=topic-nonexistent');
+    const res = await app.request('/?sort=recent&topic_id=topic-nonexistent');
     expect(res.status).toBe(200);
     const body = (await res.json()) as unknown[];
     expect(body).toHaveLength(0);
   });
 
   test('returns all duels when topic_id is absent', async () => {
-    const res = await app.request('/');
+    const res = await app.request('/?sort=recent');
     expect(res.status).toBe(200);
     const body = (await res.json()) as Array<{ id: string }>;
     expect(body).toHaveLength(2);
   });
 
   test('filtered result still includes topicMeta', async () => {
-    const res = await app.request('/?topic_id=topic-love');
+    const res = await app.request('/?sort=recent&topic_id=topic-love');
     expect(res.status).toBe(200);
     const body = (await res.json()) as Array<{
       id: string;
@@ -861,6 +862,234 @@ describe('GET /duels/:id/stats', () => {
   });
 });
 
+// ── GET /duels seed parameter validation ─────────────────────────────────────
+
+describe('GET /duels seed validation', () => {
+  let db: TestDb;
+  let app: ReturnType<typeof createTestApp>;
+
+  beforeEach(async () => {
+    db = await createTestDb();
+    app = createTestApp(db);
+    await db.insert(schema.topics).values(TOPIC_NATURE);
+    await db.insert(schema.poems).values([POEM_HUMAN, POEM_AI]);
+    await db.insert(schema.duels).values(DUEL_1);
+  });
+
+  afterEach(async () => {
+    // @ts-expect-error – accessing internal client for cleanup
+    await db.$client.close();
+  });
+
+  test('returns 400 MISSING_SEED when neither seed nor sort=recent is provided', async () => {
+    const res = await app.request('/');
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string; code: string };
+    expect(body.code).toBe('MISSING_SEED');
+    expect(typeof body.error).toBe('string');
+  });
+
+  test('returns 400 INVALID_SEED for negative seed', async () => {
+    const res = await app.request('/?seed=-1');
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { code: string };
+    expect(body.code).toBe('INVALID_SEED');
+  });
+
+  test('returns 400 INVALID_SEED for non-integer seed (decimal)', async () => {
+    const res = await app.request('/?seed=1.5');
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { code: string };
+    expect(body.code).toBe('INVALID_SEED');
+  });
+
+  test('returns 400 INVALID_SEED for non-numeric seed string', async () => {
+    const res = await app.request('/?seed=abc');
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { code: string };
+    expect(body.code).toBe('INVALID_SEED');
+  });
+
+  test('returns 200 with valid non-negative integer seed', async () => {
+    const res = await app.request('/?seed=42');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as unknown[];
+    expect(Array.isArray(body)).toBe(true);
+  });
+
+  test('returns 200 with seed=0', async () => {
+    const res = await app.request('/?seed=0');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as unknown[];
+    expect(Array.isArray(body)).toBe(true);
+  });
+
+  test('sort=recent bypasses the seed requirement', async () => {
+    const res = await app.request('/?sort=recent');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as unknown[];
+    expect(Array.isArray(body)).toBe(true);
+  });
+
+  test('INVALID_SEED and MISSING_SEED responses include { error, code } envelope', async () => {
+    const missingSeed = await app.request('/');
+    const missBody = (await missingSeed.json()) as { error: unknown; code: unknown };
+    expect(Object.keys(missBody).sort()).toEqual(['code', 'error']);
+    expect(typeof missBody.error).toBe('string');
+    expect(missBody.code).toBe('MISSING_SEED');
+
+    const invalidSeed = await app.request('/?seed=-5');
+    const invBody = (await invalidSeed.json()) as { error: unknown; code: unknown };
+    expect(Object.keys(invBody).sort()).toEqual(['code', 'error']);
+    expect(typeof invBody.error).toBe('string');
+    expect(invBody.code).toBe('INVALID_SEED');
+  });
+});
+
+// ── GET /duels seeded ordering ────────────────────────────────────────────────
+
+/** Inserts N duels with deterministic hex-spanning IDs for ordering tests. */
+async function insertSpanningDuels(db: TestDb, count: number): Promise<string[]> {
+  const step = Math.floor(0xffffffffffff / (count - 1));
+  const ids: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const hex = (step * i).toString(16).padStart(12, '0');
+    const duelId = `duel-${hex}`;
+    ids.push(duelId);
+    const poemAId = `poem-h-${i}`;
+    const poemBId = `poem-a-${i}`;
+    await db.insert(schema.poems).values([
+      { id: poemAId, title: `H${i}`, content: 'x', author: `A${i}`, type: 'HUMAN' },
+      { id: poemBId, title: `AI${i}`, content: 'y', author: `B${i}`, type: 'AI' },
+    ]);
+    await db.insert(schema.duels).values({
+      id: duelId,
+      topic: 'Nature',
+      topicId: 'topic-nature',
+      poemAId,
+      poemBId,
+    });
+  }
+  return ids;
+}
+
+describe('GET /duels seeded ordering', () => {
+  let db: TestDb;
+  let app: ReturnType<typeof createTestApp>;
+
+  beforeEach(async () => {
+    db = await createTestDb();
+    app = createTestApp(db);
+    await db.insert(schema.topics).values(TOPIC_NATURE);
+  });
+
+  afterEach(async () => {
+    // @ts-expect-error – accessing internal client for cleanup
+    await db.$client.close();
+  });
+
+  test('same seed returns the same first-page ordering across repeated requests', async () => {
+    await insertSpanningDuels(db, 5);
+
+    const res1 = await app.request('/?seed=42');
+    const res2 = await app.request('/?seed=42');
+    expect(res1.status).toBe(200);
+    expect(res2.status).toBe(200);
+
+    const ids1 = ((await res1.json()) as Array<{ id: string }>).map((d) => d.id);
+    const ids2 = ((await res2.json()) as Array<{ id: string }>).map((d) => d.id);
+    expect(ids1).toEqual(ids2);
+  });
+
+  test('different seeds shift the first-page ordering when enough duels exist', async () => {
+    await insertSpanningDuels(db, 16);
+
+    const res1 = await app.request('/?seed=1');
+    const res2 = await app.request('/?seed=999999');
+    expect(res1.status).toBe(200);
+    expect(res2.status).toBe(200);
+
+    const ids1 = ((await res1.json()) as Array<{ id: string }>).map((d) => d.id);
+    const ids2 = ((await res2.json()) as Array<{ id: string }>).map((d) => d.id);
+    // With 16 duels spanning the full hex range, two seeds will almost certainly
+    // produce different pivot positions, yielding a distinct page-1 ordering.
+    expect(ids1).not.toEqual(ids2);
+  });
+
+  test('seeded pagination does not repeat IDs across page boundaries', async () => {
+    await insertSpanningDuels(db, 14); // 12 on page 1, 2 on page 2
+
+    const res1 = await app.request('/?seed=42&page=1');
+    const res2 = await app.request('/?seed=42&page=2');
+    expect(res1.status).toBe(200);
+    expect(res2.status).toBe(200);
+
+    const ids1 = ((await res1.json()) as Array<{ id: string }>).map((d) => d.id);
+    const ids2 = ((await res2.json()) as Array<{ id: string }>).map((d) => d.id);
+
+    expect(ids1).toHaveLength(12);
+    expect(ids2.length).toBeGreaterThan(0);
+
+    const overlap = ids1.filter((id) => ids2.includes(id));
+    expect(overlap).toHaveLength(0);
+  });
+});
+
+// ── GET /duels sort=recent bypass ─────────────────────────────────────────────
+
+describe('GET /duels sort=recent bypass', () => {
+  let db: TestDb;
+  let app: ReturnType<typeof createTestApp>;
+
+  beforeEach(async () => {
+    db = await createTestDb();
+    app = createTestApp(db);
+    await db.insert(schema.topics).values([
+      { id: 'topic-nature', label: 'Nature' },
+      { id: 'topic-love', label: 'Love' },
+    ]);
+    await db.insert(schema.poems).values([
+      { id: 'ph1', title: 'H1', content: 'c', author: 'A', type: 'HUMAN' },
+      { id: 'pa1', title: 'A1', content: 'c', author: 'B', type: 'AI' },
+      { id: 'ph2', title: 'H2', content: 'c', author: 'C', type: 'HUMAN' },
+      { id: 'pa2', title: 'A2', content: 'c', author: 'D', type: 'AI' },
+    ]);
+    await db.insert(schema.duels).values([
+      { id: 'duel-nat', topic: 'Nature', topicId: 'topic-nature', poemAId: 'ph1', poemBId: 'pa1' },
+      { id: 'duel-luv', topic: 'Love', topicId: 'topic-love', poemAId: 'ph2', poemBId: 'pa2' },
+    ]);
+  });
+
+  afterEach(async () => {
+    // @ts-expect-error – accessing internal client for cleanup
+    await db.$client.close();
+  });
+
+  test('sort=recent returns 200 without seed', async () => {
+    const res = await app.request('/?sort=recent');
+    expect(res.status).toBe(200);
+  });
+
+  test('sort=recent still supports topic_id filtering', async () => {
+    const res = await app.request('/?sort=recent&topic_id=topic-nature');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Array<{ id: string; topicMeta: { id: string } }>;
+    expect(body).toHaveLength(1);
+    expect(body[0].id).toBe('duel-nat');
+    expect(body[0].topicMeta.id).toBe('topic-nature');
+  });
+
+  test('sort=recent returns all duels when no topic filter is given', async () => {
+    const res = await app.request('/?sort=recent');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Array<{ id: string }>;
+    expect(body).toHaveLength(2);
+    const ids = body.map((d) => d.id);
+    expect(ids).toContain('duel-nat');
+    expect(ids).toContain('duel-luv');
+  });
+});
+
 describe('duels API error envelope', () => {
   let db: TestDb;
   let app: ReturnType<typeof createTestApp>;
@@ -877,7 +1106,10 @@ describe('duels API error envelope', () => {
 
   test('returns stable { error, code } for in-scope error paths', async () => {
     const scenarios: Array<{ path: string; status: number; code: string }> = [
-      { path: '/?page=abc', status: 400, code: 'INVALID_PAGE' },
+      // seed=42 ensures the page validation error fires (page is validated before seed)
+      { path: '/?page=abc&seed=42', status: 400, code: 'INVALID_PAGE' },
+      { path: '/', status: 400, code: 'MISSING_SEED' },
+      { path: '/?seed=-1', status: 400, code: 'INVALID_SEED' },
       { path: '/today', status: 404, code: 'ENDPOINT_NOT_FOUND' },
       { path: '/missing-duel-id', status: 404, code: 'DUEL_NOT_FOUND' },
       { path: '/missing-duel-id/stats', status: 404, code: 'DUEL_NOT_FOUND' },
