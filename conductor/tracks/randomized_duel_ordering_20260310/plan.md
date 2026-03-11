@@ -28,24 +28,24 @@
 
 **Goal:** Apply session-scoped seeded ordering to Home and The Ring while keeping Past Bouts chronological via `sort=recent` and fixing the queue page-size bug.
 
-- [ ] Task: Session Seed Utility
-  - [ ] Create `apps/web/lib/session.ts` with `getSessionSeed()` to generate and persist a stable integer seed in `sessionStorage` for the current browser tab.
-  - [ ] Regenerate the seed if the stored value is missing, malformed, or negative.
-  - [ ] Add unit tests in `apps/web/lib/session.test.ts` for first-run generation, same-session reuse, and malformed stored values.
-- [ ] Task: Update API Client
-  - [ ] Update `apps/web/lib/api.ts` so `getDuels(page, topicId, seed?, sort?)` can send either a required randomization seed or the explicit archive bypass.
-  - [ ] Extend `apps/web/lib/api.test.ts` to cover seeded query-param serialization and `sort=recent`.
-- [ ] Task: Integrate Home and The Ring
-  - [ ] Update `apps/web/pages/Home.tsx` to call `api.getDuels(1, undefined, getSessionSeed())` so the featured duel becomes session-randomized instead of globally newest-first.
-  - [ ] Update `apps/web/pages/TheRing.tsx` to read the session seed once and pass it to every `api.getDuels(...)` call, including queue bootstrap and incremental page fetches.
-  - [ ] Preserve the existing deep-link behavior where a specifically requested duel is shown first and the seeded stream resumes after it.
-- [ ] Task: Fix Queue Page Size Assumption
-  - [ ] Update `PAGE_SIZE` in `apps/web/pages/TheRing.tsx` from `10` to `12`, or extract a shared constant that matches the API page size.
-  - [ ] Verify `isLastPage` detection now matches the API's real archive page size and does not trigger a spurious extra fetch.
-- [ ] Task: Preserve Past Bouts Chronology
-  - [ ] Update `apps/web/pages/PastBouts.tsx` to pass `sort: 'recent'` so archive browsing remains chronological under the required-seed API contract.
-  - [ ] Confirm topic filtering continues to work through the `sort=recent` path.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Frontend Integration & Pagination Fix' (Protocol in workflow.md)
+- [x] Task: Session Seed Utility (c84e8c9)
+  - [x] Create `apps/web/lib/session.ts` with `getSessionSeed()` to generate and persist a stable integer seed in `sessionStorage` for the current browser tab.
+  - [x] Regenerate the seed if the stored value is missing, malformed, or negative.
+  - [x] Add unit tests in `apps/web/lib/session.test.ts` for first-run generation, same-session reuse, and malformed stored values.
+- [x] Task: Update API Client (c84e8c9)
+  - [x] Update `apps/web/lib/api.ts` so `getDuels(page, topicId, seed?, sort?)` can send either a required randomization seed or the explicit archive bypass.
+  - [x] Extend `apps/web/lib/api.test.ts` to cover seeded query-param serialization and `sort=recent`.
+- [x] Task: Integrate Home and The Ring (c84e8c9)
+  - [x] Update `apps/web/pages/Home.tsx` to call `api.getDuels(1, undefined, getSessionSeed())` so the featured duel becomes session-randomized instead of globally newest-first.
+  - [x] Update `apps/web/pages/TheRing.tsx` to read the session seed once and pass it to every `api.getDuels(...)` call, including queue bootstrap and incremental page fetches.
+  - [x] Preserve the existing deep-link behavior where a specifically requested duel is shown first and the seeded stream resumes after it.
+- [x] Task: Fix Queue Page Size Assumption (c84e8c9)
+  - [x] Update `PAGE_SIZE` in `apps/web/pages/TheRing.tsx` from `10` to `12`, or extract a shared constant that matches the API page size.
+  - [x] Verify `isLastPage` detection now matches the API's real archive page size and does not trigger a spurious extra fetch.
+- [x] Task: Preserve Past Bouts Chronology (c84e8c9)
+  - [x] Update `apps/web/pages/PastBouts.tsx` to pass `sort: 'recent'` so archive browsing remains chronological under the required-seed API contract.
+  - [x] Confirm topic filtering continues to work through the `sort=recent` path.
+- [~] Task: Conductor - User Manual Verification 'Phase 2: Frontend Integration & Pagination Fix' (Protocol in workflow.md)
 
 ## Phase 3: Regression & Quality Gate
 
