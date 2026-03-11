@@ -22,6 +22,8 @@ All error responses follow a standardized JSON envelope:
 | Code                 | HTTP | Description                                                               |
 | -------------------- | ---- | ------------------------------------------------------------------------- |
 | `INVALID_PAGE`       | 400  | The `page` query parameter is missing, non-numeric, or <= 0.              |
+| `INVALID_SEED`       | 400  | The `seed` query parameter is present but invalid (non-integer or < 0).   |
+| `MISSING_SEED`       | 400  | The request omitted `seed` without using the `sort=recent` archive bypass. |
 | `DUEL_NOT_FOUND`     | 404  | The requested duel ID does not exist OR referenced poem rows are missing. |
 | `ENDPOINT_NOT_FOUND` | 404  | The requested endpoint is unknown or has been deprecated/removed.         |
 
@@ -49,15 +51,28 @@ Returns all canonical topics, ordered alphabetically by label. Used to populate 
 
 ### 2. `GET /duels`
 
-Returns a paginated list of duel cards for the Past Bouts view.
+Returns a paginated list of duel cards. This endpoint serves two ordering modes:
+
+- seeded rotation for Home and The Ring
+- chronological archive ordering for Past Bouts via `sort=recent`
 
 - **Query Parameters:**
   - `page` (optional): Positive integer. Defaults to `1`.
   - `topic_id` (optional): Canonical topic ID string. When present, filters results to duels whose `topic_id` matches. Returns an empty array for unknown IDs.
+  - `seed` (required unless `sort=recent`): Non-negative integer used to derive a deterministic pivot over `duels.id`.
+  - `sort` (optional): `recent` is the only supported value. It bypasses the seed requirement and preserves `created_at DESC` ordering for archive views.
 - **Response `200 OK`:**
   - `Array<DuelCard>`
 - **Response `400 Bad Request`:**
   - `{ "error": "Invalid page number", "code": "INVALID_PAGE" }`
+  - `{ "error": "Invalid seed value", "code": "INVALID_SEED" }`
+  - `{ "error": "Missing required seed", "code": "MISSING_SEED" }`
+
+**Ordering rules:**
+
+- If `seed` is supplied, results are rotated deterministically using a seed-derived duel pivot and `duels.id ASC`.
+- If `sort=recent` is supplied, results use chronological `created_at DESC`.
+- If neither `seed` nor `sort=recent` is supplied, the request fails with `400 MISSING_SEED`.
 
 **Pagination:** 12 duels per page. When `topic_id` is supplied and no matches exist, returns `[]` with `200 OK`.
 
@@ -75,6 +90,12 @@ Returns a paginated list of duel cards for the Past Bouts view.
   createdAt: string;          // ISO 8601
 }
 ```
+
+**Usage by client:**
+
+- `Home.tsx` calls `GET /duels?page=1&seed=<session-seed>` and uses the first row as the featured duel.
+- `TheRing.tsx` calls `GET /duels?page=N&seed=<session-seed>` for queue bootstrap and later page fetches.
+- `PastBouts.tsx` calls `GET /duels?page=1&sort=recent[&topic_id=...]` to preserve archive chronology.
 
 ### 3. `GET /duels/:id`
 

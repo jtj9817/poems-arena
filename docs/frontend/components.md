@@ -236,20 +236,22 @@ User clicks "Next Duel"
 
 Updated in Phase 6 to use `topicMeta.label` instead of the raw `topic` string for the featured duel card.
 
-- Fetches the first page of duels via `api.getDuels()` on mount.
+- Reads a session-scoped seed from `getSessionSeed()` and fetches the first page of duels via `api.getDuels(1, undefined, seed)` on mount.
 - Displays `duels[0].topicMeta.label` as "Featured Topic" in the landing card.
 - Navigates to `TheRing` with the featured duel's ID on "Enter the Ring".
 - The 600ms `setTimeout` before navigation matches the CSS `opacity` exit transition.
+- Because the seed lives in `sessionStorage`, a reload in the same tab keeps the same featured duel while a fresh tab can receive a different ordering.
 
 ### `PastBouts.tsx`
 
 Updated in Phase 6 to support dynamic topic filtering.
 
 - Fetches `GET /topics` once on mount into `topics` state.
-- Re-fetches `GET /duels(page=1, topicId)` whenever `activeTopicId` changes. Uses a `isCurrent` flag to discard stale responses from concurrent fetches.
+- Re-fetches `GET /duels(page=1, topicId, undefined, 'recent')` whenever `activeTopicId` changes. Uses a `isCurrent` flag to discard stale responses from concurrent fetches.
 - Duel cards display `duel.topicMeta.label` in the topic chip and in the "On {label}" heading.
 - Desktop (`md+`): renders `TopicBar` in a sticky `bg-paper/95 backdrop-blur-sm` header.
 - Mobile (`< md`): shows the active topic label and a "Filter" button that opens `BottomSheetFilter`.
+- `sort=recent` is required here because the API enforces `seed` for randomized consumers.
 
 ---
 
@@ -257,9 +259,9 @@ Updated in Phase 6 to support dynamic topic filtering.
 
 ```
 Entry (direct link or from Past Bouts)
-  ├─ queue initializes with page 1 of duel IDs
+  ├─ queue initializes with page 1 of duel IDs using the current session seed
   └─ if entering with specific duelId:
-       ├─ fetch page 1, locate duelId in results
+       ├─ fetch seeded page 1, locate duelId in results
        └─ set currentIndex to match (or prepend duelId if not found)
 
 Duel Display (via SwipeContainer, phase = 'idle')
@@ -327,16 +329,27 @@ interface SourceInfo {
 
 ## API Client (`apps/web/lib/api.ts`)
 
-Updated in Phase 6 to support topic filtering and stats retrieval:
+Updated to support seeded duel discovery, archive chronology, topic filtering, and stats retrieval:
 
 ```typescript
 const api = {
   getTopics(): Promise<TopicMeta[]>                           // GET /topics
-  getDuels(page?: number, topicId?: string): Promise<DuelListItem[]>  // GET /duels[?topic_id=]
+  getDuels(
+    page?: number,
+    topicId?: string,
+    seed?: number,
+    sort?: 'recent'
+  ): Promise<DuelListItem[]>                                  // GET /duels
   getDuel(id: string): Promise<AnonymousDuel>                // GET /duels/:id
   getDuelStats(id: string): Promise<DuelStats>               // GET /duels/:id/stats
   vote(duelId, selectedPoemId): Promise<VoteResponse>        // POST /votes
 }
 ```
+
+`getDuels` contract:
+
+- Home and The Ring pass a required session `seed`.
+- Past Bouts passes `sort: 'recent'` instead of a seed.
+- `topicId` remains optional in both modes.
 
 `DuelListItem` includes `topicMeta: TopicMeta` for Anthology card display. `DuelStats.duel` is a full `Duel` with per-poem `author`, `type`, `year`, and `sourceInfo`.
