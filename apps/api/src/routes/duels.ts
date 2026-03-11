@@ -34,9 +34,9 @@ export function createDuelsRouter(db: Db) {
         throw new MissingSeedError();
       }
       const n = Number(rawSeed);
-      if (!Number.isInteger(n) || n < 0) {
+      if (!Number.isSafeInteger(n) || n < 0) {
         throw new InvalidSeedError(
-          `Invalid seed value: "${rawSeed}" — must be a non-negative integer`,
+          `Invalid seed value: "${rawSeed}" — must be a non-negative safe integer`,
         );
       }
       seedPivot = buildSeedPivot(n);

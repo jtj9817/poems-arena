@@ -29,7 +29,9 @@ test.describe('Topics API', () => {
       return;
     }
 
-    const { status, body } = await apiGet<DuelListItemShape[]>(`/duels?topic_id=${topicWithId.id}`);
+    const { status, body } = await apiGet<DuelListItemShape[]>(
+      `/duels?topic_id=${topicWithId.id}&sort=recent`,
+    );
 
     expect(status).toBe(200);
     expect(Array.isArray(body)).toBe(true);
@@ -37,7 +39,7 @@ test.describe('Topics API', () => {
 
   test('GET /duels with unknown topic_id returns empty array', async () => {
     const { status, body } = await apiGet<DuelListItemShape[]>(
-      '/duels?topic_id=nonexistent-topic-id-99999',
+      '/duels?topic_id=nonexistent-topic-id-99999&sort=recent',
     );
 
     expect(status).toBe(200);

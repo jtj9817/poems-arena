@@ -910,6 +910,13 @@ describe('GET /duels seed validation', () => {
     expect(body.code).toBe('INVALID_SEED');
   });
 
+  test('returns 400 INVALID_SEED for unsafe integer seed', async () => {
+    const res = await app.request('/?seed=9007199254740992');
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { code: string };
+    expect(body.code).toBe('INVALID_SEED');
+  });
+
   test('returns 200 with valid non-negative integer seed', async () => {
     const res = await app.request('/?seed=42');
     expect(res.status).toBe(200);

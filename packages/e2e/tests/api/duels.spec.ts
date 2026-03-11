@@ -9,9 +9,12 @@ import {
   type DuelStatsShape,
 } from '../../lib/assert-schema';
 
+const SEEDED_DUELS_PATH = '/duels?seed=42';
+const SEEDED_DUELS_PAGE_1_PATH = '/duels?page=1&seed=42';
+
 test.describe('Duels API', () => {
   test('GET /duels returns array with correct shape', async () => {
-    const { status, body } = await apiGet<DuelListItemShape[]>('/duels');
+    const { status, body } = await apiGet<DuelListItemShape[]>(SEEDED_DUELS_PATH);
 
     expect(status).toBe(200);
     expect(Array.isArray(body)).toBe(true);
@@ -22,7 +25,7 @@ test.describe('Duels API', () => {
   });
 
   test('GET /duels?page=1 returns first page', async () => {
-    const { status, body } = await apiGet<DuelListItemShape[]>('/duels?page=1');
+    const { status, body } = await apiGet<DuelListItemShape[]>(SEEDED_DUELS_PAGE_1_PATH);
 
     expect(status).toBe(200);
     expect(Array.isArray(body)).toBe(true);
@@ -44,7 +47,8 @@ test.describe('Duels API', () => {
   });
 
   test('GET /duels/:id returns anonymous duel (no author/type on poems)', async () => {
-    const { status: listStatus, body: listBody } = await apiGet<DuelListItemShape[]>('/duels');
+    const { status: listStatus, body: listBody } =
+      await apiGet<DuelListItemShape[]>(SEEDED_DUELS_PATH);
 
     expect(listStatus).toBe(200);
     expect(Array.isArray(listBody)).toBe(true);
@@ -61,7 +65,8 @@ test.describe('Duels API', () => {
   });
 
   test('GET /duels/:id/stats returns full reveal with author and type', async () => {
-    const { status: listStatus, body: listBody } = await apiGet<DuelListItemShape[]>('/duels');
+    const { status: listStatus, body: listBody } =
+      await apiGet<DuelListItemShape[]>(SEEDED_DUELS_PATH);
 
     expect(listStatus).toBe(200);
     expect(Array.isArray(listBody)).toBe(true);

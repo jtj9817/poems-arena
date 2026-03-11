@@ -4,6 +4,7 @@ import { Button } from '../components/Button';
 import { VerdictPopup } from '../components/VerdictPopup';
 import { SwipeContainer, type SwipePhase } from '../components/SwipeContainer';
 import { api, type AnonymousDuel, type DuelStats } from '../lib/api';
+import { getSessionSeed } from '../lib/session';
 import {
   createQueue,
   queueAppendPage,
@@ -15,7 +16,7 @@ import {
 } from '../lib/duelQueue';
 
 /** Expected page size from GET /duels — used to detect last page. */
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 12;
 /** Number of upcoming duels to pre-fetch while user reads the current one. */
 const PREFETCH_COUNT = 2;
 
@@ -40,6 +41,7 @@ export const TheRing: React.FC<TheRingProps> = ({ duelId, onNavigate }) => {
   const prefetchCacheRef = useRef<Map<string, AnonymousDuel>>(new Map());
   // Guard against concurrent page fetches
   const isFetchingMoreRef = useRef(false);
+  const sessionSeedRef = useRef<number>(getSessionSeed());
 
   /** Pre-fetch the next PREFETCH_COUNT duels into the cache. Non-fatal on failure. */
   const prefetchUpcoming = (queue: DuelQueueState) => {
@@ -61,7 +63,7 @@ export const TheRing: React.FC<TheRingProps> = ({ duelId, onNavigate }) => {
     if (isFetchingMoreRef.current || !queueNeedsMoreIds(queue, PREFETCH_COUNT)) return;
     isFetchingMoreRef.current = true;
     try {
-      const items = await api.getDuels(queue.currentPage);
+      const items = await api.getDuels(queue.currentPage, undefined, sessionSeedRef.current);
       const newIds = items.map((item) => item.id);
       const isLastPage = newIds.length < PAGE_SIZE;
       const latestQueue = queueRef.current;
@@ -83,7 +85,7 @@ export const TheRing: React.FC<TheRingProps> = ({ duelId, onNavigate }) => {
 
         if (!id) {
           // No specific duel requested — fetch the list and start a queue
-          const items = await api.getDuels(1);
+          const items = await api.getDuels(1, undefined, sessionSeedRef.current);
           if (items.length === 0) {
             if (!isCurrent) return;
             setError('No duels available. Please check back later.');
@@ -97,7 +99,7 @@ export const TheRing: React.FC<TheRingProps> = ({ duelId, onNavigate }) => {
           prefetchUpcoming(initialQueue);
         } else {
           // Specific duel requested — initialize queue so swipe/next flow still works
-          const items = await api.getDuels(1).catch(() => null);
+          const items = await api.getDuels(1, undefined, sessionSeedRef.current).catch(() => null);
           if (items && items.length > 0) {
             const ids = items.map((item) => item.id);
             const isLastPage = ids.length < PAGE_SIZE;

@@ -23,7 +23,7 @@ export const PastBouts: React.FC<PastBoutsProps> = ({ onNavigate }) => {
     let isCurrent = true;
     setLoading(true);
     api
-      .getDuels(1, activeTopicId ?? undefined)
+      .getDuels(1, activeTopicId ?? undefined, undefined, 'recent')
       .then((nextDuels) => {
         if (!isCurrent) return;
         setDuels(nextDuels);

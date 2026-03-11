@@ -83,9 +83,11 @@ export const api = {
     return request('/topics');
   },
 
-  getDuels(page = 1, topicId?: string): Promise<DuelListItem[]> {
+  getDuels(page = 1, topicId?: string, seed?: number, sort?: 'recent'): Promise<DuelListItem[]> {
     const params = new URLSearchParams({ page: String(page) });
     if (topicId !== undefined) params.set('topic_id', topicId);
+    if (seed !== undefined) params.set('seed', String(seed));
+    if (sort !== undefined) params.set('sort', sort);
     return request(`/duels?${params}`);
   },
 

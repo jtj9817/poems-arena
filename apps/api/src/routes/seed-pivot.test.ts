@@ -28,6 +28,12 @@ describe('buildSeedPivot', () => {
     expect(buildSeedPivot(0)).not.toBe(buildSeedPivot(1000000));
   });
 
+  test('rejects unsafe integer seeds', () => {
+    expect(() => buildSeedPivot(Number.MAX_SAFE_INTEGER + 1)).toThrow(
+      'Seed must be a non-negative safe integer',
+    );
+  });
+
   test('pivot prefix is exactly "duel-"', () => {
     const pivot = buildSeedPivot(7);
     expect(pivot.startsWith('duel-')).toBe(true);

@@ -149,6 +149,8 @@ describe('api.getDuels', () => {
     expect(url).toContain('/duels');
     expect(url).toContain('page=1');
     expect(url).not.toContain('topic_id');
+    expect(url).not.toContain('seed=');
+    expect(url).not.toContain('sort=');
   });
 
   it('appends topic_id when topicId is provided', async () => {
@@ -160,6 +162,30 @@ describe('api.getDuels', () => {
     const [url] = fetchMock.mock.calls[0] as [string, ...unknown[]];
     expect(url).toContain('topic_id=topic-abc');
     expect(url).toContain('page=1');
+  });
+
+  it('appends seed when provided', async () => {
+    const fetchMock = mockOkResponse([]);
+    vi.stubGlobal('fetch', fetchMock);
+
+    await api.getDuels(1, undefined, 42);
+
+    const [url] = fetchMock.mock.calls[0] as [string, ...unknown[]];
+    expect(url).toContain('page=1');
+    expect(url).toContain('seed=42');
+    expect(url).not.toContain('sort=');
+  });
+
+  it('appends sort when provided', async () => {
+    const fetchMock = mockOkResponse([]);
+    vi.stubGlobal('fetch', fetchMock);
+
+    await api.getDuels(1, undefined, undefined, 'recent');
+
+    const [url] = fetchMock.mock.calls[0] as [string, ...unknown[]];
+    expect(url).toContain('page=1');
+    expect(url).toContain('sort=recent');
+    expect(url).not.toContain('seed=');
   });
 
   it('does not append topic_id when topicId is undefined', async () => {

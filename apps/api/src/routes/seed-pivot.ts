@@ -10,6 +10,10 @@
  * lexicographic comparison in the SQL CASE expression is meaningful.
  */
 export function buildSeedPivot(seed: number): string {
+  if (!Number.isSafeInteger(seed) || seed < 0) {
+    throw new RangeError('Seed must be a non-negative safe integer');
+  }
+
   const hasher = new Bun.CryptoHasher('sha256');
   hasher.update(String(seed));
   const hex = hasher.digest('hex').slice(0, 12);

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ViewState } from '@sanctuary/shared';
 import { Button } from '../components/Button';
 import { ApiRequestError, api, type DuelListItem } from '../lib/api';
+import { getSessionSeed } from '../lib/session';
 import metadataJson from '../metadata.json';
 
 const appVersion =
@@ -39,6 +40,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
   const [retryCount, setRetryCount] = useState(0);
   const [loadCycle, setLoadCycle] = useState(0);
   const [statusIndex, setStatusIndex] = useState(0);
+  const sessionSeedRef = useRef<number>(getSessionSeed());
 
   useEffect(() => {
     if (!loading) {
@@ -62,7 +64,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
 
       for (let attempt = 0; attempt <= COLD_START_RETRY_DELAYS_MS.length; attempt += 1) {
         try {
-          const duels = await api.getDuels();
+          const duels = await api.getDuels(1, undefined, sessionSeedRef.current);
           if (!isCurrent) return;
           if (duels.length > 0) {
             setFeaturedDuel(duels[0]);
