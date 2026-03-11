@@ -45,7 +45,9 @@
 - [x] Task: Preserve Past Bouts Chronology (c84e8c9)
   - [x] Update `apps/web/pages/PastBouts.tsx` to pass `sort: 'recent'` so archive browsing remains chronological under the required-seed API contract.
   - [x] Confirm topic filtering continues to work through the `sort=recent` path.
-- [~] Task: Conductor - User Manual Verification 'Phase 2: Frontend Integration & Pagination Fix' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Frontend Integration & Pagination Fix' (Protocol in workflow.md) (d973566)
+  - Verification script: `scripts/verify-phase2-randomized-duel-ordering.ts`
+  - Result: 18/18 checks passed
 
 ## Phase 3: Regression & Quality Gate
 
