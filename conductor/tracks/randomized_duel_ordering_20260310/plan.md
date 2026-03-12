@@ -74,10 +74,11 @@
 
 **Goal:** Document the shipped feature.
 
-- [ ] Task: Documentation Update
-  - [ ] Document the required `seed` contract, the `sort=recent` archive bypass, and the `INVALID_SEED` / `MISSING_SEED` errors in `docs/backend/api-reference.md`.
-  - [ ] Update `docs/frontend/components.md` to describe the session-seeded Home and The Ring behavior, the `sort=recent` Past Bouts path, and the corrected `getDuels` client signature.
-  - [ ] If implementation details diverge from `docs/plans/002-duel-randomization-plan.md`, record the final shipped behavior there as well.
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Documentation' (Protocol in workflow.md)
-  - [ ] Automation script: `scripts/verify-phase4-randomized-duel-ordering.ts`.
-  - [ ] Shell wrapper: `scripts/run-manual-verification-phase-4.sh`.
+- [x] Task: Documentation Update (d7f8f6d)
+  - [x] Document the required `seed` contract, the `sort=recent` archive bypass, and the `INVALID_SEED` / `MISSING_SEED` errors in `docs/backend/api-reference.md`.
+  - [x] Update `docs/frontend/components.md` to describe the session-seeded Home and The Ring behavior, the `sort=recent` Past Bouts path, and the corrected `getDuels` client signature.
+  - [x] If implementation details diverge from `docs/plans/002-duel-randomization-plan.md`, record the final shipped behavior there as well.
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Documentation' (Protocol in workflow.md) (d7f8f6d)
+  - [x] Automation script: `scripts/verify-phase4-randomized-duel-ordering.ts`.
+  - [x] Shell wrapper: `scripts/run-manual-verification-phase-4-randomized-duel-ordering.sh`.
+  - Result: 8/8 checks passed (`phase4_randomized_duel_ordering_2026-03-12T03_19_28_632Z`).
