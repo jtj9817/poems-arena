@@ -1,0 +1,18 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="#F4F1EA"/>
+  <!-- Outer ring -->
+  <circle cx="256" cy="256" r="230" stroke="#2C2925" stroke-width="8"/>
+  
+  <!-- Laurel Wreath Approximation -->
+  <path d="M256 430C150 430 80 340 80 230C80 180 100 130 130 90" stroke="#2C2925" stroke-width="8" stroke-linecap="round" fill="none"/>
+  <path d="M256 430C362 430 432 340 432 230C432 180 412 130 382 90" stroke="#2C2925" stroke-width="8" stroke-linecap="round" fill="none"/>
+  <!-- Leaves Left -->
+  <path d="M100 280C120 260 140 260 140 280C140 300 120 300 100 280ZM110 200C130 180 150 180 150 200C150 220 130 220 110 200ZM140 130C160 110 180 110 180 130C180 150 160 150 140 130Z" fill="#2C2925"/>
+  <path d="M80 330C100 350 120 350 120 330C120 310 100 310 80 330Z" fill="#2C2925"/>
+  <!-- Leaves Right -->
+  <path d="M412 280C392 260 372 260 372 280C372 300 392 300 412 280ZM402 200C382 180 362 180 362 200C362 220 382 220 402 200ZM372 130C352 110 332 110 332 130C332 150 352 150 372 130Z" fill="#2C2925"/>
+  <path d="M432 330C412 350 392 350 392 330C392 310 412 310 432 330Z" fill="#2C2925"/>
+  
+  <!-- Central P -->
+  <path d="M220 150H280C325 150 355 180 355 225C355 270 325 300 280 300H255V370H220V150ZM255 265H280C300 265 315 250 315 225C315 200 300 185 280 185H255V265Z" fill="#2C2925"/>
+</svg>

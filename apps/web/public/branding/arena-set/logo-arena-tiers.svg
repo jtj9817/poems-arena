@@ -1,0 +1,14 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="#F4F1EA"/>
+  <!-- Concentric tiers -->
+  <circle cx="256" cy="256" r="230" stroke="#2C2925" stroke-width="6"/>
+  <circle cx="256" cy="256" r="190" stroke="#2C2925" stroke-width="2" stroke-dasharray="4 6"/>
+  <circle cx="256" cy="256" r="150" stroke="#2C2925" stroke-width="2"/>
+  <circle cx="256" cy="256" r="110" stroke="#2C2925" stroke-width="4"/>
+  
+  <!-- Radial lines (aisles) -->
+  <path d="M256 26V106M256 406V486M26 256H106M406 256H486M93 93L150 150M362 362L419 419M93 419L150 362M362 150L419 93" stroke="#2C2925" stroke-width="2"/>
+  
+  <!-- Central P -->
+  <path d="M210 170H290C330 170 355 195 355 235C355 275 330 300 290 300H250V350H210V170ZM250 265H290C305 265 315 255 315 235C315 215 305 205 290 205H250V265Z" fill="#9E3E36"/>
+</svg>

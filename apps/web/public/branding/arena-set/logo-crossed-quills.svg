@@ -1,0 +1,14 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="#F4F1EA"/>
+  <!-- Arena Floor -->
+  <circle cx="256" cy="256" r="230" stroke="#2C2925" stroke-width="2"/>
+  <circle cx="256" cy="256" r="210" fill="#2C2925" opacity="0.03"/>
+  
+  <!-- Crossed Quills -->
+  <path d="M120 120L392 392" stroke="#2C2925" stroke-width="8" opacity="0.2"/>
+  <path d="M392 120L120 392" stroke="#2C2925" stroke-width="8" opacity="0.2"/>
+  
+  <!-- Central "P" -->
+  <path d="M210 180H280C315 180 340 205 340 240C340 275 315 300 280 300H240V340H210V180ZM240 270H280C295 270 310 255 310 240C310 225 295 210 280 210H240V270Z" fill="#2C2925"/>
+  <circle cx="290" cy="256" r="12" fill="#9E3E36"/>
+</svg>

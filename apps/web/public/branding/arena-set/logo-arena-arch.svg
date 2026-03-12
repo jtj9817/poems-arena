@@ -1,0 +1,10 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="#F4F1EA"/>
+  <!-- Arena Outer Ring -->
+  <circle cx="256" cy="256" r="230" stroke="#2C2925" stroke-width="16"/>
+  <!-- Arch Motif -->
+  <path d="M120 400V250C120 180 180 120 256 120C332 120 392 180 392 250V400" stroke="#2C2925" stroke-width="12" stroke-linecap="round"/>
+  <rect x="110" y="380" width="292" height="20" fill="#2C2925"/>
+  <!-- The "P" Combatant -->
+  <path d="M226 210H286C321 210 346 235 346 270C346 305 321 330 286 330H256V370H226V210ZM256 300H286C301 300 316 285 316 270C316 255 301 240 286 240H256V300Z" fill="#2C2925"/>
+</svg>

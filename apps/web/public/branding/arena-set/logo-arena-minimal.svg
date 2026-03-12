@@ -1,0 +1,13 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="#F4F1EA"/>
+  <!-- Arena Base -->
+  <circle cx="256" cy="256" r="230" stroke="#2C2925" stroke-width="4"/>
+  <circle cx="256" cy="256" r="215" stroke="#2C2925" stroke-width="0.5" stroke-dasharray="2 4"/>
+  
+  <!-- Stylized "P" -->
+  <path d="M220 180H290C325 180 350 205 350 240C350 275 325 300 290 300H250V340H220V180ZM250 270H290C305 270 320 255 320 240C320 225 305 210 290 210H250V270Z" fill="#2C2925"/>
+  
+  <!-- Red Seal/Combatant Indicator -->
+  <circle cx="256" cy="400" r="16" fill="#9E3E36"/>
+  <path d="M246 400H266M256 390V410" stroke="#F4F1EA" stroke-width="2"/>
+</svg>

@@ -1,0 +1,20 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="#F4F1EA"/>
+  <!-- Outer Ring -->
+  <circle cx="256" cy="256" r="230" stroke="#2C2925" stroke-width="12"/>
+  
+  <!-- Colosseum Silhouette (Bottom half) -->
+  <path d="M60 280H452V380H60V280Z" fill="#F4F1EA"/>
+  <path d="M60 280C60 380 120 460 256 460C392 460 452 380 452 280" stroke="#2C2925" stroke-width="8"/>
+  
+  <!-- Tiers -->
+  <path d="M70 320H442M90 380H422" stroke="#2C2925" stroke-width="8"/>
+  
+  <!-- Arches Tier 1 -->
+  <path d="M100 280V320M140 280V320M180 280V320M220 280V320M260 280V320M300 280V320M340 280V320M380 280V320M420 280V320" stroke="#2C2925" stroke-width="12"/>
+  <!-- Arches Tier 2 -->
+  <path d="M120 320V380M180 320V380M240 320V380M300 320V380M360 320V380M400 320V380" stroke="#2C2925" stroke-width="16"/>
+
+  <!-- Rising P -->
+  <path d="M210 100H280C325 100 355 125 355 170C355 215 325 240 280 240H250V280H210V100ZM250 205H280C300 205 315 190 315 170C315 150 300 135 280 135H250V205Z" fill="#9E3E36"/>
+</svg>
