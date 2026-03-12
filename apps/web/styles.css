@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom utilities that are hard to do purely with Tailwind classes */
+.paper-shadow {
+  box-shadow:
+    0 1px 1px hsl(0deg 0% 0% / 0.075),
+    0 2px 2px hsl(0deg 0% 0% / 0.075),
+    0 4px 4px hsl(0deg 0% 0% / 0.075);
+}
+
+body {
+  background-color: #f4f1ea;
+  color: #2c2925;
+}
+
+/* Hide scrollbar for clean reading mode in non-poem areas */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Custom Scrollbar for Letterpress Theme */
+.letterpress-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #d6d1c9 transparent;
+}
+
+.letterpress-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.letterpress-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.letterpress-scroll::-webkit-scrollbar-thumb {
+  background-color: #d6d1c9;
+  border-radius: 20px;
+}
+
+.letterpress-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: #8c8781;
+}
+
+/* Swipe transition keyframes for SwipeContainer */
+@keyframes swipeOutLeft {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-60px);
+    opacity: 0;
+  }
+}
+
+@keyframes swipeInRight {
+  from {
+    transform: translateX(60px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Verdict pop-up entrance */
+@keyframes verdictIn {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Fade-in used by ReadingRoom initial load */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
