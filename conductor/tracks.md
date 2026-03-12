@@ -10,6 +10,9 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ## Archived Tracks
 
+- [x] **Track: Phase 7 - Randomized Duel Ordering**
+      _Link: [./archive/randomized_duel_ordering_20260310/](./archive/randomized_duel_ordering_20260310/)_
+
 - [x] **Track: Phase 6 - Frontend Integration**
       _Link: [./archive/frontend_integration_20260226/](./archive/frontend_integration_20260226/)_
 
@@ -24,6 +27,3 @@ This file tracks all major tracks for the project. Each track has its own detail
       _Link: [./archive/etl_pipeline_20260220/](./archive/etl_pipeline_20260220/)_
 
 ---
-
-- [ ] **Track: Create a new track based on the @docs/plans/002-duel-randomization-plan.md plan.**
-*Link: [./tracks/randomized_duel_ordering_20260310/](./tracks/randomized_duel_ordering_20260310/)*
