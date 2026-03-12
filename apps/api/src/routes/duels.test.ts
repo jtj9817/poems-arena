@@ -42,7 +42,7 @@ async function createTestDb(options?: { includeFeaturedDuelsTable?: boolean }): 
     `CREATE TABLE IF NOT EXISTS duels (
       id TEXT PRIMARY KEY NOT NULL,
       topic TEXT NOT NULL,
-      topic_id TEXT REFERENCES topics(id),
+      topic_id TEXT NOT NULL REFERENCES topics(id),
       poem_a_id TEXT NOT NULL REFERENCES poems(id),
       poem_b_id TEXT NOT NULL REFERENCES poems(id),
       created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
@@ -52,6 +52,7 @@ async function createTestDb(options?: { includeFeaturedDuelsTable?: boolean }): 
       duel_id TEXT NOT NULL REFERENCES duels(id),
       selected_poem_id TEXT NOT NULL REFERENCES poems(id),
       is_human INTEGER NOT NULL,
+      reading_time_ms INTEGER NOT NULL,
       voted_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
     )`,
     `CREATE TABLE IF NOT EXISTS scrape_sources (
@@ -62,6 +63,23 @@ async function createTestDb(options?: { includeFeaturedDuelsTable?: boolean }): 
       scraped_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
       raw_html TEXT,
       is_public_domain INTEGER NOT NULL DEFAULT false
+    )`,
+    `CREATE TABLE IF NOT EXISTS global_statistics (
+      id TEXT PRIMARY KEY NOT NULL DEFAULT 'global',
+      total_votes INTEGER NOT NULL DEFAULT 0,
+      human_votes INTEGER NOT NULL DEFAULT 0,
+      decision_time_sum_ms INTEGER NOT NULL DEFAULT 0,
+      decision_time_count INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+    )`,
+    `CREATE TABLE IF NOT EXISTS topic_statistics (
+      topic_id TEXT PRIMARY KEY NOT NULL REFERENCES topics(id),
+      topic_label TEXT NOT NULL,
+      total_votes INTEGER NOT NULL DEFAULT 0,
+      human_votes INTEGER NOT NULL DEFAULT 0,
+      decision_time_sum_ms INTEGER NOT NULL DEFAULT 0,
+      decision_time_count INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
     )`,
   ];
 
@@ -359,6 +377,7 @@ describe('GET /duels', () => {
       duelId: 'duel-with-votes',
       selectedPoemId: 'poem-human-votes',
       isHuman: true,
+      readingTimeMs: 30000,
     });
 
     const res = await app.request('/?sort=recent');
@@ -370,40 +389,8 @@ describe('GET /duels', () => {
     expect(duel.avgReadingTime).toBe('1m 0s');
   });
 
-  test('falls back to topicMeta: { id: null, label: duel.topic } when topic_id is null', async () => {
-    // Insert a duel without a topic_id
-    await db.insert(schema.poems).values({
-      id: 'poem-human-2',
-      title: 'Orphan Poem',
-      content: 'lonely text',
-      author: 'Anon',
-      type: 'HUMAN',
-    });
-    await db.insert(schema.poems).values({
-      id: 'poem-ai-2',
-      title: 'AI Orphan',
-      content: 'lonely ai',
-      author: 'GPT',
-      type: 'AI',
-    });
-    await db.insert(schema.duels).values({
-      id: 'duel-002',
-      topic: 'Orphan Topic',
-      topicId: null,
-      poemAId: 'poem-human-2',
-      poemBId: 'poem-ai-2',
-    });
-
-    const res = await app.request('/?sort=recent');
-    const items = (await res.json()) as Array<{
-      id: string;
-      topicMeta: { id: string | null; label: string };
-    }>;
-    const orphan = items.find((i) => i.id === 'duel-002');
-    expect(orphan).toBeDefined();
-    expect(orphan!.topicMeta.id).toBeNull();
-    expect(orphan!.topicMeta.label).toBe('Orphan Topic');
-  });
+  // Note: topicId is now mandatory (NOT NULL) on duels. The null topicId fallback
+  // in buildTopicMeta is kept as defensive code but cannot be triggered via normal inserts.
 
   test('returns 400 with INVALID_PAGE code for page=0', async () => {
     // Page validation runs before seed validation; seed=42 ensures we reach page check.
@@ -679,7 +666,8 @@ describe('GET /duels/:id', () => {
     });
     await db.insert(schema.duels).values({
       id: 'duel-orphan',
-      topic: 'Orphan',
+      topic: 'Nature',
+      topicId: 'topic-nature',
       poemAId: 'poem-orphan-a',
       poemBId: 'poem-orphan-b',
     });
@@ -743,7 +731,8 @@ describe('GET /duels/:id/stats', () => {
     });
     await db.insert(schema.duels).values({
       id: 'duel-ghost',
-      topic: 'Ghost',
+      topic: 'Nature',
+      topicId: 'topic-nature',
       poemAId: 'poem-ghost-a',
       poemBId: 'poem-ghost-b',
     });
@@ -850,6 +839,7 @@ describe('GET /duels/:id/stats', () => {
       duelId: 'duel-001',
       selectedPoemId: 'poem-human-1',
       isHuman: true,
+      readingTimeMs: 30000,
     });
 
     const res = await app.request('/duel-001/stats');

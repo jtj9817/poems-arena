@@ -53,34 +53,49 @@ export const scrapeSources = sqliteTable('scrape_sources', {
   isPublicDomain: integer('is_public_domain', { mode: 'boolean' }).notNull().default(false),
 });
 
-export const duels = sqliteTable('duels', {
-  id: text('id').primaryKey(),
-  topic: text('topic').notNull(),
-  topicId: text('topic_id').references(() => topics.id),
-  poemAId: text('poem_a_id')
-    .notNull()
-    .references(() => poems.id),
-  poemBId: text('poem_b_id')
-    .notNull()
-    .references(() => poems.id),
-  createdAt: text('created_at')
-    .notNull()
-    .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
-});
+export const duels = sqliteTable(
+  'duels',
+  {
+    id: text('id').primaryKey(),
+    topic: text('topic').notNull(),
+    topicId: text('topic_id')
+      .notNull()
+      .references(() => topics.id),
+    poemAId: text('poem_a_id')
+      .notNull()
+      .references(() => poems.id),
+    poemBId: text('poem_b_id')
+      .notNull()
+      .references(() => poems.id),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
+  },
+  (t) => ({
+    topicIdIdx: index('duels_topic_id_idx').on(t.topicId),
+  }),
+);
 
-export const votes = sqliteTable('votes', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  duelId: text('duel_id')
-    .notNull()
-    .references(() => duels.id),
-  selectedPoemId: text('selected_poem_id')
-    .notNull()
-    .references(() => poems.id),
-  isHuman: integer('is_human', { mode: 'boolean' }).notNull(),
-  votedAt: text('voted_at')
-    .notNull()
-    .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
-});
+export const votes = sqliteTable(
+  'votes',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    duelId: text('duel_id')
+      .notNull()
+      .references(() => duels.id),
+    selectedPoemId: text('selected_poem_id')
+      .notNull()
+      .references(() => poems.id),
+    isHuman: integer('is_human', { mode: 'boolean' }).notNull(),
+    readingTimeMs: integer('reading_time_ms').notNull(),
+    votedAt: text('voted_at')
+      .notNull()
+      .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
+  },
+  (t) => ({
+    duelIdIdx: index('votes_duel_id_idx').on(t.duelId),
+  }),
+);
 
 export const featuredDuels = sqliteTable(
   'featured_duels',
@@ -100,9 +115,45 @@ export const featuredDuels = sqliteTable(
   }),
 );
 
+/**
+ * Single-row global aggregate table (keyed by id = 'global').
+ * Updated atomically in the same transaction as each vote insert.
+ */
+export const globalStatistics = sqliteTable('global_statistics', {
+  id: text('id').primaryKey().default('global'),
+  totalVotes: integer('total_votes').notNull().default(0),
+  humanVotes: integer('human_votes').notNull().default(0),
+  decisionTimeSumMs: integer('decision_time_sum_ms').notNull().default(0),
+  decisionTimeCount: integer('decision_time_count').notNull().default(0),
+  updatedAt: text('updated_at')
+    .notNull()
+    .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
+});
+
+/**
+ * Per-topic aggregate table keyed by topicId (FK → topics.id).
+ * Updated atomically in the same transaction as each vote insert.
+ * topicLabel is denormalised for display stability (avoids join on reads).
+ */
+export const topicStatistics = sqliteTable('topic_statistics', {
+  topicId: text('topic_id')
+    .primaryKey()
+    .references(() => topics.id),
+  topicLabel: text('topic_label').notNull(),
+  totalVotes: integer('total_votes').notNull().default(0),
+  humanVotes: integer('human_votes').notNull().default(0),
+  decisionTimeSumMs: integer('decision_time_sum_ms').notNull().default(0),
+  decisionTimeCount: integer('decision_time_count').notNull().default(0),
+  updatedAt: text('updated_at')
+    .notNull()
+    .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
+});
+
 export type Poem = typeof poems.$inferSelect;
 export type Duel = typeof duels.$inferSelect;
 export type Vote = typeof votes.$inferSelect;
 export type Topic = typeof topics.$inferSelect;
 export type ScrapeSource = typeof scrapeSources.$inferSelect;
 export type FeaturedDuel = typeof featuredDuels.$inferSelect;
+export type GlobalStatistics = typeof globalStatistics.$inferSelect;
+export type TopicStatistics = typeof topicStatistics.$inferSelect;
