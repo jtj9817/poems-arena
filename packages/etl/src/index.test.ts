@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { join } from 'node:path';
 import { parseCliArgs } from './index';
 
 describe('parseCliArgs', () => {
@@ -9,8 +10,8 @@ describe('parseCliArgs', () => {
     expect(config.dryRun).toBe(false);
     expect(config.includeNonPd).toBe(false);
     expect(config.limit).toBeUndefined();
-    expect(config.inputDir).toContain('scraper/data/raw');
-    expect(config.workDir).toContain('etl/data');
+    expect(config.inputDir.replaceAll('\\', '/')).toContain('scraper/data/raw');
+    expect(config.workDir.replaceAll('\\', '/')).toContain('etl/data');
   });
 
   test('parses --stage flag', () => {
@@ -34,13 +35,15 @@ describe('parseCliArgs', () => {
   });
 
   test('parses --input-dir override', () => {
-    const config = parseCliArgs(['--input-dir', '/tmp/raw']);
-    expect(config.inputDir).toBe('/tmp/raw');
+    const inputDir = join('tmp', 'raw');
+    const config = parseCliArgs(['--input-dir', inputDir]);
+    expect(config.inputDir).toBe(inputDir);
   });
 
   test('parses --work-dir override', () => {
-    const config = parseCliArgs(['--work-dir', '/tmp/etl']);
-    expect(config.workDir).toBe('/tmp/etl');
+    const workDir = join('tmp', 'etl');
+    const config = parseCliArgs(['--work-dir', workDir]);
+    expect(config.workDir).toBe(workDir);
   });
 
   test('parses all flags together', () => {
@@ -52,16 +55,16 @@ describe('parseCliArgs', () => {
       '--limit',
       '10',
       '--input-dir',
-      '/data/in',
+      join('data', 'in'),
       '--work-dir',
-      '/data/out',
+      join('data', 'out'),
     ]);
 
     expect(config.stage).toBe('load');
     expect(config.dryRun).toBe(true);
     expect(config.includeNonPd).toBe(true);
     expect(config.limit).toBe(10);
-    expect(config.inputDir).toBe('/data/in');
-    expect(config.workDir).toBe('/data/out');
+    expect(config.inputDir).toBe(join('data', 'in'));
+    expect(config.workDir).toBe(join('data', 'out'));
   });
 });

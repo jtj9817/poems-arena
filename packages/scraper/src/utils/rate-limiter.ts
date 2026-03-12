@@ -1,11 +1,14 @@
 interface RateLimiterOptions {
   concurrency: number;
   minDelay: number;
+  sleep?: (ms: number) => Promise<void>;
 }
 
 export function createRateLimiter(options: RateLimiterOptions) {
   const concurrency = Math.max(1, options.concurrency);
   const minDelay = Math.max(0, options.minDelay);
+  const sleep =
+    options.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   let activeCount = 0;
   const queue: Array<() => void> = [];
 
@@ -29,7 +32,7 @@ export function createRateLimiter(options: RateLimiterOptions) {
         try {
           const result = await fn();
           if (minDelay > 0) {
-            await new Promise((delayResolve) => setTimeout(delayResolve, minDelay));
+            await sleep(minDelay);
           }
           resolve(result);
         } catch (error) {

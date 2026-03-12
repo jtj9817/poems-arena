@@ -69,9 +69,7 @@ describe('createDbReadinessManager', () => {
   test('times out while warm-up is still pending', async () => {
     const manager = createDbReadinessManager({
       ping: async () => {
-        await new Promise(() => {
-          /* intentionally pending */
-        });
+        await new Promise((resolve) => setTimeout(resolve, 50));
       },
       maxAttempts: 1,
       retryDelayMs: 1,

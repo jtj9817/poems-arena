@@ -11,6 +11,17 @@ import {
 import { assembleAndPersistDuels, type PersistenceDb as DuelAssemblyDb } from './duel-assembly';
 import type { HumanPoemCandidate } from './persistence';
 
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+
+  return { promise, resolve, reject };
+}
+
 describe('parseCliArgs', () => {
   test('parses CLI flags into typed config', () => {
     const config = parseCliArgs([
@@ -64,13 +75,23 @@ describe('runGenerationCli', () => {
     const logs: string[] = [];
     let inFlight = 0;
     let maxInFlight = 0;
+    const firstBatchGate = createDeferred<void>();
+    const firstBatchStarted = createDeferred<void>();
 
     const dependencies: CliDependencies = {
       fetchPoems: async () => poems,
       processPoem: async (poem): Promise<ProcessPoemResult> => {
         inFlight += 1;
         maxInFlight = Math.max(maxInFlight, inFlight);
-        await new Promise((resolve) => setTimeout(resolve, 5));
+
+        if (inFlight === 2) {
+          firstBatchStarted.resolve();
+        }
+
+        if (poem.id === 'h1' || poem.id === 'h2') {
+          await firstBatchGate.promise;
+        }
+
         inFlight -= 1;
 
         if (poem.id === 'h1') {
@@ -92,14 +113,19 @@ describe('runGenerationCli', () => {
       maxRetries: 2,
     };
 
-    const summary = await runGenerationCli(config, dependencies);
+    const summaryPromise = runGenerationCli(config, dependencies);
+    await firstBatchStarted.promise;
+    expect(maxInFlight).toBe(2);
+    firstBatchGate.resolve();
+
+    const summary = await summaryPromise;
 
     expect(summary.totalCandidates).toBe(3);
     expect(summary.processed).toBe(3);
     expect(summary.stored).toBe(1);
     expect(summary.skipped).toBe(1);
     expect(summary.failed).toBe(1);
-    expect(maxInFlight).toBeLessThanOrEqual(2);
+    expect(maxInFlight).toBe(2);
     expect(logs.some((line) => line.includes('Stored AI poem'))).toBe(true);
     expect(logs.some((line) => line.includes('Completed generation run'))).toBe(true);
   });

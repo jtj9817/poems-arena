@@ -205,7 +205,7 @@ describe('getDeepSeekClient', () => {
   });
 
   test('configures client with DeepSeek base URL, timeout, and retries', async () => {
-    await getDeepSeekClient(`k-${Date.now()}`);
+    await getDeepSeekClient('k-config-test');
 
     const options = mockOpenAIConstructor.mock.calls.at(-1)?.[0] as {
       baseURL: string;
