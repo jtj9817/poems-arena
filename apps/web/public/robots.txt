@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://poems-arena.site/sitemap.xml
+Sitemap: https://classicist-sanctuary-lf4is44nra-uw.a.run.app/sitemap.xml
