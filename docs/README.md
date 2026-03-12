@@ -1,6 +1,6 @@
 # Documentation
 
-This directory contains all project documentation for Poem Arena (formerly Classicist's Sanctuary).
+This directory contains all project documentation for Poems Arena (formerly Classicist's Sanctuary).
 
 ## Structure
 
@@ -11,14 +11,16 @@ This directory contains all project documentation for Poem Arena (formerly Class
 | [`domain/`](./domain/)                 | Domain model, business rules, glossary        |
 | [`frontend/`](./frontend/)             | Component design, page flows, UI decisions    |
 | [`architecture/`](./architecture/)     | System architecture, infrastructure, ADRs     |
+| [`artifacts/`](./artifacts/)           | Generated analysis artifacts                  |
 | [`tickets/`](./tickets/)               | Work items and tracked findings               |
 | [`archived-plans/`](./archived-plans/) | Completed or superseded plans                 |
 
 ## Key Plans
 
-| Plan                                                                   | Status                                                                                                                |
-| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| [`plans/001-data-pipeline-plan.md`](./plans/001-data-pipeline-plan.md) | **COMPLETE** — All 6 phases done: Schema, Scraper, ETL, AI Generation, Duel Assembly & API, Frontend Integration. |
+| Plan                                                                         | Status                                                                                                             |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| [`plans/001-data-pipeline-plan.md`](./plans/001-data-pipeline-plan.md)       | **COMPLETE** — All 6 phases done: Schema, Scraper, ETL, AI Generation, Duel Assembly & API, Frontend Integration. |
+| [`plans/002-duel-randomization-plan.md`](./plans/002-duel-randomization-plan.md) | **SHIPPED (2026-03-11)** — Seeded pseudo-random duel ordering for Home/TheRing; chronological sort for PastBouts. |
 
 ## Key Docs
 

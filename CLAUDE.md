@@ -7,34 +7,56 @@ classicist-sanctuary-proto/
 ├── apps/
 │   ├── api/                    @sanctuary/api — Bun + Hono REST API (port 4000)
 │   │   ├── src/
-│   │   │   ├── index.ts        # App entry point, CORS, routing
+│   │   │   ├── index.ts        # App entry point, CORS, readiness middleware, routing
+│   │   │   ├── errors.ts       # ApiError subclasses: DuelNotFoundError, InvalidPageError,
+│   │   │   │                   #   EndpointNotFoundError, MissingSeedError, InvalidSeedError,
+│   │   │   │                   #   ServiceUnavailableError
+│   │   │   ├── readiness-log.ts # formatDbReadinessFailureLog() — structured log helper
 │   │   │   ├── routes/
-│   │   │   │   ├── duels.ts    # /duels endpoints
-│   │   │   │   └── votes.ts    # /votes endpoint
+│   │   │   │   ├── duels.ts    # /duels endpoints (seed+sort ordering, stats, archive)
+│   │   │   │   ├── topics.ts   # /topics endpoint
+│   │   │   │   ├── votes.ts    # /votes endpoint
+│   │   │   │   └── seed-pivot.ts # buildSeedPivot() — SHA-256 duel rotation pivot
 │   │   │   └── db/
 │   │   │       ├── client.ts   # Thin wrapper: re-exports createDb from @sanctuary/db
+│   │   │       ├── config.ts   # Re-export shim: re-exports resolveDbConfig from @sanctuary/db
 │   │   │       ├── schema.ts   # Re-export shim for drizzle.config.ts (source of truth: @sanctuary/db)
-│   │   │       └── seed.ts     # Database seed script
+│   │   │       ├── seed.ts     # Database seed script
+│   │   │       ├── readiness.ts         # startDbWarmup(), ensureDbReady(), getDbReadinessSnapshot()
+│   │   │       └── readiness-manager.ts # createDbReadinessManager() — bounded retry + timeout state machine
 │   │   ├── drizzle.config.ts   # Drizzle Kit configuration
 │   │   ├── Dockerfile          # Multi-stage Bun build
 │   │   ├── package.json
 │   │   └── tsconfig.json
 │   │
-│   └── web/                    @sanctuary/web — React 19 + Vite SPA (port 3000) — branded "Poem Arena"
+│   └── web/                    @sanctuary/web — React 19 + Vite SPA (port 3000) — branded "Poems Arena"
 │       ├── pages/
-│       │   ├── Home.tsx        # Landing view
-│       │   ├── TheRing.tsx     # Active duel voting view
-│       │   ├── PastBouts.tsx   # Archive of past duels
+│       │   ├── Home.tsx        # Landing view; session-seeded featured duel with cold-start retry
+│       │   ├── TheRing.tsx     # Active duel voting view; sliding-window prefetch queue
+│       │   ├── PastBouts.tsx   # Chronological archive with topic filter (TopicBar + BottomSheetFilter)
 │       │   └── About.tsx       # About/credits page
 │       ├── components/
 │       │   ├── Layout.tsx      # Shell wrapper
-│       │   └── Button.tsx      # Reusable UI
+│       │   ├── Button.tsx      # Reusable UI button (primary / ghost variants)
+│       │   ├── BottomSheetFilter.tsx # Mobile bottom-sheet topic selector
+│       │   ├── SourceInfo.tsx  # Per-poem provenance display (revealed post-vote)
+│       │   ├── SwipeContainer.tsx   # CSS keyframe wrapper for duel-to-duel swipe transitions
+│       │   ├── TopicBar.tsx    # Horizontally scrollable chip bar for topic filtering
+│       │   └── VerdictPopup.tsx     # Post-vote modal: verdict, source attribution, stats
 │       ├── lib/
-│       │   └── api.ts          # API client utilities
+│       │   ├── api.ts          # API client (getDuels, getDuel, getDuelStats, vote, getTopics)
+│       │   ├── duelQueue.ts    # Immutable sliding-window duel ID queue
+│       │   └── session.ts      # getSessionSeed() — tab-local sessionStorage seed with in-memory fallback
+│       ├── public/
+│       │   ├── favicon.svg     # SVG favicon
+│       │   ├── manifest.json   # PWA web app manifest (name: "Poems Arena")
+│       │   ├── og-image.svg    # Open Graph share image
+│       │   ├── robots.txt      # Crawler rules
+│       │   └── sitemap.xml     # Sitemap
 │       ├── App.tsx             # Router + view state
 │       ├── index.tsx           # React entry point
-│       ├── index.html          # HTML template
-│       ├── metadata.json       # Build metadata
+│       ├── index.html          # HTML template (Tailwind CDN, fonts, CSS keyframes)
+│       ├── metadata.json       # Build metadata (version: "0.2", name: "Poems Arena")
 │       ├── vite.config.ts      # Vite + proxy config
 │       ├── Dockerfile          # Multi-stage nginx build
 │       ├── package.json
@@ -97,16 +119,24 @@ classicist-sanctuary-proto/
 │
 ├── docs/                       # Project documentation
 │   ├── README.md
-│   ├── architecture/
-│   ├── backend/
-│   ├── domain/
-│   ├── frontend/
-│   ├── plans/                  # Active implementation plans (001-data-pipeline-plan.md)
+│   ├── architecture/           # ADRs, system design
+│   ├── artifacts/              # Generated analysis artifacts (e.g. ETL remediation data)
+│   ├── backend/                # API reference, DB schema notes, AI-gen prompt docs
+│   ├── domain/                 # Business logic, duel assembly rules
+│   ├── frontend/               # Component API, interaction flows, UI decisions
+│   ├── plans/                  # Implementation plans (001-data-pipeline-plan.md [COMPLETE],
+│   │                           #   002-duel-randomization-plan.md [SHIPPED])
 │   ├── tickets/                # Work items and tracked findings
-│   └── archived-plans/
+│   └── archived-plans/         # Completed or superseded plans
 │
 ├── scripts/
 │   ├── run-scrape.ts           # Scraper orchestration: Gutenberg, LOC 180, Poets.org → data/raw/
+│   ├── run-generate.ts         # AI generation runner shortcut
+│   ├── bump-version.ts         # Version bump utility (--minor / --major)
+│   ├── deploy.sh               # Deployment helper
+│   ├── manual-test-helpers.ts  # Shared helpers for manual verification scripts
+│   ├── verify-phase*.ts        # Per-track phase verification scripts (Bun)
+│   ├── run-manual-verification-phase-*.sh  # Shell wrappers for phase verification
 │   └── ...                     # Phase audit and analysis scripts (see scripts/README.md)
 ├── package.json                # Root: workspace scripts, devDependencies
 ├── pnpm-workspace.yaml         # PNPM workspace configuration
@@ -270,6 +300,9 @@ See `packages/ai-gen/README.md` for full runtime behavior and prompt documentati
 | `VITE_API_URL`           | web (build)    | API base URL baked into the static bundle (default: `/api/v1`)                 |
 | `FRONTEND_URL`           | api (optional) | Additional CORS origin to allow (Cloud Run frontend URL)                       |
 | `PORT`                   | api (optional) | Override api listen port (default: 4000)                                       |
+| `DB_READY_MAX_ATTEMPTS`  | api (optional) | Max DB warm-up ping attempts before marking `failed` (default: 4)              |
+| `DB_READY_RETRY_DELAY_MS`| api (optional) | Delay between warm-up ping retries in milliseconds (default: 300)              |
+| `DB_READY_WAIT_TIMEOUT_MS`| api (optional)| Total budget for `ensureDbReady()` to wait for warm-up (default: 2500)        |
 
 The ETL package reads its own `packages/etl/.env` file (loaded via `dotenv` only when the `load` stage runs). Copy `packages/etl/.env.example` to get started.
 
@@ -292,18 +325,27 @@ docker compose up sanctuary-api --build
 
 ## API Routes
 
-All routes are prefixed `/api/v1/`.
+`/health` and `/ready` are not prefixed. All data routes are prefixed `/api/v1/`.
 
-| Method | Path               | Description                                          |
-| ------ | ------------------ | ---------------------------------------------------- |
-| GET    | `/health`          | Health check (Cloud Run probe)                       |
-| GET    | `/topics`          | All canonical topics ordered by label                |
-| GET    | `/duels`           | Paginated duel archive (`?page=N&topic_id=<id>`)     |
-| GET    | `/duels/:id`       | Single duel (anonymous — no author info)             |
-| POST   | `/votes`           | Cast a vote `{ duelId, selectedPoemId }`             |
-| GET    | `/duels/:id/stats` | Full stats + author reveal after voting              |
+| Method | Path               | Description                                                              |
+| ------ | ------------------ | ------------------------------------------------------------------------ |
+| GET    | `/health`          | Health check — returns `{ status: "ok", version }`. Does not check DB.  |
+| GET    | `/ready`           | Readiness check — returns `{ status, ready }`. Reports DB warm-up state.|
+| GET    | `/api/v1/topics`          | All canonical topics ordered by label                             |
+| GET    | `/api/v1/duels`           | Paginated archive. Requires `?seed=N` or `?sort=recent`. Supports `?page=N&topic_id=<id>`. |
+| GET    | `/api/v1/duels/:id`       | Single duel (anonymous — no author info). Logs to `featured_duels`. |
+| POST   | `/api/v1/votes`           | Cast a vote `{ duelId, selectedPoemId }`                          |
+| GET    | `/api/v1/duels/:id/stats` | Full stats + author reveal after voting                           |
 
 > `GET /duels/today` was removed in Phase 5. Returns `404 ENDPOINT_NOT_FOUND`.
+
+### `GET /duels` Ordering Rules
+
+`GET /duels` requires one of two ordering modes:
+- **Seeded rotation** — pass `?seed=<non-negative integer>`. The API hashes the seed into a pivot duel ID and rotates `duels.id ASC` around it. Home and TheRing use this mode with a session-scoped seed from `sessionStorage`.
+- **Chronological** — pass `?sort=recent`. Preserves `created_at DESC` ordering. PastBouts uses this mode.
+
+Omitting both returns `400 MISSING_SEED`. An invalid seed value returns `400 INVALID_SEED`.
 
 ### Response Examples
 
@@ -316,7 +358,7 @@ All routes are prefixed `/api/v1/`.
 ]
 ```
 
-**GET /duels** (paginated archive; `?topic_id=nature` to filter):
+**GET /duels** (paginated archive; requires `?seed=N` or `?sort=recent`; `?topic_id=nature` optional):
 
 ```json
 [
@@ -396,8 +438,18 @@ export enum AuthorType {
   AI = 'AI',
 }
 
+/** Sanitizes and validates an external URL, returning null for unsafe or non-http(s) values. */
+export function sanitizeExternalHttpUrl(url: string | null | undefined): string | null;
+
+/** Canonical topic reference returned by the API. id is null when the duel has no linked topic row. */
 export interface TopicMeta {
   id: string | null;
+  label: string;
+}
+
+/** Minimal topic record (used internally; TopicMeta is the canonical API shape). */
+export interface Topic {
+  id: string;
   label: string;
 }
 
@@ -417,14 +469,14 @@ export interface Poem {
   id: string;
   title: string;
   content: string;
-  author: string; // "Emily Dickinson" or "deepseek-chat"
+  author: string;           // "Emily Dickinson" or the AI model name
   type: AuthorType;
   year?: string;
   source?: string;
   sourceUrl?: string;
   form?: string;
-  prompt?: string;          // AI generation prompt (null for human)
-  parentPoemId?: string;    // AI poem's human counterpart
+  prompt?: string;          // AI generation prompt (absent for human poems)
+  parentPoemId?: string;    // AI poem's human counterpart ID
   sourceInfo?: SourceInfo;  // Populated in GET /duels/:id/stats only
 }
 
@@ -478,7 +530,12 @@ automatically on staged `.ts`/`.tsx` files.
 ## Cloud Run Deployment Notes
 
 - API container: stateless — reads env vars injected by Cloud Run secrets.
-  `GET /health` is the health check endpoint.
+  `GET /health` returns `{ status: "ok", version }` without touching the DB (Cloud Run liveness probe).
+  `GET /ready` reports DB warm-up state and returns `503` until the database is reachable.
+- The API starts a background DB warm-up (`startDbWarmup`) at boot and gates all `/api/v1/*` routes
+  behind `ensureDbReady()`. Requests that arrive before the DB is ready receive `503 SERVICE_UNAVAILABLE`.
+- The Home page handles `503` responses from the API with a bounded client-side retry loop
+  (up to 4 attempts with increasing delays) and displays an animated loading state to the user.
 - Web container: pure static nginx. `VITE_API_URL` must be set as a Docker build
   arg pointing to the deployed API URL.
 - Both containers use `CMD` (not `ENTRYPOINT`) for Cloud Run compatibility.

@@ -1,6 +1,6 @@
-# Frontend Components — Phase 6 Integration
+# Frontend Components
 
-Implemented in `apps/web` as part of the Phase 6 Frontend Integration track. All components follow the "Digital Letterpress" design language: Alabaster/Ink palette, classic serif typography, and vanilla CSS animations.
+Implemented in `apps/web`. All components follow the "Digital Letterpress" design language: Alabaster/Ink palette, classic serif typography, and vanilla CSS animations. Core voting components (`SwipeContainer`, `VerdictPopup`, `SourceInfo`) were introduced in Phase 6. Topic filtering (`TopicBar`, `BottomSheetFilter`) and seeded duel ordering were added in subsequent tracks.
 
 ---
 
@@ -16,7 +16,8 @@ A horizontally scrollable chip bar for single-select topic filtering on the Past
 
 ```typescript
 interface TopicBarProps {
-  topics: TopicMeta[];        // Canonical topics from API
+  idPrefix?: string;            // Optional DOM ID prefix (defaults to auto-generated)
+  topics: TopicMeta[];          // Canonical topics from API
   activeTopicId: string | null; // null = "All" (no filter)
   onSelect: (topicId: string | null) => void;
 }
@@ -42,6 +43,7 @@ A mobile-first bottom sheet that presents the same topic list as `TopicBar` in a
 
 ```typescript
 interface BottomSheetFilterProps {
+  idPrefix?: string;            // Optional DOM ID prefix (defaults to auto-generated)
   topics: TopicMeta[];
   activeTopicId: string | null;
   onSelect: (topicId: string | null) => void;
@@ -146,12 +148,15 @@ Renders per-poem provenance after the Verdict is revealed. Adapts display based 
 
 ```typescript
 interface SourceInfoProps {
+  idPrefix?: string;             // Optional DOM ID prefix (defaults to auto-generated)
   author: string;
   type: AuthorType;              // 'HUMAN' | 'AI'
   year?: string;
   sourceInfo?: SourceInfo;       // From @sanctuary/shared
 }
 ```
+
+Source URLs are passed through `sanitizeExternalHttpUrl()` (from `@sanctuary/shared`) before rendering as anchor tags. Non-http(s) URLs and malformed values are rendered as plain text.
 
 **Behavior:**
 
@@ -166,7 +171,28 @@ interface SourceInfoProps {
 
 ---
 
-## New Library Module
+## Library Modules
+
+### `session` — Session-Scoped Duel Seed
+
+**File:** `apps/web/lib/session.ts`
+**Tests:** `apps/web/lib/session.test.ts`
+
+Provides a stable random integer seed for the current browser session. The seed drives deterministic seeded ordering on `GET /duels` so that Home and TheRing see a consistent but varied duel sequence.
+
+**Exported function:**
+
+```typescript
+export function getSessionSeed(): number
+```
+
+**Behavior:**
+- On first call, reads `sessionStorage['duel-seed']`. If a valid non-negative safe integer is found, it is returned as-is.
+- If the key is absent or contains an invalid value, a fresh integer in `[0, 2147483647]` is generated, stored in `sessionStorage`, and returned.
+- If `sessionStorage` is unavailable (e.g. private-browsing SecurityError), an in-memory fallback (`inMemorySeed`) is used for the lifetime of the module. This keeps the seed stable across multiple calls within the same JS context even without storage.
+- `sessionStorage` persists across same-tab reloads, so the same featured duel appears on reload. A new tab generates a new seed.
+
+---
 
 ### `duelQueue` — Sliding-Window Pre-Fetch Queue
 
@@ -234,13 +260,17 @@ User clicks "Next Duel"
 
 ### `Home.tsx`
 
-Updated in Phase 6 to use `topicMeta.label` instead of the raw `topic` string for the featured duel card.
-
-- Reads a session-scoped seed from `getSessionSeed()` and fetches the first page of duels via `api.getDuels(1, undefined, seed)` on mount.
+- Reads a session-scoped seed from `getSessionSeed()` (stored in `useRef`) and fetches the first page of duels via `api.getDuels(1, undefined, seed)` on mount.
 - Displays `duels[0].topicMeta.label` as "Featured Topic" in the landing card.
-- Navigates to `TheRing` with the featured duel's ID on "Enter the Ring".
+- Navigates to `TheRing` with the featured duel's ID on "Enter Reading Room".
 - The 600ms `setTimeout` before navigation matches the CSS `opacity` exit transition.
 - Because the seed lives in `sessionStorage`, a reload in the same tab keeps the same featured duel while a fresh tab can receive a different ordering.
+
+**Cold-start retry flow:**
+- On a `503 SERVICE_UNAVAILABLE` response, Home retries up to 4 times using increasing delays (`[500, 900, 1400, 2000]ms`).
+- While retrying, the loading spinner rotates through status messages ("Establishing archive connection", "Warming the ring", etc.) and shows a progress-dot indicator with a retry count.
+- After exhausting retries, the card shows an error message and a "Retry" button that re-triggers the load cycle.
+- Non-503 errors skip retries and surface the error immediately.
 
 ### `PastBouts.tsx`
 
