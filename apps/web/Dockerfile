@@ -44,11 +44,14 @@ server {
   listen 80;
   root /usr/share/nginx/html;
   index index.html;
+  # Keep this policy limited to broadly supported directives.
+  add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()" always;
 
   location /api/v1/ {
     proxy_pass http://localhost:4000/api/v1/;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
+    proxy_hide_header Permissions-Policy;
     proxy_connect_timeout 2s;
     proxy_read_timeout 30s;
     proxy_intercept_errors on;
@@ -59,6 +62,7 @@ server {
     proxy_pass http://localhost:4000/health;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
+    proxy_hide_header Permissions-Policy;
     proxy_connect_timeout 2s;
     proxy_read_timeout 15s;
     proxy_intercept_errors on;
@@ -69,6 +73,7 @@ server {
     proxy_pass http://localhost:4000/ready;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
+    proxy_hide_header Permissions-Policy;
     proxy_connect_timeout 2s;
     proxy_read_timeout 15s;
     proxy_intercept_errors on;

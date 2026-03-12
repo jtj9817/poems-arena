@@ -22,8 +22,14 @@ try {
 }
 
 const app = new Hono();
+const PERMISSIONS_POLICY = 'camera=(), microphone=(), geolocation=(), payment=(), usb=()';
 
 app.use('*', logger());
+app.use('*', async (c, next) => {
+  // Keep this policy limited to broadly supported directives.
+  c.header('Permissions-Policy', PERMISSIONS_POLICY);
+  await next();
+});
 app.use(
   '*',
   cors({
