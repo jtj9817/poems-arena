@@ -1,0 +1,10 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="#F4F1EA"/>
+  <!-- Outer Ring (Seal style) -->
+  <circle cx="256" cy="256" r="230" stroke="#2C2925" stroke-width="16"/>
+  <circle cx="256" cy="256" r="200" stroke="#2C2925" stroke-width="2" stroke-dasharray="8 12"/>
+  
+  <!-- "P" and "A" combined -->
+  <path d="M180 140H300C366.274 140 420 193.726 420 260C420 326.274 366.274 380 300 380H240V460H180V140ZM240 320H300C333.137 320 360 293.137 360 260C360 226.863 333.137 200 300 200H240V320Z" fill="#2C2925"/>
+  <path d="M300 400L350 480H250L300 400Z" fill="#9E3E36"/>
+</svg>

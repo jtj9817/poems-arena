@@ -1,0 +1,11 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#F4F1EA"/>
+  
+  <!-- Title Text -->
+  <text x="600" y="300" font-family="serif" font-size="120" fill="#2C2925" text-anchor="middle" font-weight="900" style="font-style: italic;">POEM ARENA</text>
+  <text x="600" y="400" font-family="serif" font-size="40" fill="#9E3E36" text-anchor="middle" font-weight="400" letter-spacing="10">THE BLIND TASTE TEST</text>
+  
+  <!-- Stylized Border -->
+  <rect x="40" y="40" width="1120" height="550" stroke="#2C2925" stroke-width="2"/>
+  <rect x="50" y="50" width="1100" height="530" stroke="#2C2925" stroke-width="0.5"/>
+</svg>
