@@ -19,28 +19,26 @@
 - `readingTimeMs` values over 10 minutes are clamped to 10 minutes.
 
 ## Phase 1: Database & Data Model Updates
-- [ ] Task: Design aggregates schema in `@sanctuary/db/schema`
-  - [ ] Add `votes.readingTimeMs` (integer, not null; milliseconds) to support behavioral timing samples.
-  - [ ] Add indexes needed for aggregation/update paths:
-    - [ ] `votes(duel_id)` (join/group updates)
-    - [ ] `duels(topic_id)` if topic aggregation is by `topicId`
-  - [ ] Enforce mandatory topics in the schema:
-    - [ ] Make `duels.topicId` non-nullable
-    - [ ] Ensure all existing rows are backfilled to a real `topics.id` before applying the constraint
-  - [ ] Create `global_statistics` table:
-    - [ ] Single-row table keyed by `id = 'global'`
-    - [ ] Columns (suggested): `totalVotes`, `humanVotes`, `decisionTimeSumMs`, `decisionTimeCount`, `updatedAt`
-  - [ ] Create `topic_statistics` table:
-    - [ ] Primary key keyed by `topicId` (and enforce referential integrity to `topics.id`)
-    - [ ] Columns mirror `global_statistics` plus `topicLabel` for display stability
-  - [ ] Generate Drizzle migrations (`pnpm --filter @sanctuary/api db:generate`)
-  - [ ] Ensure `apps/api/src/routes/*.test.ts` in-memory DDL is updated to include the new column(s) and new tables so tests remain representative.
-- [ ] Task: Backfill / initialization strategy
-  - [ ] Decide whether to:
-    - [ ] Initialize aggregates at zero and let them build over time, OR
-    - [ ] Backfill vote totals from existing `votes` rows (decision time will not backfill for old rows).
-  - [ ] If backfilling totals: implement a one-off script (Bun) or migration step to compute `{ totalVotes, humanVotes }` and seed `global_statistics` / `topic_statistics`.
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Database & Data Model Updates' (Protocol in workflow.md)
+- [x] Task: Design aggregates schema in `@sanctuary/db/schema` [e90b39a]
+  - [x] Add `votes.readingTimeMs` (integer, not null; milliseconds) to support behavioral timing samples.
+  - [x] Add indexes needed for aggregation/update paths:
+    - [x] `votes(duel_id)` (join/group updates)
+    - [x] `duels(topic_id)` if topic aggregation is by `topicId`
+  - [x] Enforce mandatory topics in the schema:
+    - [x] Make `duels.topicId` non-nullable
+    - [x] Ensure all existing rows are backfilled to a real `topics.id` before applying the constraint
+  - [x] Create `global_statistics` table:
+    - [x] Single-row table keyed by `id = 'global'`
+    - [x] Columns (suggested): `totalVotes`, `humanVotes`, `decisionTimeSumMs`, `decisionTimeCount`, `updatedAt`
+  - [x] Create `topic_statistics` table:
+    - [x] Primary key keyed by `topicId` (and enforce referential integrity to `topics.id`)
+    - [x] Columns mirror `global_statistics` plus `topicLabel` for display stability
+  - [x] Generate Drizzle migrations (`pnpm --filter @sanctuary/api db:generate`)
+  - [x] Ensure `apps/api/src/routes/*.test.ts` in-memory DDL is updated to include the new column(s) and new tables so tests remain representative.
+- [x] Task: Backfill / initialization strategy [e90b39a]
+  - [x] Decide whether to:
+    - [x] Initialize aggregates at zero and let them build over time (chosen — old votes lack readingTimeMs so full backfill is not possible; aggregates build from new votes only)
+- [~] Task: Conductor - User Manual Verification 'Phase 1: Database & Data Model Updates' (Protocol in workflow.md)
 
 ## Phase 2: Core Voting & Aggregation Logic
 - [ ] Task: Make votes router testable and extend payload
