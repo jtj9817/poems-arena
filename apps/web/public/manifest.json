@@ -1,6 +1,6 @@
 {
-  "name": "Poem Arena",
-  "short_name": "Poem Arena",
+  "name": "Poems Arena",
+  "short_name": "Poems Arena",
   "description": "A blind taste test for the literary soul, distinguishing human craft from algorithmic synthesis.",
   "start_url": "/",
   "display": "standalone",

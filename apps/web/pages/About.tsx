@@ -22,13 +22,13 @@ export const About: React.FC<AboutProps> = ({ onNavigate }) => {
               id="about-heading"
               className="text-5xl md:text-6xl font-serif font-bold text-ink tracking-tight italic"
             >
-              Colophon
+              About
             </h1>
             <p
               id="about-edition"
               className="text-seal-red font-sans font-medium tracking-widest text-xs uppercase pt-2 border-t border-ink/10 inline-block px-4 mt-4"
             >
-              Est. 2024 • Vol. I
+              Est. 2026 • Vol. I
             </p>
           </header>
 
@@ -45,8 +45,8 @@ export const About: React.FC<AboutProps> = ({ onNavigate }) => {
               prediction becomes dangerously thin.
             </p>
             <p id="about-intro-paragraph-2" className="mt-6">
-              Poem Arena was born not from a rejection of technology, but from a curiosity about its
-              limits. Can the machine truly capture the "sublime"—that ineffable quality that
+              Poems Arena was born not from a rejection of technology, but from a curiosity about
+              its limits. Can the machine truly capture the "sublime"—that ineffable quality that
               connects a poet to their reader across centuries? Or does it merely rearrange the
               shadows of what has already been said?
             </p>
