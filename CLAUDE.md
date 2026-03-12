@@ -18,7 +18,7 @@ classicist-sanctuary-proto/
 │   │   │   │   ├── votes.ts    # /votes endpoint
 │   │   │   │   └── seed-pivot.ts # buildSeedPivot() — SHA-256 duel rotation pivot
 │   │   │   └── db/
-│   │   │       ├── client.ts   # Thin wrapper: re-exports createDb from @sanctuary/db
+│   │   │       ├── client.ts   # Initializes singleton DB: calls createDb + resolveDbConfig from @sanctuary/db
 │   │   │       ├── config.ts   # Re-export shim: re-exports resolveDbConfig from @sanctuary/db
 │   │   │       ├── schema.ts   # Re-export shim for drizzle.config.ts (source of truth: @sanctuary/db)
 │   │   │       ├── seed.ts     # Database seed script
@@ -166,6 +166,30 @@ pnpm --filter @sanctuary/web dev   # http://localhost:3000
 
 The Vite dev server proxies `/api → http://localhost:4000`, so the frontend
 always calls `/api/v1/...` regardless of environment.
+
+## Running E2E Tests
+
+E2E tests live in `packages/e2e/` and run with Playwright. The config (`packages/e2e/playwright.config.ts`) reads the root `.env` file and spins up the API and web servers automatically in non-CI environments.
+
+```bash
+# Run all E2E tests (requires root .env with LIBSQL_URL + LIBSQL_AUTH_TOKEN)
+pnpm --filter @sanctuary/e2e test
+
+# Run a specific project
+pnpm --filter @sanctuary/e2e test --project=api
+pnpm --filter @sanctuary/e2e test --project=ui
+pnpm --filter @sanctuary/e2e test --project=cdp
+```
+
+**Test projects:**
+
+| Project | Directory | What it tests |
+| --- | --- | --- |
+| `api` | `tests/api/` | Live API contract tests (health, topics, duels, votes endpoints) |
+| `ui` | `tests/ui/` | Browser UI flows (foyer, anthology, reading room, navigation) |
+| `cdp` | `tests/cdp/` | Live scraper source validation via Chrome DevTools Protocol |
+
+In CI, set `CI=true`; Playwright will not reuse existing servers and will use the `list` reporter. The config reads `API_PORT` (default 4000) and `WEB_PORT` (default 3000) from the environment to allow port overrides.
 
 ## Scripts
 
@@ -315,13 +339,24 @@ The ETL package reads its own `packages/etl/.env` file (loaded via `dotenv` only
 
 ## Docker
 
-```bash
-# Build and run both containers
-docker compose up --build
+The `docker-compose.yml` references pre-built registry images (`us-west1-docker.pkg.dev/solheim-project/sanctuary/...`) and does not have a `build:` stanza. It is suitable for running already-published images locally, not for building from source.
 
-# Api only
-docker compose up sanctuary-api --build
+```bash
+# Run pre-built registry images locally (requires docker login to GCR)
+docker compose up
+
+# Run a single service from the pre-built image
+docker compose up sanctuary-api
 ```
+
+To build and deploy new images, use the deployment script instead:
+
+```bash
+# Build images locally, push to Artifact Registry, and deploy to Cloud Run
+bash scripts/deploy.sh
+```
+
+See `docs/architecture/deployment.md` for full deployment workflow documentation.
 
 ## API Routes
 
