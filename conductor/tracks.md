@@ -27,3 +27,6 @@ This file tracks all major tracks for the project. Each track has its own detail
       _Link: [./archive/etl_pipeline_20260220/](./archive/etl_pipeline_20260220/)_
 
 ---
+
+- [ ] **Track: User Analytics & Global Statistics (The Verdict)**
+*Link: [./tracks/user_analytics_20260312/](./tracks/user_analytics_20260312/)*
