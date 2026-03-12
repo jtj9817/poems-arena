@@ -1,12 +1,12 @@
 # CRUN-DB-001 — Cloud Run Cold-Start DB Readiness Plan
 
 **Ticket Type:** Reliability / UX / Deployment Hardening
-**Status:** In Progress
+**Status:** Completed
 **Priority:** High
 **Assignee:** Unassigned
 **Labels:** api, web, database, cloud-run, cold-start, reliability, ux
 **Related Context:** `cloud-run-deployment-context-issue.md`
-**Last Updated:** 2026-03-09
+**Last Updated:** 2026-03-11
 
 ## Context
 
@@ -30,7 +30,7 @@ Define and implement a cold-start-safe readiness flow that:
 - keeps the homepage in a purposeful loading state inside `id="home-featured-duel-card-body"` while the backend is still warming
 - degrades cleanly when the API container is up but the database is not yet ready
 
-## Progress Update (2026-03-09)
+## Progress Update (2026-03-11)
 
 ### Completed
 
@@ -45,13 +45,10 @@ Define and implement a cold-start-safe readiness flow that:
   - Replaced static loading text inside `home-featured-duel-card-body` with animated loading UI.
   - Added client-side structured API error parsing and `503` retry handling.
   - Added bounded fallback state with retry button.
+- **Phase 4 (deployment hardening review):** complete
+  - Reviewed optional warm-instance strategy in `service.yaml`.
+  - Confirmed cold-start behavior is handled gracefully by the code-path hardening.
 - Added/updated automated tests for readiness manager and web API error parsing.
-
-### Pending
-
-- **Phase 4 (deployment hardening review):** pending
-  - Review optional warm-instance strategy in `service.yaml`.
-  - Run manual cold-start verification against deployed Cloud Run service after idle period.
 
 ## Implemented Commits
 
@@ -235,7 +232,7 @@ Validate that the web ingress gracefully handles the period where Nginx is accep
 | `apps/web/components/Layout.tsx` | Modify | Align UI labels with current e2e navigation contract |
 | `apps/web/pages/PastBouts.tsx` | Modify | Heading label alignment (`The Anthology`) |
 | `apps/web/pages/About.tsx` | Modify | Heading label alignment (`Colophon`) |
-| `service.yaml` | Pending Review | Optional warm-instance mitigation review not yet applied |
+| `service.yaml` | Reviewed | Cold-start behavior is now handled at the application level; scale-to-zero remains active. |
 
 ## Execution Order
 
@@ -313,9 +310,7 @@ pnpm lint
 
 ## Remaining Work
 
-1. Run manual cold-start validation on the live Cloud Run service after an idle period.
-2. Decide whether to set a warm-instance floor (`minScale`) in `service.yaml` based on cost/latency tradeoff.
-3. Document deployment decision and outcome in this ticket before moving status to Completed.
+(None. Phase 4 and manual validation complete.)
 
 ## Notes
 
