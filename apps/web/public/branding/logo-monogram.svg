@@ -1,0 +1,13 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="#F4F1EA"/>
+  <!-- Decorative Background Shape -->
+  <path d="M400 256C400 335.531 335.531 400 256 400C176.469 400 112 335.531 112 256C112 176.469 176.469 112 256 112C335.531 112 400 176.469 400 256Z" fill="#2C2925" opacity="0.03"/>
+  
+  <!-- C -->
+  <path d="M240 180C190 180 150 215 150 256C150 297 190 332 240 332" stroke="#2C2925" stroke-width="24" stroke-linecap="round"/>
+  <!-- S -->
+  <path d="M280 180C320 180 340 200 340 220C340 240 320 250 290 256C260 262 240 272 240 292C240 312 260 332 300 332" stroke="#2C2925" stroke-width="24" stroke-linecap="round"/>
+  
+  <!-- Red Wax Seal Element -->
+  <circle cx="290" cy="256" r="16" fill="#9E3E36"/>
+</svg>

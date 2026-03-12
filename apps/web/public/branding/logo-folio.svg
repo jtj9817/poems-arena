@@ -1,0 +1,13 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="#F4F1EA"/>
+  <!-- Book Base -->
+  <path d="M60 120H256V420H60C60 420 80 400 100 400H256V120Z" fill="#2C2925" opacity="0.1"/>
+  <path d="M452 120H256V420H452C452 420 432 400 412 400H256V120Z" fill="#2C2925" opacity="0.05"/>
+  
+  <!-- Outer Frame -->
+  <path d="M256 100V440M60 120V420C60 420 100 400 256 400C412 400 452 420 452 420V120C452 120 412 100 256 100C100 100 60 120 60 120Z" stroke="#2C2925" stroke-width="4" stroke-linejoin="round"/>
+  
+  <!-- Accent Dots (Human vs AI) -->
+  <circle cx="158" cy="260" r="10" fill="#9E3E36"/>
+  <circle cx="354" cy="260" r="10" fill="#3A5A6D"/>
+</svg>

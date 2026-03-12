@@ -1,0 +1,11 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="#F4F1EA"/>
+  <!-- Central Pillar -->
+  <rect x="240" y="120" width="32" height="272" fill="#2C2925"/>
+  <!-- Symmetric Arches -->
+  <path d="M120 420V160C120 120 160 80 256 80C352 80 392 120 392 160V420" stroke="#2C2925" stroke-width="8"/>
+  <!-- Threshold -->
+  <rect x="80" y="420" width="352" height="12" fill="#2C2925"/>
+  <!-- Focal Point -->
+  <circle cx="256" cy="256" r="40" fill="#9E3E36"/>
+</svg>
