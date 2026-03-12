@@ -22,7 +22,7 @@ All error responses follow a standardized JSON envelope:
 | Code                 | HTTP | Description                                                               |
 | -------------------- | ---- | ------------------------------------------------------------------------- |
 | `INVALID_PAGE`       | 400  | The `page` query parameter is missing, non-numeric, or <= 0.              |
-| `INVALID_SEED`       | 400  | The `seed` query parameter is present but invalid (non-integer or < 0).   |
+| `INVALID_SEED`       | 400  | The `seed` query parameter is present but invalid (not a non-negative safe integer). |
 | `MISSING_SEED`       | 400  | The request omitted `seed` without using the `sort=recent` archive bypass. |
 | `DUEL_NOT_FOUND`     | 404  | The requested duel ID does not exist OR referenced poem rows are missing. |
 | `ENDPOINT_NOT_FOUND` | 404  | The requested endpoint is unknown or has been deprecated/removed.         |
@@ -59,7 +59,7 @@ Returns a paginated list of duel cards. This endpoint serves two ordering modes:
 - **Query Parameters:**
   - `page` (optional): Positive integer. Defaults to `1`.
   - `topic_id` (optional): Canonical topic ID string. When present, filters results to duels whose `topic_id` matches. Returns an empty array for unknown IDs.
-  - `seed` (required unless `sort=recent`): Non-negative integer used to derive a deterministic pivot over `duels.id`.
+  - `seed` (required unless `sort=recent`): Non-negative safe integer used to derive a deterministic pivot over `duels.id`.
   - `sort` (optional): `recent` is the only supported value. It bypasses the seed requirement and preserves `created_at DESC` ordering for archive views.
 - **Response `200 OK`:**
   - `Array<DuelCard>`

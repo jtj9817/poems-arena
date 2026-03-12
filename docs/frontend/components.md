@@ -190,18 +190,18 @@ interface DuelQueueState {
 
 | Function | Description |
 |---|---|
-| `createQueue()` | Factory — fresh empty queue for ReadingRoom mount |
+| `createQueue()` | Factory — fresh empty queue for The Ring mount |
 | `queueCurrentId(state)` | ID at `currentIndex`; `null` if queue is empty |
 | `queueNextIds(state, count)` | Next `count` IDs after current — drives pre-fetch calls |
 | `queueAdvance(state)` | Increments `currentIndex` by 1; immutable |
 | `queueAppendPage(state, newIds, isLastPage)` | Merges a new page; bumps `currentPage`; sets `hasMore=false` on last page |
 | `queueNeedsMoreIds(state, prefetchCount)` | `true` when remaining IDs ≤ `prefetchCount` and `hasMore` is still true |
 
-**Constants in `ReadingRoom.tsx`:**
+**Constants in `TheRing.tsx`:**
 
 | Constant | Value | Purpose |
 |---|---|---|
-| `PAGE_SIZE` | `10` | Threshold for last-page detection (`ids.length < PAGE_SIZE → isLastPage`). Note: the API returns 12 per page; using 10 means the last-page flag may trigger one page early — a conservative safe guard. |
+| `PAGE_SIZE` | `12` | Threshold for last-page detection (`ids.length < PAGE_SIZE → isLastPage`). This matches the API page size contract. |
 | `PREFETCH_COUNT` | `2` | Number of upcoming duels pre-fetched into the in-memory cache while the user reads the current duel. |
 
 **Integration in `TheRing.tsx`:**

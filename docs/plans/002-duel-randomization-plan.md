@@ -1,7 +1,22 @@
 # Plan 002 — Randomized Duel Ordering
 
-**Status:** DRAFT
+**Status:** SHIPPED (2026-03-11)
 **Created:** 2026-03-10
+
+---
+
+## 0. Shipped Behavior (2026-03-11)
+
+This plan has been implemented with the following final behavior:
+
+- `GET /duels` now requires `seed` unless `sort=recent` is supplied.
+- `seed` validation is enforced as a non-negative safe integer (`Number.isSafeInteger` and `>= 0`), with `400 INVALID_SEED` on failure.
+- Missing `seed` without `sort=recent` returns `400 MISSING_SEED`.
+- Seeded requests use a deterministic pivot (`duel-<12 hex chars>`) from `buildSeedPivot(seed)` and rotate by `CASE WHEN duels.id >= pivot THEN 0 ELSE 1 END`, then `duels.id ASC`.
+- `sort=recent` preserves chronological archive ordering (`created_at DESC`) for Past Bouts, including with `topic_id` filters.
+- Home and The Ring share a session-scoped seed from `getSessionSeed()` (tab-local `sessionStorage` semantics with malformed-value regeneration and in-memory fallback when storage is unavailable).
+- The Ring `PAGE_SIZE` detection is aligned to `12` to match the API archive page size contract.
+- Deep-linking into The Ring still opens the requested duel first, then continues through the seeded stream.
 
 ---
 
