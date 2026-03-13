@@ -41,26 +41,26 @@
 - [~] Task: Conductor - User Manual Verification 'Phase 1: Database & Data Model Updates' (Protocol in workflow.md)
 
 ## Phase 2: Core Voting & Aggregation Logic
-- [ ] Task: Make votes router testable and extend payload
-  - [ ] Refactor `apps/api/src/routes/votes.ts` to `createVotesRouter(db)` (like `createDuelsRouter`), and wire it in `apps/api/src/index.ts`.
-  - [ ] Extend vote request schema to require `readingTimeMs` (integer ms).
-  - [ ] Add validation + outlier handling rules:
-    - [ ] `readingTimeMs <= 0`: reject request (400) and do not record the vote
-    - [ ] `readingTimeMs > 10 minutes`: clamp to 10 minutes before persisting and aggregating
-- [ ] Task: Implement atomic aggregate updates on vote write-path
-  - [ ] Update the vote insert to run in a DB transaction that:
-    - [ ] inserts `votes` row
-    - [ ] upserts/increments `global_statistics`
-    - [ ] upserts/increments `topic_statistics` for the duel's topic
-  - [ ] Topic key is `duels.topicId` (mandatory, non-null)
-- [ ] Task: Tests (Red/Green) for voting + aggregates
-  - [ ] Create `apps/api/src/routes/votes.test.ts` using in-memory LibSQL (pattern in `duels.test.ts`)
-  - [ ] Test cases:
-    - [ ] valid vote increments `totalVotes` + `humanVotes` correctly (global + topic)
-    - [ ] `readingTimeMs` within range updates `decisionTimeSumMs` + `decisionTimeCount`
-    - [ ] outlier `readingTimeMs` is clamped to 10 minutes (affects aggregates, but bounded)
-    - [ ] invalid `readingTimeMs` (<= 0) rejects request and does not write vote or aggregates
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Core Voting & Aggregation Logic' (Protocol in workflow.md)
+- [x] Task: Make votes router testable and extend payload [cb9dd04]
+  - [x] Refactor `apps/api/src/routes/votes.ts` to `createVotesRouter(db)` (like `createDuelsRouter`), and wire it in `apps/api/src/index.ts`.
+  - [x] Extend vote request schema to require `readingTimeMs` (integer ms).
+  - [x] Add validation + outlier handling rules:
+    - [x] `readingTimeMs <= 0`: reject request (400) and do not record the vote
+    - [x] `readingTimeMs > 10 minutes`: clamp to 10 minutes before persisting and aggregating
+- [x] Task: Implement atomic aggregate updates on vote write-path [cb9dd04]
+  - [x] Update the vote insert to run in a DB transaction (db.batch()) that:
+    - [x] inserts `votes` row
+    - [x] upserts/increments `global_statistics`
+    - [x] upserts/increments `topic_statistics` for the duel's topic
+  - [x] Topic key is `duels.topicId` (mandatory, non-null)
+- [x] Task: Tests (Red/Green) for voting + aggregates [cb9dd04]
+  - [x] Create `apps/api/src/routes/votes.test.ts` using in-memory LibSQL (pattern in `duels.test.ts`)
+  - [x] Test cases (17 tests across 3 describe blocks):
+    - [x] valid vote increments `totalVotes` + `humanVotes` correctly (global + topic)
+    - [x] `readingTimeMs` within range updates `decisionTimeSumMs` + `decisionTimeCount`
+    - [x] outlier `readingTimeMs` is clamped to 10 minutes (affects aggregates, but bounded)
+    - [x] invalid `readingTimeMs` (<= 0) rejects request and does not write vote or aggregates
+- [~] Task: Conductor - User Manual Verification 'Phase 2: Core Voting & Aggregation Logic' (Protocol in workflow.md)
 
 ## Phase 3: Verdict API & Data Fetching
 - [ ] Task: Extend existing stats endpoint (Verdict payload)
