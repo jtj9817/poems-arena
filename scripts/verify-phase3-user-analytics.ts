@@ -23,6 +23,32 @@ interface CommandResult {
 const testRunId = `phase3_user_analytics_${new Date().toISOString().replace(/[:.]/g, '_')}`;
 const repoRoot = path.resolve(import.meta.dir, '..');
 const logFile = TestLogger.init(testRunId, path.join(repoRoot, 'logs', 'manual_tests'));
+const STDERR_TAIL_CHARS = 500;
+const DB_PUSH_STDOUT_TAIL_CHARS = 800;
+const ROUTE_CHECK_STDOUT_TAIL_CHARS = 1200;
+const TEST_STDOUT_TAIL_CHARS = 1000;
+
+const GLOBAL_STATS_ID = 'global';
+const TOPIC_ID_NATURE = 'topic-nature';
+const TOPIC_LABEL_NATURE = 'Nature';
+const POEM_HUMAN_ID = 'poem-human-1';
+const POEM_AI_ID = 'poem-ai-1';
+const DUEL_ID = 'duel-001';
+
+const MS_PER_SECOND = 1000;
+const MS_PER_MINUTE = 60 * MS_PER_SECOND;
+const ONE_MINUTE_MS = MS_PER_MINUTE;
+const TWO_MINUTES_MS = 2 * MS_PER_MINUTE;
+
+const GLOBAL_TOTAL_VOTES = 12;
+const GLOBAL_HUMAN_VOTES = 9;
+const GLOBAL_DECISION_TIME_COUNT = 12;
+const GLOBAL_DECISION_TIME_SUM_MS = TWO_MINUTES_MS * GLOBAL_DECISION_TIME_COUNT;
+
+const TOPIC_TOTAL_VOTES = 8;
+const TOPIC_HUMAN_VOTES = 6;
+const TOPIC_DECISION_TIME_COUNT = 8;
+const TOPIC_DECISION_TIME_SUM_MS = ONE_MINUTE_MS * TOPIC_DECISION_TIME_COUNT;
 
 TestEnvironment.guardProduction();
 TestEnvironment.displayInfo();
@@ -110,17 +136,20 @@ function buildRouteIntegrationScript(): string {
       const app = new Hono();
       app.route('/', createDuelsRouter(db));
 
-      await db.insert(topics).values({ id: 'topic-nature', label: 'Nature' });
+      await db.insert(topics).values({
+        id: ${JSON.stringify(TOPIC_ID_NATURE)},
+        label: ${JSON.stringify(TOPIC_LABEL_NATURE)},
+      });
       await db.insert(poems).values([
         {
-          id: 'poem-human-1',
+          id: ${JSON.stringify(POEM_HUMAN_ID)},
           title: 'Human Seed',
           content: 'wind river mountain',
           author: 'Manual Tester',
           type: 'HUMAN',
         },
         {
-          id: 'poem-ai-1',
+          id: ${JSON.stringify(POEM_AI_ID)},
           title: 'AI Seed',
           content: 'silicon moon',
           author: 'Manual Tester',
@@ -128,33 +157,33 @@ function buildRouteIntegrationScript(): string {
         },
       ]);
       await db.insert(duels).values({
-        id: 'duel-001',
-        topic: 'Nature',
-        topicId: 'topic-nature',
-        poemAId: 'poem-human-1',
-        poemBId: 'poem-ai-1',
+        id: ${JSON.stringify(DUEL_ID)},
+        topic: ${JSON.stringify(TOPIC_LABEL_NATURE)},
+        topicId: ${JSON.stringify(TOPIC_ID_NATURE)},
+        poemAId: ${JSON.stringify(POEM_HUMAN_ID)},
+        poemBId: ${JSON.stringify(POEM_AI_ID)},
       });
 
-      const emptyStatsRes = await app.request('/duel-001/stats');
+      const emptyStatsRes = await app.request('/${DUEL_ID}/stats');
       const emptyStats = await emptyStatsRes.json();
 
       await db.insert(globalStatistics).values({
-        id: 'global',
-        totalVotes: 12,
-        humanVotes: 9,
-        decisionTimeSumMs: 1_440_000, // avg = 120000 => 2m 00s
-        decisionTimeCount: 12,
+        id: ${JSON.stringify(GLOBAL_STATS_ID)},
+        totalVotes: ${GLOBAL_TOTAL_VOTES},
+        humanVotes: ${GLOBAL_HUMAN_VOTES},
+        decisionTimeSumMs: ${GLOBAL_DECISION_TIME_SUM_MS},
+        decisionTimeCount: ${GLOBAL_DECISION_TIME_COUNT},
       });
       await db.insert(topicStatistics).values({
-        topicId: 'topic-nature',
-        topicLabel: 'Nature',
-        totalVotes: 8,
-        humanVotes: 6,
-        decisionTimeSumMs: 480_000, // avg = 60000 => 1m 00s
-        decisionTimeCount: 8,
+        topicId: ${JSON.stringify(TOPIC_ID_NATURE)},
+        topicLabel: ${JSON.stringify(TOPIC_LABEL_NATURE)},
+        totalVotes: ${TOPIC_TOTAL_VOTES},
+        humanVotes: ${TOPIC_HUMAN_VOTES},
+        decisionTimeSumMs: ${TOPIC_DECISION_TIME_SUM_MS},
+        decisionTimeCount: ${TOPIC_DECISION_TIME_COUNT},
       });
 
-      const populatedStatsRes = await app.request('/duel-001/stats');
+      const populatedStatsRes = await app.request('/${DUEL_ID}/stats');
       const populatedStats = await populatedStatsRes.json();
 
       const archiveRes = await app.request('/?sort=recent');
@@ -167,23 +196,23 @@ function buildRouteIntegrationScript(): string {
         emptyGlobalAvgNull: emptyStats.globalStats?.avgDecisionTimeMs === null,
         emptyTopicAvgNull: emptyStats.topicStats?.avgDecisionTimeMs === null,
         emptyTopicMetaStable:
-          emptyStats.topicStats?.topicMeta?.id === 'topic-nature' &&
-          emptyStats.topicStats?.topicMeta?.label === 'Nature',
+          emptyStats.topicStats?.topicMeta?.id === ${JSON.stringify(TOPIC_ID_NATURE)} &&
+          emptyStats.topicStats?.topicMeta?.label === ${JSON.stringify(TOPIC_LABEL_NATURE)},
         emptyStatsNoAvgReadingTime: !Object.prototype.hasOwnProperty.call(emptyStats, 'avgReadingTime'),
 
         populatedStatsStatus200: populatedStatsRes.status === 200,
-        populatedGlobalVotes: populatedStats.globalStats?.totalVotes === 12,
+        populatedGlobalVotes: populatedStats.globalStats?.totalVotes === ${GLOBAL_TOTAL_VOTES},
         populatedGlobalRate: populatedStats.globalStats?.humanWinRate === 75,
-        populatedGlobalAvgMs: populatedStats.globalStats?.avgDecisionTimeMs === 120000,
+        populatedGlobalAvgMs: populatedStats.globalStats?.avgDecisionTimeMs === ${TWO_MINUTES_MS},
         populatedGlobalAvgFmt: populatedStats.globalStats?.avgDecisionTime === '2m 00s',
-        populatedTopicVotes: populatedStats.topicStats?.totalVotes === 8,
+        populatedTopicVotes: populatedStats.topicStats?.totalVotes === ${TOPIC_TOTAL_VOTES},
         populatedTopicRate: populatedStats.topicStats?.humanWinRate === 75,
-        populatedTopicAvgMs: populatedStats.topicStats?.avgDecisionTimeMs === 60000,
+        populatedTopicAvgMs: populatedStats.topicStats?.avgDecisionTimeMs === ${ONE_MINUTE_MS},
         populatedTopicAvgFmt: populatedStats.topicStats?.avgDecisionTime === '1m 00s',
 
         archiveStatus200: archiveRes.status === 200,
         archiveHasRow: Array.isArray(archive) && archive.length === 1,
-        archiveAvgMs: archive[0]?.avgDecisionTimeMs === 60000,
+        archiveAvgMs: archive[0]?.avgDecisionTimeMs === ${ONE_MINUTE_MS},
         archiveAvgFmt: archive[0]?.avgDecisionTime === '1m 00s',
         archiveNoAvgReadingTime: !Object.prototype.hasOwnProperty.call(archive[0] ?? {}, 'avgReadingTime'),
       };
@@ -240,8 +269,8 @@ try {
   });
   TestLogger.info('db:push command completed', {
     exitCode: dbPushResult.exitCode,
-    stdoutTail: dbPushResult.stdout.trim().slice(-800),
-    stderrTail: dbPushResult.stderr.trim().slice(-500),
+    stdoutTail: dbPushResult.stdout.trim().slice(-DB_PUSH_STDOUT_TAIL_CHARS),
+    stderrTail: dbPushResult.stderr.trim().slice(-STDERR_TAIL_CHARS),
   });
   requireTrue(dbPushResult.exitCode === 0, 'db:push succeeds for isolated manual-test database');
 
@@ -310,8 +339,8 @@ try {
   });
   TestLogger.info('Route integration check command completed', {
     exitCode: routeCheckResult.exitCode,
-    stdoutTail: routeCheckResult.stdout.trim().slice(-1200),
-    stderrTail: routeCheckResult.stderr.trim().slice(-500),
+    stdoutTail: routeCheckResult.stdout.trim().slice(-ROUTE_CHECK_STDOUT_TAIL_CHARS),
+    stderrTail: routeCheckResult.stderr.trim().slice(-STDERR_TAIL_CHARS),
   });
   requireEquals(0, routeCheckResult.exitCode, 'Route integration check command exits successfully');
 
@@ -333,8 +362,8 @@ try {
   );
   TestLogger.info('API duels route tests completed', {
     exitCode: apiRouteTests.exitCode,
-    stdoutTail: apiRouteTests.stdout.trim().slice(-1000),
-    stderrTail: apiRouteTests.stderr.trim().slice(-500),
+    stdoutTail: apiRouteTests.stdout.trim().slice(-TEST_STDOUT_TAIL_CHARS),
+    stderrTail: apiRouteTests.stderr.trim().slice(-STDERR_TAIL_CHARS),
   });
   requireEquals(0, apiRouteTests.exitCode, 'API route tests pass for duels verdict payload');
 
@@ -344,8 +373,8 @@ try {
   );
   TestLogger.info('Web API client tests completed', {
     exitCode: webApiTests.exitCode,
-    stdoutTail: webApiTests.stdout.trim().slice(-1000),
-    stderrTail: webApiTests.stderr.trim().slice(-500),
+    stdoutTail: webApiTests.stdout.trim().slice(-TEST_STDOUT_TAIL_CHARS),
+    stderrTail: webApiTests.stderr.trim().slice(-STDERR_TAIL_CHARS),
   });
   requireEquals(0, webApiTests.exitCode, 'Web API client tests pass for stats data fetching');
 

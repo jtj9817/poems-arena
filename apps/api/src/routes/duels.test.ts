@@ -132,6 +132,13 @@ const DUEL_1 = {
   poemAId: 'poem-human-1',
   poemBId: 'poem-ai-1',
 };
+const MS_PER_SECOND = 1000;
+const MS_PER_MINUTE = 60 * MS_PER_SECOND;
+const THIRTY_SECONDS_MS = 30 * MS_PER_SECOND;
+const TWO_MINUTES_MS = 2 * MS_PER_MINUTE;
+const FOUR_MINUTES_TWELVE_SECONDS_MS = 4 * MS_PER_MINUTE + 12 * MS_PER_SECOND;
+const FIVE_MINUTES_MS = 5 * MS_PER_MINUTE;
+const TWO_AND_HALF_MINUTES_MS = 2 * MS_PER_MINUTE + 30 * MS_PER_SECOND;
 
 type ArchiveDuelRow = {
   id: string;
@@ -267,7 +274,7 @@ describe('GET /duels', () => {
       duelId: 'duel-with-votes',
       selectedPoemId: 'poem-human-votes',
       isHuman: true,
-      readingTimeMs: 30000,
+      readingTimeMs: THIRTY_SECONDS_MS,
     });
 
     const res = await app.request('/?sort=recent');
@@ -730,7 +737,7 @@ describe('GET /duels/:id/stats', () => {
       duelId: 'duel-001',
       selectedPoemId: 'poem-human-1',
       isHuman: true,
-      readingTimeMs: 30000,
+      readingTimeMs: THIRTY_SECONDS_MS,
     });
 
     const res = await app.request('/duel-001/stats');
@@ -810,7 +817,7 @@ describe('GET /duels/:id/stats — analytics fields', () => {
       id: 'global',
       totalVotes: 10,
       humanVotes: 7,
-      decisionTimeSumMs: 300000, // 5 minutes total
+      decisionTimeSumMs: FIVE_MINUTES_MS,
       decisionTimeCount: 10,
     });
 
@@ -826,7 +833,7 @@ describe('GET /duels/:id/stats — analytics fields', () => {
     };
     expect(body.globalStats.totalVotes).toBe(10);
     expect(body.globalStats.humanWinRate).toBe(70);
-    expect(body.globalStats.avgDecisionTimeMs).toBe(30000); // 300000 / 10
+    expect(body.globalStats.avgDecisionTimeMs).toBe(THIRTY_SECONDS_MS);
     expect(body.globalStats.avgDecisionTime).toBe('0m 30s');
   });
 
@@ -836,7 +843,7 @@ describe('GET /duels/:id/stats — analytics fields', () => {
       topicLabel: 'Nature',
       totalVotes: 5,
       humanVotes: 3,
-      decisionTimeSumMs: 150000, // 2.5 minutes total
+      decisionTimeSumMs: TWO_AND_HALF_MINUTES_MS,
       decisionTimeCount: 5,
     });
 
@@ -852,7 +859,7 @@ describe('GET /duels/:id/stats — analytics fields', () => {
     };
     expect(body.topicStats.totalVotes).toBe(5);
     expect(body.topicStats.humanWinRate).toBe(60);
-    expect(body.topicStats.avgDecisionTimeMs).toBe(30000);
+    expect(body.topicStats.avgDecisionTimeMs).toBe(THIRTY_SECONDS_MS);
     expect(body.topicStats.avgDecisionTime).toBe('0m 30s');
   });
 
@@ -861,7 +868,7 @@ describe('GET /duels/:id/stats — analytics fields', () => {
       id: 'global',
       totalVotes: 2,
       humanVotes: 1,
-      decisionTimeSumMs: 504000, // 252s total → avg 252s = 4m 12s
+      decisionTimeSumMs: FOUR_MINUTES_TWELVE_SECONDS_MS * 2,
       decisionTimeCount: 2,
     });
 
@@ -869,7 +876,7 @@ describe('GET /duels/:id/stats — analytics fields', () => {
     const body = (await res.json()) as {
       globalStats: { avgDecisionTimeMs: number; avgDecisionTime: string };
     };
-    expect(body.globalStats.avgDecisionTimeMs).toBe(252000);
+    expect(body.globalStats.avgDecisionTimeMs).toBe(FOUR_MINUTES_TWELVE_SECONDS_MS);
     expect(body.globalStats.avgDecisionTime).toBe('4m 12s');
   });
 
@@ -878,7 +885,7 @@ describe('GET /duels/:id/stats — analytics fields', () => {
       id: 'global',
       totalVotes: 4,
       humanVotes: 2,
-      decisionTimeSumMs: 480000, // avg 120000ms => 2m 00s
+      decisionTimeSumMs: TWO_MINUTES_MS * 4,
       decisionTimeCount: 4,
     });
 
@@ -886,7 +893,7 @@ describe('GET /duels/:id/stats — analytics fields', () => {
     const body = (await res.json()) as {
       globalStats: { avgDecisionTimeMs: number; avgDecisionTime: string };
     };
-    expect(body.globalStats.avgDecisionTimeMs).toBe(120000);
+    expect(body.globalStats.avgDecisionTimeMs).toBe(TWO_MINUTES_MS);
     expect(body.globalStats.avgDecisionTime).toBe('2m 00s');
   });
 
