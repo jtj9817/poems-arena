@@ -7,7 +7,7 @@ import { ApiError, ServiceUnavailableError } from './errors';
 import { formatDbReadinessFailureLog } from './readiness-log';
 import { createDuelsRouter } from './routes/duels';
 import { createTopicsRouter } from './routes/topics';
-import { votesRouter } from './routes/votes';
+import { createVotesRouter } from './routes/votes';
 
 // Read version from root package.json at startup; degrades gracefully to "unknown".
 let appVersion = 'unknown';
@@ -88,7 +88,7 @@ app.use('/api/v1/*', async (c, next) => {
 
 app.route('/api/v1/duels', createDuelsRouter(db));
 app.route('/api/v1/topics', createTopicsRouter(db));
-app.route('/api/v1/votes', votesRouter);
+app.route('/api/v1/votes', createVotesRouter(db));
 
 // Global error handler — catches ApiError subclasses thrown inside route handlers
 // and formats them as stable { error, code } JSON payloads.
