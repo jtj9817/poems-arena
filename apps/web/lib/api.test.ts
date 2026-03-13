@@ -42,10 +42,23 @@ describe('api.getDuelStats', () => {
   it('calls /duels/:id/stats endpoint', async () => {
     const statsPayload = {
       humanWinRate: 70,
-      avgReadingTime: '3m 00s',
+      globalStats: {
+        totalVotes: 10,
+        humanWinRate: 60,
+        avgDecisionTimeMs: 120_000,
+        avgDecisionTime: '2m 00s',
+      },
+      topicStats: {
+        topicMeta: { id: 'topic-nature', label: 'Nature' },
+        totalVotes: 5,
+        humanWinRate: 70,
+        avgDecisionTimeMs: 180_000,
+        avgDecisionTime: '3m 00s',
+      },
       duel: {
         id: 'duel-123',
         topic: 'Nature',
+        topicMeta: { id: 'topic-nature', label: 'Nature' },
         poemA: { id: 'p1', title: 'T', content: 'C', author: 'Emily Dickinson', type: 'HUMAN' },
         poemB: { id: 'p2', title: 'T', content: 'C', author: 'Claude AI', type: 'AI' },
       },
@@ -58,7 +71,7 @@ describe('api.getDuelStats', () => {
     const [url] = fetchMock.mock.calls[0] as [string, ...unknown[]];
     expect(url).toMatch(/\/duels\/duel-123\/stats$/);
     expect(result.humanWinRate).toBe(70);
-    expect(result.avgReadingTime).toBe('3m 00s');
+    expect(result.topicStats.avgDecisionTime).toBe('3m 00s');
   });
 
   it('exposes sourceInfo on duel.poemA and duel.poemB when present', async () => {
@@ -79,10 +92,23 @@ describe('api.getDuelStats', () => {
     };
     const statsPayload = {
       humanWinRate: 55,
-      avgReadingTime: '2m 10s',
+      globalStats: {
+        totalVotes: 0,
+        humanWinRate: 0,
+        avgDecisionTimeMs: null,
+        avgDecisionTime: null,
+      },
+      topicStats: {
+        topicMeta: { id: 'topic-love', label: 'Love' },
+        totalVotes: 0,
+        humanWinRate: 0,
+        avgDecisionTimeMs: null,
+        avgDecisionTime: null,
+      },
       duel: {
         id: 'duel-456',
         topic: 'Love',
+        topicMeta: { id: 'topic-love', label: 'Love' },
         poemA: {
           id: 'p1',
           title: 'My Title',
@@ -116,10 +142,23 @@ describe('api.getDuelStats', () => {
   it('handles missing sourceInfo gracefully (field is optional)', async () => {
     const statsPayload = {
       humanWinRate: 0,
-      avgReadingTime: '1m 00s',
+      globalStats: {
+        totalVotes: 0,
+        humanWinRate: 0,
+        avgDecisionTimeMs: null,
+        avgDecisionTime: null,
+      },
+      topicStats: {
+        topicMeta: { id: 'topic-loss', label: 'Loss' },
+        totalVotes: 0,
+        humanWinRate: 0,
+        avgDecisionTimeMs: null,
+        avgDecisionTime: null,
+      },
       duel: {
         id: 'duel-789',
         topic: 'Loss',
+        topicMeta: { id: 'topic-loss', label: 'Loss' },
         poemA: { id: 'p1', title: 'T', content: 'C', author: 'Author A', type: 'HUMAN' },
         poemB: { id: 'p2', title: 'T', content: 'C', author: 'Author B', type: 'AI' },
       },

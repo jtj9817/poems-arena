@@ -95,15 +95,15 @@ test.describe('Reading Room page', () => {
     // Click Next Duel — with reducedMotion animations collapse to end state immediately
     await page.getByRole('button', { name: /Next Duel/i }).click();
 
-    // Verify real progression: either queue is exhausted (Anthology) or duel content changes.
+    // Verify real progression: either queue is exhausted (Past Bouts) or duel content changes.
     await expect
       .poll(
         async () => {
-          const inAnthology = await page
-            .getByRole('heading', { name: 'The Anthology' })
+          const inPastBouts = await page
+            .getByRole('heading', { name: 'Past Bouts' })
             .isVisible()
             .catch(() => false);
-          if (inAnthology) return 'anthology';
+          if (inPastBouts) return 'past-bouts';
 
           const verdictVisible = await page
             .getByText('The Verdict')
@@ -125,6 +125,6 @@ test.describe('Reading Room page', () => {
         },
         { timeout: 10_000 },
       )
-      .toMatch(/anthology|advanced/);
+      .toMatch(/past-bouts|advanced/);
   });
 });

@@ -139,7 +139,8 @@ type ArchiveDuelRow = {
   topicMeta: { id: string | null; label: string };
   createdAt: string;
   humanWinRate: number;
-  avgReadingTime: string;
+  avgDecisionTimeMs: number | null;
+  avgDecisionTime: string | null;
 };
 
 function makeWordContent(count: number, prefix = 'word'): string {
@@ -237,135 +238,24 @@ describe('GET /duels', () => {
     expect(item.topicMeta.label).toBe('Nature');
   });
 
-  test('computes archive avgReadingTime for the best-case scenario', async () => {
+  test('returns null avgDecisionTime when no topic statistics exist', async () => {
     await insertArchiveDuelFixture(db, {
-      duelId: 'duel-best-case',
-      poemAId: 'poem-human-best',
-      poemBId: 'poem-ai-best',
-      contentA: makeWordContent(1, 'besta'),
-      contentB: makeWordContent(1, 'bestb'),
+      duelId: 'duel-no-stats',
+      poemAId: 'poem-human-no-stats',
+      poemBId: 'poem-ai-no-stats',
+      contentA: makeWordContent(100, 'nostats-a'),
+      contentB: makeWordContent(100, 'nostats-b'),
     });
 
     const res = await app.request('/?sort=recent');
     expect(res.status).toBe(200);
     const body = (await res.json()) as ArchiveDuelRow[];
 
-    expect(getArchiveDuel(body, 'duel-best-case').avgReadingTime).toBe('0m 1s');
+    expect(getArchiveDuel(body, 'duel-no-stats').avgDecisionTimeMs).toBeNull();
+    expect(getArchiveDuel(body, 'duel-no-stats').avgDecisionTime).toBeNull();
   });
 
-  test('computes archive avgReadingTime for the average-case scenario', async () => {
-    await insertArchiveDuelFixture(db, {
-      duelId: 'duel-average-case',
-      poemAId: 'poem-human-average',
-      poemBId: 'poem-ai-average',
-      contentA: makeWordContent(100, 'averagea'),
-      contentB: makeWordContent(100, 'averageb'),
-    });
-
-    const res = await app.request('/?sort=recent');
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as ArchiveDuelRow[];
-
-    expect(getArchiveDuel(body, 'duel-average-case').avgReadingTime).toBe('1m 0s');
-  });
-
-  test('computes archive avgReadingTime for the worst-case scenario', async () => {
-    await insertArchiveDuelFixture(db, {
-      duelId: 'duel-worst-case',
-      poemAId: 'poem-human-worst',
-      poemBId: 'poem-ai-worst',
-      contentA: makeWordContent(1000, 'worsta'),
-      contentB: makeWordContent(1000, 'worstb'),
-    });
-
-    const res = await app.request('/?sort=recent');
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as ArchiveDuelRow[];
-
-    expect(getArchiveDuel(body, 'duel-worst-case').avgReadingTime).toBe('10m 0s');
-  });
-
-  test('computes distinct avgReadingTime values for each archive row in the same response', async () => {
-    await insertArchiveDuelFixture(db, {
-      duelId: 'duel-short',
-      poemAId: 'poem-human-short',
-      poemBId: 'poem-ai-short',
-      contentA: makeWordContent(25, 'shorta'),
-      contentB: makeWordContent(25, 'shortb'),
-    });
-    await insertArchiveDuelFixture(db, {
-      duelId: 'duel-medium',
-      poemAId: 'poem-human-medium',
-      poemBId: 'poem-ai-medium',
-      contentA: makeWordContent(150, 'mediuma'),
-      contentB: makeWordContent(150, 'mediumb'),
-    });
-    await insertArchiveDuelFixture(db, {
-      duelId: 'duel-long',
-      poemAId: 'poem-human-long',
-      poemBId: 'poem-ai-long',
-      contentA: makeWordContent(450, 'longa'),
-      contentB: makeWordContent(450, 'longb'),
-    });
-
-    const res = await app.request('/?sort=recent');
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as ArchiveDuelRow[];
-
-    expect(getArchiveDuel(body, 'duel-short').avgReadingTime).toBe('0m 15s');
-    expect(getArchiveDuel(body, 'duel-medium').avgReadingTime).toBe('1m 30s');
-    expect(getArchiveDuel(body, 'duel-long').avgReadingTime).toBe('4m 30s');
-  });
-
-  test('normalizes repeated whitespace and newlines when computing archive avgReadingTime', async () => {
-    await insertArchiveDuelFixture(db, {
-      duelId: 'duel-whitespace',
-      poemAId: 'poem-human-whitespace',
-      poemBId: 'poem-ai-whitespace',
-      contentA: 'alpha\n\nbeta\ngamma',
-      contentB: 'delta     epsilon',
-    });
-
-    const res = await app.request('/?sort=recent');
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as ArchiveDuelRow[];
-
-    expect(getArchiveDuel(body, 'duel-whitespace').avgReadingTime).toBe('0m 2s');
-  });
-
-  test('rounds archive avgReadingTime consistently around the one-minute threshold', async () => {
-    await insertArchiveDuelFixture(db, {
-      duelId: 'duel-199-words',
-      poemAId: 'poem-human-199',
-      poemBId: 'poem-ai-199',
-      contentA: makeWordContent(99, 'threshold199a'),
-      contentB: makeWordContent(100, 'threshold199b'),
-    });
-    await insertArchiveDuelFixture(db, {
-      duelId: 'duel-200-words',
-      poemAId: 'poem-human-200',
-      poemBId: 'poem-ai-200',
-      contentA: makeWordContent(100, 'threshold200a'),
-      contentB: makeWordContent(100, 'threshold200b'),
-    });
-    await insertArchiveDuelFixture(db, {
-      duelId: 'duel-201-words',
-      poemAId: 'poem-human-201',
-      poemBId: 'poem-ai-201',
-      contentA: makeWordContent(100, 'threshold201a'),
-      contentB: makeWordContent(101, 'threshold201b'),
-    });
-
-    const res = await app.request('/?sort=recent');
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as ArchiveDuelRow[];
-
-    expect(getArchiveDuel(body, 'duel-199-words').avgReadingTime).toBe('1m 0s');
-    expect(getArchiveDuel(body, 'duel-200-words').avgReadingTime).toBe('1m 0s');
-    expect(getArchiveDuel(body, 'duel-201-words').avgReadingTime).toBe('1m 0s');
-  });
-
-  test('computes archive avgReadingTime independently of vote aggregation', async () => {
+  test('vote aggregation does not affect avgDecisionTime when no topic statistics seeded', async () => {
     await insertArchiveDuelFixture(db, {
       duelId: 'duel-with-votes',
       poemAId: 'poem-human-votes',
@@ -386,7 +276,8 @@ describe('GET /duels', () => {
     const duel = getArchiveDuel(body, 'duel-with-votes');
 
     expect(duel.humanWinRate).toBe(100);
-    expect(duel.avgReadingTime).toBe('1m 0s');
+    expect(duel.avgDecisionTimeMs).toBeNull();
+    expect(duel.avgDecisionTime).toBeNull();
   });
 
   // Note: topicId is now mandatory (NOT NULL) on duels. The null topicId fallback
@@ -833,7 +724,7 @@ describe('GET /duels/:id/stats', () => {
     expect(body.duel.poemB.sourceInfo.provenances).toEqual([]);
   });
 
-  test('returns humanWinRate and avgReadingTime', async () => {
+  test('returns humanWinRate and globalStats', async () => {
     // Cast a vote for the human poem
     await db.insert(schema.votes).values({
       duelId: 'duel-001',
@@ -845,10 +736,147 @@ describe('GET /duels/:id/stats', () => {
     const res = await app.request('/duel-001/stats');
     const body = (await res.json()) as {
       humanWinRate: number;
-      avgReadingTime: string;
+      globalStats: {
+        humanWinRate: number;
+        avgDecisionTimeMs: number | null;
+        avgDecisionTime: string | null;
+        totalVotes: number;
+      };
     };
     expect(body.humanWinRate).toBe(100);
-    expect(typeof body.avgReadingTime).toBe('string');
+    expect(body.globalStats).toBeDefined();
+  });
+});
+
+// ── GET /duels/:id/stats — analytics fields ────────────────────────────────────
+
+describe('GET /duels/:id/stats — analytics fields', () => {
+  let db: TestDb;
+  let app: ReturnType<typeof createTestApp>;
+
+  beforeEach(async () => {
+    db = await createTestDb();
+    app = createTestApp(db);
+    await db.insert(schema.topics).values(TOPIC_NATURE);
+    await db.insert(schema.poems).values([POEM_HUMAN, POEM_AI]);
+    await db.insert(schema.duels).values(DUEL_1);
+  });
+
+  afterEach(async () => {
+    // @ts-expect-error – accessing internal client for cleanup
+    await db.$client.close();
+  });
+
+  test('returns globalStats with zeros when no votes exist', async () => {
+    const res = await app.request('/duel-001/stats');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      globalStats: {
+        totalVotes: number;
+        humanWinRate: number;
+        avgDecisionTimeMs: number | null;
+        avgDecisionTime: string | null;
+      };
+    };
+    expect(body.globalStats.totalVotes).toBe(0);
+    expect(body.globalStats.humanWinRate).toBe(0);
+    expect(body.globalStats.avgDecisionTimeMs).toBeNull();
+    expect(body.globalStats.avgDecisionTime).toBeNull();
+  });
+
+  test('returns topicStats with zeros when no votes exist', async () => {
+    const res = await app.request('/duel-001/stats');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      topicStats: {
+        topicMeta: { id: string; label: string };
+        totalVotes: number;
+        humanWinRate: number;
+        avgDecisionTimeMs: number | null;
+        avgDecisionTime: string | null;
+      };
+    };
+    expect(body.topicStats.topicMeta.id).toBe('topic-nature');
+    expect(body.topicStats.topicMeta.label).toBe('Nature');
+    expect(body.topicStats.totalVotes).toBe(0);
+    expect(body.topicStats.humanWinRate).toBe(0);
+    expect(body.topicStats.avgDecisionTimeMs).toBeNull();
+    expect(body.topicStats.avgDecisionTime).toBeNull();
+  });
+
+  test('returns correct globalStats after votes are cast', async () => {
+    // Seed global_statistics directly to simulate previous votes
+    await db.insert(schema.globalStatistics).values({
+      id: 'global',
+      totalVotes: 10,
+      humanVotes: 7,
+      decisionTimeSumMs: 300000, // 5 minutes total
+      decisionTimeCount: 10,
+    });
+
+    const res = await app.request('/duel-001/stats');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      globalStats: {
+        totalVotes: number;
+        humanWinRate: number;
+        avgDecisionTimeMs: number;
+        avgDecisionTime: string;
+      };
+    };
+    expect(body.globalStats.totalVotes).toBe(10);
+    expect(body.globalStats.humanWinRate).toBe(70);
+    expect(body.globalStats.avgDecisionTimeMs).toBe(30000); // 300000 / 10
+    expect(body.globalStats.avgDecisionTime).toBe('0m 30s');
+  });
+
+  test('returns correct topicStats after votes for this topic', async () => {
+    await db.insert(schema.topicStatistics).values({
+      topicId: 'topic-nature',
+      topicLabel: 'Nature',
+      totalVotes: 5,
+      humanVotes: 3,
+      decisionTimeSumMs: 150000, // 2.5 minutes total
+      decisionTimeCount: 5,
+    });
+
+    const res = await app.request('/duel-001/stats');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      topicStats: {
+        totalVotes: number;
+        humanWinRate: number;
+        avgDecisionTimeMs: number;
+        avgDecisionTime: string;
+      };
+    };
+    expect(body.topicStats.totalVotes).toBe(5);
+    expect(body.topicStats.humanWinRate).toBe(60);
+    expect(body.topicStats.avgDecisionTimeMs).toBe(30000);
+    expect(body.topicStats.avgDecisionTime).toBe('0m 30s');
+  });
+
+  test('avgDecisionTime formats correctly for multi-minute values', async () => {
+    await db.insert(schema.globalStatistics).values({
+      id: 'global',
+      totalVotes: 2,
+      humanVotes: 1,
+      decisionTimeSumMs: 504000, // 252s total → avg 252s = 4m 12s
+      decisionTimeCount: 2,
+    });
+
+    const res = await app.request('/duel-001/stats');
+    const body = (await res.json()) as {
+      globalStats: { avgDecisionTimeMs: number; avgDecisionTime: string };
+    };
+    expect(body.globalStats.avgDecisionTimeMs).toBe(252000);
+    expect(body.globalStats.avgDecisionTime).toBe('4m 12s');
+  });
+
+  test('does not include avgReadingTime in the response', async () => {
+    const res = await app.request('/duel-001/stats');
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body).not.toHaveProperty('avgReadingTime');
   });
 });
 

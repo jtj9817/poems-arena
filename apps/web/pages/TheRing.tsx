@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AuthorType, ViewState } from '@sanctuary/shared';
+import type { AnonymousDuel, DuelStatsResponse } from '@sanctuary/shared';
 import { Button } from '../components/Button';
 import { VerdictPopup } from '../components/VerdictPopup';
 import { SwipeContainer, type SwipePhase } from '../components/SwipeContainer';
-import { api, type AnonymousDuel, type DuelStats } from '../lib/api';
+import { api } from '../lib/api';
 import { getSessionSeed } from '../lib/session';
 import {
   createQueue,
@@ -27,7 +28,7 @@ interface TheRingProps {
 
 export const TheRing: React.FC<TheRingProps> = ({ duelId, onNavigate }) => {
   const [duel, setDuel] = useState<AnonymousDuel | null>(null);
-  const [stats, setStats] = useState<DuelStats | null>(null);
+  const [stats, setStats] = useState<DuelStatsResponse | null>(null);
   const [selectedPoemId, setSelectedPoemId] = useState<string | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
@@ -42,6 +43,7 @@ export const TheRing: React.FC<TheRingProps> = ({ duelId, onNavigate }) => {
   // Guard against concurrent page fetches
   const isFetchingMoreRef = useRef(false);
   const sessionSeedRef = useRef<number>(getSessionSeed());
+  const readingStartedAtRef = useRef<number>(Date.now());
 
   /** Pre-fetch the next PREFETCH_COUNT duels into the cache. Non-fatal on failure. */
   const prefetchUpcoming = (queue: DuelQueueState) => {
@@ -119,6 +121,7 @@ export const TheRing: React.FC<TheRingProps> = ({ duelId, onNavigate }) => {
         const d = await api.getDuel(id);
         if (!isCurrent) return;
         setDuel(d);
+        readingStartedAtRef.current = Date.now();
         setTimeout(() => setFadeIn(true), 100);
       } catch {
         if (!isCurrent) return;
@@ -136,7 +139,8 @@ export const TheRing: React.FC<TheRingProps> = ({ duelId, onNavigate }) => {
     setSelectedPoemId(poemId);
     setHasVoted(true);
     try {
-      await api.vote(duel.id, poemId);
+      const readingTimeMs = Math.max(1, Math.floor(Date.now() - readingStartedAtRef.current));
+      await api.vote({ duelId: duel.id, selectedPoemId: poemId, readingTimeMs });
       const duelStats = await api.getDuelStats(duel.id);
       setStats(duelStats);
     } catch {
@@ -174,6 +178,7 @@ export const TheRing: React.FC<TheRingProps> = ({ duelId, onNavigate }) => {
 
     // Reset voting state for the new duel
     setDuel(nextDuel);
+    readingStartedAtRef.current = Date.now();
     setStats(null);
     setSelectedPoemId(null);
     setHasVoted(false);
@@ -292,7 +297,7 @@ export const TheRing: React.FC<TheRingProps> = ({ duelId, onNavigate }) => {
 interface PoemColumnProps {
   columnIdPrefix: string;
   poem: { id: string; title: string; content: string };
-  revealedPoem: { author: string; year?: string; type: AuthorType; title: string } | null;
+  revealedPoem: { author: string; year?: string | null; type: AuthorType; title: string } | null;
   label: string;
   revealed: boolean;
   isSelected: boolean;

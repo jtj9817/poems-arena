@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ViewState, type TopicMeta } from '@sanctuary/shared';
-import { api, type DuelListItem } from '../lib/api';
+import { ViewState, type DuelListItem, type TopicMeta } from '@sanctuary/shared';
+import { api } from '../lib/api';
 import { TopicBar } from '../components/TopicBar';
 import { BottomSheetFilter } from '../components/BottomSheetFilter';
 

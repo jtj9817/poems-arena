@@ -1,13 +1,13 @@
 import React from 'react';
 import { AuthorType } from '@sanctuary/shared';
+import type { DuelStatsResponse } from '@sanctuary/shared';
 import { Button } from './Button';
 import { SourceInfo } from './SourceInfo';
-import type { DuelStats } from '../lib/api';
 
 interface VerdictPopupProps {
   isOpen: boolean;
   selectedPoemId: string | null;
-  stats: DuelStats | null;
+  stats: DuelStatsResponse | null;
   onContinue: () => void;
   onReviewPoems: () => void;
 }
@@ -68,14 +68,14 @@ export const VerdictPopup: React.FC<VerdictPopupProps> = ({
               idPrefix={`${popupIdPrefix}-poem-a-source`}
               author={stats.duel.poemA.author}
               type={stats.duel.poemA.type}
-              year={stats.duel.poemA.year}
+              year={stats.duel.poemA.year ?? undefined}
               sourceInfo={stats.duel.poemA.sourceInfo}
             />
             <SourceInfo
               idPrefix={`${popupIdPrefix}-poem-b-source`}
               author={stats.duel.poemB.author}
               type={stats.duel.poemB.type}
-              year={stats.duel.poemB.year}
+              year={stats.duel.poemB.year ?? undefined}
               sourceInfo={stats.duel.poemB.sourceInfo}
             />
           </div>
@@ -102,10 +102,10 @@ export const VerdictPopup: React.FC<VerdictPopupProps> = ({
                 id={`${popupIdPrefix}-avg-read-time-value`}
                 className="block text-xl font-serif font-bold text-ink"
               >
-                {stats.avgReadingTime}
+                {stats.topicStats.avgDecisionTime ?? '—'}
               </span>
               <span id={`${popupIdPrefix}-avg-read-time-label`} className="text-pencil">
-                Avg. Read Time
+                Avg. Decision Time
               </span>
             </div>
           </div>

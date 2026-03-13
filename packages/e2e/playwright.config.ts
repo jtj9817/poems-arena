@@ -24,6 +24,8 @@ try {
 
 const API_PORT = Number(process.env.API_PORT ?? 4000);
 const WEB_PORT = Number(process.env.WEB_PORT ?? 3000);
+const E2E_DB_PATH = `/tmp/sanctuary-e2e-${API_PORT}.sqlite`;
+const E2E_DB_URL = `file:${E2E_DB_PATH}`;
 
 export default defineConfig({
   testDir: './tests',
@@ -66,18 +68,30 @@ export default defineConfig({
 
   webServer: [
     {
-      command: `pnpm --filter @sanctuary/api dev`,
+      command: `rm -f ${E2E_DB_PATH} ${E2E_DB_PATH}-wal ${E2E_DB_PATH}-shm && pnpm --filter @sanctuary/api db:migrate && pnpm --filter @sanctuary/api db:seed && pnpm --filter @sanctuary/api start`,
       port: API_PORT,
       reuseExistingServer: !process.env.CI,
       cwd: '../..',
       timeout: 15_000,
+      env: {
+        ...process.env,
+        NODE_ENV: 'test',
+        LIBSQL_URL: E2E_DB_URL,
+        LIBSQL_TEST_URL: E2E_DB_URL,
+        LIBSQL_AUTH_TOKEN: 'local',
+        LIBSQL_TEST_AUTH_TOKEN: 'local',
+      },
     },
     {
-      command: `pnpm --filter @sanctuary/web dev`,
+      command: `pnpm --filter @sanctuary/web dev -- --port ${WEB_PORT}`,
       port: WEB_PORT,
       reuseExistingServer: !process.env.CI,
       cwd: '../..',
       timeout: 15_000,
+      env: {
+        ...process.env,
+        VITE_API_URL: `http://localhost:${API_PORT}/api/v1`,
+      },
     },
   ],
 });

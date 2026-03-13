@@ -1,7 +1,16 @@
 import { Hono } from 'hono';
 import { asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { Db } from '@sanctuary/db';
-import { duels, featuredDuels, poems, scrapeSources, topics, votes } from '../db/schema';
+import {
+  duels,
+  featuredDuels,
+  globalStatistics,
+  poems,
+  scrapeSources,
+  topicStatistics,
+  topics,
+  votes,
+} from '../db/schema';
 import {
   ApiError,
   DuelNotFoundError,
@@ -53,9 +62,12 @@ export function createDuelsRouter(db: Db) {
         createdAt: duels.createdAt,
         poemAId: duels.poemAId,
         poemBId: duels.poemBId,
+        topicDecisionTimeSumMs: topicStatistics.decisionTimeSumMs,
+        topicDecisionTimeCount: topicStatistics.decisionTimeCount,
       })
       .from(duels)
       .leftJoin(topics, eq(duels.topicId, topics.id))
+      .leftJoin(topicStatistics, eq(duels.topicId, topicStatistics.topicId))
       .where(topicId !== undefined ? eq(duels.topicId, topicId) : undefined);
 
     const rows = await (
@@ -70,11 +82,10 @@ export function createDuelsRouter(db: Db) {
       .offset(offset);
 
     const duelIds = rows.map((r) => r.id);
-    const poemIds = rows.flatMap((r) => [r.poemAId, r.poemBId]);
 
-    const [voteStats, poemContents] = await Promise.all([
+    const voteStats =
       duelIds.length > 0
-        ? db
+        ? await db
             .select({
               duelId: votes.duelId,
               totalVotes: sql<number>`count(${votes.id})`,
@@ -83,14 +94,7 @@ export function createDuelsRouter(db: Db) {
             .from(votes)
             .where(inArray(votes.duelId, duelIds))
             .groupBy(votes.duelId)
-        : Promise.resolve([]),
-      poemIds.length > 0
-        ? db
-            .select({ id: poems.id, content: poems.content })
-            .from(poems)
-            .where(inArray(poems.id, poemIds))
-        : Promise.resolve([]),
-    ]);
+        : [];
 
     const voteStatsByDuel = new Map<string, { totalVotes: number; humanVotes: number }>();
     for (const stat of voteStats) {
@@ -100,15 +104,9 @@ export function createDuelsRouter(db: Db) {
       });
     }
 
-    const contentByPoem = new Map<string, string>();
-    for (const poem of poemContents) {
-      contentByPoem.set(poem.id, poem.content);
-    }
-
     const result = rows.map((r) => {
       const stats = voteStatsByDuel.get(r.id) ?? { totalVotes: 0, humanVotes: 0 };
-      const contentA = contentByPoem.get(r.poemAId) ?? '';
-      const contentB = contentByPoem.get(r.poemBId) ?? '';
+      const avg = computeAvgDecision(r.topicDecisionTimeSumMs, r.topicDecisionTimeCount);
       return {
         id: r.id,
         topic: r.topic,
@@ -116,7 +114,8 @@ export function createDuelsRouter(db: Db) {
         createdAt: r.createdAt,
         humanWinRate:
           stats.totalVotes > 0 ? Math.round((stats.humanVotes / stats.totalVotes) * 100) : 0,
-        avgReadingTime: computeAvgReadingTime(contentA, contentB),
+        avgDecisionTimeMs: avg.avgDecisionTimeMs,
+        avgDecisionTime: avg.avgDecisionTime,
       };
     });
 
@@ -219,20 +218,62 @@ export function createDuelsRouter(db: Db) {
       sourcesByPoem.set(row.poemId, existing);
     }
 
-    const [stats] = await db
-      .select({
-        totalVotes: sql<number>`count(${votes.id})`,
-        humanVotes: sql<number>`sum(case when ${votes.isHuman} = 1 then 1 else 0 end)`,
-      })
-      .from(votes)
-      .where(eq(votes.duelId, id));
+    const [[stats], globalStatsRow, topicStatsRow] = await Promise.all([
+      db
+        .select({
+          totalVotes: sql<number>`count(${votes.id})`,
+          humanVotes: sql<number>`sum(case when ${votes.isHuman} = 1 then 1 else 0 end)`,
+        })
+        .from(votes)
+        .where(eq(votes.duelId, id)),
+      db
+        .select()
+        .from(globalStatistics)
+        .where(eq(globalStatistics.id, 'global'))
+        .limit(1)
+        .then((r) => r[0]),
+      db
+        .select()
+        .from(topicStatistics)
+        .where(eq(topicStatistics.topicId, duelRow.topicId))
+        .limit(1)
+        .then((r) => r[0]),
+    ]);
 
     const humanWinRate =
       stats.totalVotes > 0 ? Math.round((stats.humanVotes / stats.totalVotes) * 100) : 0;
 
+    const globalTotalVotes = globalStatsRow?.totalVotes ?? 0;
+    const globalHumanVotes = globalStatsRow?.humanVotes ?? 0;
+    const globalAvg = computeAvgDecision(
+      globalStatsRow?.decisionTimeSumMs,
+      globalStatsRow?.decisionTimeCount,
+    );
+
+    const topicTotalVotes = topicStatsRow?.totalVotes ?? 0;
+    const topicHumanVotes = topicStatsRow?.humanVotes ?? 0;
+    const topicAvg = computeAvgDecision(
+      topicStatsRow?.decisionTimeSumMs,
+      topicStatsRow?.decisionTimeCount,
+    );
+
     return c.json({
       humanWinRate,
-      avgReadingTime: computeAvgReadingTime(poemA.content, poemB.content),
+      globalStats: {
+        totalVotes: globalTotalVotes,
+        humanWinRate:
+          globalTotalVotes > 0 ? Math.round((globalHumanVotes / globalTotalVotes) * 100) : 0,
+        avgDecisionTimeMs: globalAvg.avgDecisionTimeMs,
+        avgDecisionTime: globalAvg.avgDecisionTime,
+      },
+      topicStats: {
+        topicMeta: buildTopicMeta(duelRow.topicId, duelRow.topicLabel, duelRow.topic),
+        totalVotes: topicTotalVotes,
+        humanWinRate:
+          topicTotalVotes > 0 ? Math.round((topicHumanVotes / topicTotalVotes) * 100) : 0,
+        avgDecisionTimeMs: topicAvg.avgDecisionTimeMs,
+        avgDecisionTime: topicAvg.avgDecisionTime,
+      },
       duel: {
         id: duelRow.id,
         topic: duelRow.topic,
@@ -353,10 +394,16 @@ function buildSourceInfo(
   };
 }
 
-function computeAvgReadingTime(contentA: string, contentB: string): string {
-  const words = (contentA + ' ' + contentB).split(/\s+/).length;
-  const seconds = Math.round((words / 200) * 60); // ~200 wpm reading speed
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}m ${s}s`;
+function computeAvgDecision(
+  sumMs: number | null | undefined,
+  count: number | null | undefined,
+): { avgDecisionTimeMs: number | null; avgDecisionTime: string | null } {
+  if (sumMs == null || count == null || count === 0) {
+    return { avgDecisionTimeMs: null, avgDecisionTime: null };
+  }
+  const avgMs = Math.round(sumMs / count);
+  const totalSeconds = Math.round(avgMs / 1000);
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return { avgDecisionTimeMs: avgMs, avgDecisionTime: `${m}m ${s}s` };
 }

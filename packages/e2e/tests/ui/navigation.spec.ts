@@ -14,33 +14,24 @@ test.describe('Cross-view navigation', () => {
     await expect(page.getByText('Subject')).toBeVisible({ timeout: 10_000 });
   });
 
-  test('Navigation between Foyer, Anthology, and Colophon', async ({ page }) => {
+  test('Navigation between Foyer, Past Bouts, and About', async ({ page }) => {
     await page.goto('/');
 
     // Start at Foyer
     await expect(page.getByText('Daily Challenge')).toBeVisible();
 
-    // Navigate to Anthology
-    const anthologyLink = page
-      .getByRole('link', { name: /Anthology/i })
-      .or(page.getByText('Anthology').first());
-    await anthologyLink.click();
-    await expect(page.getByRole('heading', { name: 'The Anthology' })).toBeVisible({
+    // Navigate to Past Bouts
+    await page.getByRole('button', { name: /Past Bouts/i }).click();
+    await expect(page.getByRole('heading', { name: 'Past Bouts' })).toBeVisible({
       timeout: 10_000,
     });
 
-    // Navigate to Colophon
-    const colophonLink = page
-      .getByRole('link', { name: /Colophon/i })
-      .or(page.getByText('Colophon').first());
-    await colophonLink.click();
-    await page.waitForTimeout(500);
+    // Navigate to About
+    await page.getByRole('button', { name: /About/i }).click();
+    await expect(page.getByRole('heading', { name: 'About' })).toBeVisible({ timeout: 10_000 });
 
     // Navigate back to Foyer
-    const foyerLink = page
-      .getByRole('link', { name: /Foyer|Home|Sanctuary/i })
-      .or(page.getByText("Classicist's Sanctuary").first());
-    await foyerLink.click();
+    await page.getByRole('button', { name: /Poems Arena/i }).click();
     await expect(page.getByText('Daily Challenge')).toBeVisible({ timeout: 10_000 });
   });
 });

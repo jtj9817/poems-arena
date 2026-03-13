@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ViewState } from '@sanctuary/shared';
+import { ViewState, type DuelListItem } from '@sanctuary/shared';
 import { Button } from '../components/Button';
-import { ApiRequestError, api, type DuelListItem } from '../lib/api';
+import { ApiRequestError, api } from '../lib/api';
 import { getSessionSeed } from '../lib/session';
 import metadataJson from '../metadata.json';
 

@@ -8,9 +8,11 @@ export interface TopicShape {
 export interface DuelListItemShape {
   id: string;
   topic: string;
+  topicMeta: TopicShape;
   createdAt: string;
   humanWinRate: number;
-  avgReadingTime: string;
+  avgDecisionTimeMs: number | null;
+  avgDecisionTime: string | null;
 }
 
 export interface AnonymousDuelShape {
@@ -22,10 +24,23 @@ export interface AnonymousDuelShape {
 
 export interface DuelStatsShape {
   humanWinRate: number;
-  avgReadingTime: string;
+  globalStats: {
+    totalVotes: number;
+    humanWinRate: number;
+    avgDecisionTimeMs: number | null;
+    avgDecisionTime: string | null;
+  };
+  topicStats: {
+    topicMeta: TopicShape;
+    totalVotes: number;
+    humanWinRate: number;
+    avgDecisionTimeMs: number | null;
+    avgDecisionTime: string | null;
+  };
   duel: {
     id: string;
     topic: string;
+    topicMeta: TopicShape;
     poemA: { id: string; title: string; content: string; author: string; type: string };
     poemB: { id: string; title: string; content: string; author: string; type: string };
   };
@@ -52,9 +67,11 @@ export function assertDuelListItem(obj: unknown): asserts obj is DuelListItemSha
   const item = obj as Record<string, unknown>;
   expect(typeof item.id).toBe('string');
   expect(typeof item.topic).toBe('string');
+  assertTopic(item.topicMeta);
   expect(typeof item.createdAt).toBe('string');
   expect(typeof item.humanWinRate).toBe('number');
-  expect(typeof item.avgReadingTime).toBe('string');
+  expect(item.avgDecisionTimeMs === null || typeof item.avgDecisionTimeMs === 'number').toBe(true);
+  expect(item.avgDecisionTime === null || typeof item.avgDecisionTime === 'string').toBe(true);
 }
 
 /**
@@ -87,11 +104,32 @@ export function assertAnonymousDuel(obj: unknown): asserts obj is AnonymousDuelS
 export function assertDuelStats(obj: unknown): asserts obj is DuelStatsShape {
   const stats = obj as Record<string, unknown>;
   expect(typeof stats.humanWinRate).toBe('number');
-  expect(typeof stats.avgReadingTime).toBe('string');
+
+  const globalStats = stats.globalStats as Record<string, unknown>;
+  expect(typeof globalStats.totalVotes).toBe('number');
+  expect(typeof globalStats.humanWinRate).toBe('number');
+  expect(
+    globalStats.avgDecisionTimeMs === null || typeof globalStats.avgDecisionTimeMs === 'number',
+  ).toBe(true);
+  expect(
+    globalStats.avgDecisionTime === null || typeof globalStats.avgDecisionTime === 'string',
+  ).toBe(true);
+
+  const topicStats = stats.topicStats as Record<string, unknown>;
+  assertTopic(topicStats.topicMeta);
+  expect(typeof topicStats.totalVotes).toBe('number');
+  expect(typeof topicStats.humanWinRate).toBe('number');
+  expect(
+    topicStats.avgDecisionTimeMs === null || typeof topicStats.avgDecisionTimeMs === 'number',
+  ).toBe(true);
+  expect(
+    topicStats.avgDecisionTime === null || typeof topicStats.avgDecisionTime === 'string',
+  ).toBe(true);
 
   const duel = stats.duel as Record<string, unknown>;
   expect(typeof duel.id).toBe('string');
   expect(typeof duel.topic).toBe('string');
+  assertTopic(duel.topicMeta);
 
   const poemA = duel.poemA as Record<string, unknown>;
   expect(typeof poemA.author).toBe('string');

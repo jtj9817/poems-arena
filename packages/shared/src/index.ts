@@ -69,14 +69,67 @@ export interface Topic {
   label: string;
 }
 
+export interface DuelListItem {
+  id: string;
+  topic: string;
+  topicMeta: TopicMeta;
+  createdAt: string;
+  humanWinRate: number; // Percentage 0-100
+  avgDecisionTimeMs: number | null;
+  avgDecisionTime: string | null; // e.g., "4m 12s"
+}
+
+export interface AnonymousPoem {
+  id: string;
+  title: string;
+  content: string;
+}
+
+export interface AnonymousDuel {
+  id: string;
+  topic: string;
+  poemA: AnonymousPoem;
+  poemB: AnonymousPoem;
+}
+
+export interface RevealedPoem {
+  id: string;
+  title: string;
+  content: string;
+  author: string;
+  type: AuthorType;
+  year?: string | null;
+  sourceInfo?: SourceInfo;
+}
+
 export interface Duel {
   id: string;
   topic: string;
-  topicId?: string;
-  poemA: Poem;
-  poemB: Poem;
+  topicMeta: TopicMeta;
+  poemA: RevealedPoem;
+  poemB: RevealedPoem;
+}
+
+export interface GlobalStats {
+  totalVotes: number;
   humanWinRate: number; // Percentage 0-100
-  avgReadingTime: string; // e.g., "4m 12s"
+  avgDecisionTimeMs: number | null;
+  avgDecisionTime: string | null;
+}
+
+export interface TopicStats {
+  topicMeta: TopicMeta;
+  totalVotes: number;
+  humanWinRate: number; // Percentage 0-100
+  avgDecisionTimeMs: number | null;
+  avgDecisionTime: string | null;
+}
+
+export interface DuelStatsResponse {
+  humanWinRate: number; // Percentage 0-100
+  globalStats: GlobalStats;
+  topicStats: TopicStats;
+  duel: Duel;
 }
 
 export enum ViewState {
@@ -89,5 +142,16 @@ export enum ViewState {
 export interface DuelResult {
   duelId: string;
   selectedPoemId: string;
+  isHuman: boolean;
+}
+
+export interface VoteRequest {
+  duelId: string;
+  selectedPoemId: string;
+  readingTimeMs: number;
+}
+
+export interface VoteResponse {
+  success: boolean;
   isHuman: boolean;
 }

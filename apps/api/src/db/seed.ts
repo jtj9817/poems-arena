@@ -3,7 +3,7 @@
  * Run with: bun run src/db/seed.ts
  */
 import { db } from './client';
-import { poems, duels } from './schema';
+import { poems, duels, topics } from './schema';
 
 const POEMS = [
   {
@@ -71,16 +71,23 @@ This sound hath told the lapse of time.`,
   },
 ];
 
+const TOPICS = [
+  { id: 'topic-melancholy', label: 'Melancholy' },
+  { id: 'topic-the-ocean', label: 'The Ocean' },
+];
+
 const DUELS = [
   {
     id: 'duel-1',
     topic: 'Melancholy',
+    topicId: 'topic-melancholy',
     poemAId: 'p1',
     poemBId: 'p2',
   },
   {
     id: 'duel-2',
     topic: 'The Ocean',
+    topicId: 'topic-the-ocean',
     poemAId: 'p3',
     poemBId: 'p4',
   },
@@ -90,6 +97,11 @@ async function seed() {
   console.log('Seeding poems…');
   for (const poem of POEMS) {
     await db.insert(poems).values(poem).onConflictDoNothing();
+  }
+
+  console.log('Seeding topics…');
+  for (const topic of TOPICS) {
+    await db.insert(topics).values(topic).onConflictDoNothing();
   }
 
   console.log('Seeding duels…');

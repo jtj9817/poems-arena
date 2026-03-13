@@ -7,9 +7,10 @@
     "dev": "bun --env-file=../../.env run --watch src/index.ts",
     "start": "bun --env-file=../../.env run src/index.ts",
     "build": "echo 'No build step — Bun runs TypeScript natively'",
+    "db:backfill": "bun --env-file=../../.env run src/db/backfill.ts",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push",
+    "db:migrate": "pnpm db:backfill && drizzle-kit migrate",
+    "db:push": "pnpm db:backfill && drizzle-kit push",
     "db:seed": "bun --env-file=../../.env run src/db/seed.ts",
     "test": "bun --env-file=../../.env test"
   },

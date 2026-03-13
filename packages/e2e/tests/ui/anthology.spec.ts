@@ -1,16 +1,13 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Anthology page', () => {
-  test('displays The Anthology heading', async ({ page }) => {
+test.describe('Past Bouts page', () => {
+  test('displays Past Bouts heading', async ({ page }) => {
     await page.goto('/');
 
-    // Navigate to Anthology via the nav
-    const anthologyLink = page
-      .getByRole('link', { name: /Anthology/i })
-      .or(page.getByText('Anthology').first());
-    await anthologyLink.click();
+    // Navigate to Past Bouts via the nav
+    await page.getByRole('button', { name: /Past Bouts/i }).click();
 
-    await expect(page.getByRole('heading', { name: 'The Anthology' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Past Bouts' })).toBeVisible({
       timeout: 10_000,
     });
   });
@@ -18,12 +15,9 @@ test.describe('Anthology page', () => {
   test('shows duel cards with win rates when duels exist', async ({ page }) => {
     await page.goto('/');
 
-    const anthologyLink = page
-      .getByRole('link', { name: /Anthology/i })
-      .or(page.getByText('Anthology').first());
-    await anthologyLink.click();
+    await page.getByRole('button', { name: /Past Bouts/i }).click();
 
-    await expect(page.getByRole('heading', { name: 'The Anthology' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Past Bouts' })).toBeVisible({
       timeout: 10_000,
     });
 
@@ -37,17 +31,16 @@ test.describe('Anthology page', () => {
   test('topic filter bar shows All chip on desktop', async ({ page }) => {
     await page.goto('/');
 
-    const anthologyLink = page
-      .getByRole('link', { name: /Anthology/i })
-      .or(page.getByText('Anthology').first());
-    await anthologyLink.click();
+    await page.getByRole('button', { name: /Past Bouts/i }).click();
 
-    await expect(page.getByRole('heading', { name: 'The Anthology' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Past Bouts' })).toBeVisible({
       timeout: 10_000,
     });
 
     // The "All" chip is always rendered in the TopicBar (desktop, md+)
-    await expect(page.getByRole('button', { name: 'All' }).first()).toBeVisible({
+    await expect(
+      page.locator('#past-bouts-topicbar-desktop').getByRole('button', { name: 'All' }).first(),
+    ).toBeVisible({
       timeout: 5_000,
     });
   });
@@ -55,17 +48,15 @@ test.describe('Anthology page', () => {
   test('selecting a topic chip updates the active filter label', async ({ page }) => {
     await page.goto('/');
 
-    const anthologyLink = page
-      .getByRole('link', { name: /Anthology/i })
-      .or(page.getByText('Anthology').first());
-    await anthologyLink.click();
+    await page.getByRole('button', { name: /Past Bouts/i }).click();
 
-    await expect(page.getByRole('heading', { name: 'The Anthology' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Past Bouts' })).toBeVisible({
       timeout: 10_000,
     });
 
     // Scope to the desktop TopicBar chip row to avoid matching header nav buttons.
-    const allChip = page.getByRole('button', { name: 'All' }).first();
+    const topicBar = page.locator('#past-bouts-topicbar-desktop');
+    const allChip = topicBar.getByRole('button', { name: 'All' }).first();
     await expect(allChip).toBeVisible({ timeout: 5_000 });
     const topicChipRow = allChip.locator('xpath=..');
     const topicButtons = topicChipRow.getByRole('button').filter({ hasNotText: /^All$/ });
@@ -90,21 +81,21 @@ test.describe('Anthology page', () => {
   test('clicking All resets the topic filter', async ({ page }) => {
     await page.goto('/');
 
-    const anthologyLink = page
-      .getByRole('link', { name: /Anthology/i })
-      .or(page.getByText('Anthology').first());
-    await anthologyLink.click();
+    await page.getByRole('button', { name: /Past Bouts/i }).click();
 
-    await expect(page.getByRole('heading', { name: 'The Anthology' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Past Bouts' })).toBeVisible({
       timeout: 10_000,
     });
 
     // Click All chip and confirm no error state
-    const allButton = page.getByRole('button', { name: 'All' }).first();
+    const allButton = page
+      .locator('#past-bouts-topicbar-desktop')
+      .getByRole('button', { name: 'All' })
+      .first();
     await expect(allButton).toBeVisible({ timeout: 5_000 });
     await allButton.click();
 
     // Page should remain showing the heading (no crash)
-    await expect(page.getByRole('heading', { name: 'The Anthology' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Past Bouts' })).toBeVisible();
   });
 });

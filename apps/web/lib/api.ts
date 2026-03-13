@@ -1,4 +1,11 @@
-import type { Duel, TopicMeta } from '@sanctuary/shared';
+import type {
+  AnonymousDuel,
+  DuelListItem,
+  DuelStatsResponse,
+  TopicMeta,
+  VoteRequest,
+  VoteResponse,
+} from '@sanctuary/shared';
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? '/api/v1';
 
@@ -51,33 +58,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export interface DuelListItem {
-  id: string;
-  topic: string;
-  topicMeta: TopicMeta;
-  humanWinRate: number;
-  avgReadingTime: string;
-  createdAt: string;
-}
-
-export interface AnonymousDuel {
-  id: string;
-  topic: string;
-  poemA: { id: string; title: string; content: string };
-  poemB: { id: string; title: string; content: string };
-}
-
-export interface DuelStats {
-  humanWinRate: number;
-  avgReadingTime: string;
-  duel: Duel;
-}
-
-export interface VoteResponse {
-  success: boolean;
-  isHuman: boolean;
-}
-
 export const api = {
   getTopics(): Promise<TopicMeta[]> {
     return request('/topics');
@@ -95,14 +75,14 @@ export const api = {
     return request(`/duels/${id}`);
   },
 
-  getDuelStats(id: string): Promise<DuelStats> {
+  getDuelStats(id: string): Promise<DuelStatsResponse> {
     return request(`/duels/${id}/stats`);
   },
 
-  vote(duelId: string, selectedPoemId: string): Promise<VoteResponse> {
+  vote(payload: VoteRequest): Promise<VoteResponse> {
     return request('/votes', {
       method: 'POST',
-      body: JSON.stringify({ duelId, selectedPoemId }),
+      body: JSON.stringify(payload),
     });
   },
 };

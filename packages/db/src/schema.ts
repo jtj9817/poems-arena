@@ -87,7 +87,7 @@ export const votes = sqliteTable(
       .notNull()
       .references(() => poems.id),
     isHuman: integer('is_human', { mode: 'boolean' }).notNull(),
-    readingTimeMs: integer('reading_time_ms').notNull(),
+    readingTimeMs: integer('reading_time_ms').notNull().default(0),
     votedAt: text('voted_at')
       .notNull()
       .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),

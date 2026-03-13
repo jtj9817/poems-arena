@@ -63,7 +63,7 @@
 - [~] Task: Conductor - User Manual Verification 'Phase 2: Core Voting & Aggregation Logic' (Protocol in workflow.md)
 
 ## Phase 3: Verdict API & Data Fetching
-- [ ] Task: Extend existing stats endpoint (Verdict payload)
+- [~] Task: Extend existing stats endpoint (Verdict payload)
   - [ ] Update `GET /api/v1/duels/:id/stats` to include:
     - [ ] `globalStats` (recognition rate + avg decision time)
     - [ ] `topicStats` for the duel's topic (recognition rate + avg decision time)
