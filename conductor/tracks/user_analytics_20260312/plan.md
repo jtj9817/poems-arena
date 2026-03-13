@@ -62,7 +62,9 @@
     - [x] `readingTimeMs` within range updates `decisionTimeSumMs` + `decisionTimeCount`
     - [x] outlier `readingTimeMs` is clamped to 10 minutes (affects aggregates, but bounded)
     - [x] invalid `readingTimeMs` (<= 0) rejects request and does not write vote or aggregates
-- [~] Task: Conductor - User Manual Verification 'Phase 2: Core Voting & Aggregation Logic' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Core Voting & Aggregation Logic' (Protocol in workflow.md) (d605735)
+  - [x] Automation script: `scripts/verify-phase2-user-analytics.ts`.
+  - [x] Result: 41/41 checks passed (`phase2_user_analytics_2026-03-13T04_59_53_285Z`).
 
 ## Phase 3: Verdict API & Data Fetching
 - [~] Task: Extend existing stats endpoint (Verdict payload)
