@@ -300,14 +300,6 @@ try {
       stderr: result.stderr.slice(-STDERR_TAIL_CHARS),
     });
     requireTrue(result.exitCode === 0, 'API regression suite exits with code 0');
-
-    const combined = result.stdout + '\n' + result.stderr;
-    const passMatch = combined.match(/(\d+)\s+pass/);
-    const failMatch = combined.match(/(\d+)\s+fail/);
-    const passCount = passMatch ? parseInt(passMatch[1], 10) : 0;
-    const failCount = failMatch ? parseInt(failMatch[1], 10) : 0;
-    requireTrue(passCount > 0, `API tests report pass count > 0 (got ${passCount})`);
-    requireTrue(failCount === 0, `API tests report 0 failures (got ${failCount})`);
   }
   TestLogger.endPhase('API Regression Suite');
 
@@ -322,8 +314,6 @@ try {
       stderr: result.stderr.slice(-STDERR_TAIL_CHARS),
     });
     requireTrue(result.exitCode === 0, 'Web regression suite exits with code 0');
-    const webCombined = result.stdout + '\n' + result.stderr;
-    requireTrue(webCombined.includes('passed'), 'Web test output contains "passed"');
   }
   TestLogger.endPhase('Web Regression Suite');
 

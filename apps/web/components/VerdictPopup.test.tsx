@@ -64,7 +64,10 @@ describe('VerdictPopup', () => {
     expect(html).toContain('65%');
 
     // Check for delta
-    expect(html).toContain('↑ 5% vs global');
+    const upDelta = Math.abs(
+      mockStats.topicStats.humanWinRate - mockStats.globalStats.humanWinRate,
+    );
+    expect(html).toContain(`↑ ${upDelta}% vs global`);
 
     // Check for Avg. Decision Time section
     expect(html).toContain('Avg. Decision Time');
@@ -94,7 +97,8 @@ describe('VerdictPopup', () => {
     expect(html).toContain('Recognition Rate');
     // Decision time should fall back to "—"
     expect(html).toContain('Avg. Decision Time');
-    expect(html).toContain('—');
+    const dashCount = (html.match(/—/g) ?? []).length;
+    expect(dashCount).toBe(2);
     expect(html).not.toContain('2m 00s');
     expect(html).not.toContain('1m 00s');
   });
@@ -115,7 +119,10 @@ describe('VerdictPopup', () => {
       />,
     );
 
-    expect(html).toContain('↓ 15% vs global');
+    const downDelta = Math.abs(
+      statsWithLowerTopic.topicStats.humanWinRate - statsWithLowerTopic.globalStats.humanWinRate,
+    );
+    expect(html).toContain(`↓ ${downDelta}% vs global`);
   });
 
   it('renders correctly when stats are null', () => {

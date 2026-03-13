@@ -303,7 +303,7 @@ describe('GET /duels', () => {
     const res = await app.request('/?sort=recent');
     expect(res.status).toBe(200);
     const body = (await res.json()) as Array<Record<string, unknown>>;
-    const row = body.find((r) => r.id === 'duel-001')!;
+    const row = body.find((r) => r.id === DUEL_1.id);
     expect(row).toBeDefined();
     expect(row).toHaveProperty('avgDecisionTimeMs');
     expect(row).toHaveProperty('avgDecisionTime');
