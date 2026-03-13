@@ -18,6 +18,15 @@
 - Backend returns both `avgDecisionTimeMs` and a formatted `avgDecisionTime` string.
 - `readingTimeMs` values over 10 minutes are clamped to 10 minutes.
 
+## Precision Assertion Contract
+- Behavior-level regression work must satisfy assertion IDs defined in:
+  - `conductor/tracks/user_analytics_20260312/spec.md`
+  - Section: `Behavior-Level Interaction Assertions (Normative Test Contract)`
+- During Phase 5, every assertion ID must be mapped to:
+  - automated test coverage, or
+  - explicit manual verification evidence (if automation is not feasible)
+- Any uncovered assertion ID blocks completion of Phase 5.
+
 ## Phase 1: Database & Data Model Updates
 - [x] Task: Design aggregates schema in `@sanctuary/db/schema` [e90b39a]
   - [x] Add `votes.readingTimeMs` (integer, not null; milliseconds) to support behavioral timing samples.
@@ -113,14 +122,28 @@
 
 ## Phase 5: Regression & Quality Gate
 - [ ] Task: Coverage and Regression Verification
-    - [ ] Execute the project's test suite and resolve failures related to this track only.
-    - [ ] Execute `pnpm run lint`.
-    - [ ] Execute `pnpm format:check` (or `pnpm format` to fix).
+  - [ ] Execute API regression suite: `pnpm --filter @sanctuary/api test src/routes/votes.test.ts src/routes/duels.test.ts`.
+  - [ ] Execute web regression suite: `pnpm --filter @sanctuary/web test`.
+  - [ ] Execute workspace lint: `pnpm run lint`.
+  - [ ] Execute formatting gate: `pnpm format:check` (or `pnpm format` then re-run check).
+  - [ ] Record commands and pass/fail output in the phase verification artifact.
 - [ ] Task: Regression Checklist (Feature Behaviors)
-  - [ ] Verify votes correctly update the new global and topic stats in DB
-  - [ ] Verify `readingTimeMs` is captured for each vote and values over 10 minutes are clamped
-  - [ ] Verify Verdict UI displays win rate bars correctly with real data
-  - [ ] Verify Verdict UI displays topic breakdown correctly
+  - [ ] API assertions completed:
+    - [ ] `UA-API-001`, `UA-API-002`, `UA-API-003` (vote payload validation)
+    - [ ] `UA-API-004`, `UA-API-005`, `UA-API-006`, `UA-API-007`, `UA-API-008` (write-path + aggregates)
+    - [ ] `UA-API-009`, `UA-API-010`, `UA-API-011`, `UA-API-012` (stats payload + formatting + field removal)
+  - [ ] Frontend assertions completed:
+    - [ ] `UA-FE-001`, `UA-FE-002`, `UA-FE-003`, `UA-FE-004`, `UA-FE-005` (interaction + network behavior)
+    - [ ] `UA-FE-006`, `UA-FE-007`, `UA-FE-008`, `UA-FE-009`, `UA-FE-010`, `UA-FE-011` (Verdict rendering + fallbacks)
+  - [ ] Cross-layer assertions completed:
+    - [ ] `UA-FLOW-001`, `UA-FLOW-002`, `UA-FLOW-003`, `UA-FLOW-004`
+  - [ ] For each assertion ID above, link the concrete test file and test name (or manual evidence path).
+  - [ ] Confirm no remaining references to `avgReadingTime` in API responses, shared contracts, or Verdict UI code paths.
+- [ ] Task: Interaction Assertion Coverage Map
+  - [ ] Create/update a short mapping table in the verification artifact:
+    - [ ] columns: `Assertion ID`, `Coverage Type (Automated|Manual)`, `Test/Artifact`, `Status`
+  - [ ] If any assertion remains manual-only, document why automation is not practical and list mitigation.
+  - [ ] If any assertion fails, file a follow-up task before phase completion.
 - [ ] Task: Conductor - User Manual Verification 'Phase 5: Regression & Quality Gate' (Protocol in workflow.md)
 
 ## Phase 6: Documentation
