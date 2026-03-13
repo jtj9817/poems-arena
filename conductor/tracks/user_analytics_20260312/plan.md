@@ -67,30 +67,32 @@
   - [x] Result: 41/41 checks passed (`phase2_user_analytics_2026-03-13T04_59_53_285Z`).
 
 ## Phase 3: Verdict API & Data Fetching
-- [~] Task: Extend existing stats endpoint (Verdict payload)
-  - [ ] Update `GET /api/v1/duels/:id/stats` to include:
-    - [ ] `globalStats` (recognition rate + avg decision time)
-    - [ ] `topicStats` for the duel's topic (recognition rate + avg decision time)
-  - [ ] Keep existing fields additive to avoid breaking the frontend while iterating.
-- [ ] Task: Align shared contracts and frontend API typings
-  - [ ] Add shared types for aggregates in `packages/shared/src/index.ts` (or a dedicated file if the shared package is split later).
-  - [ ] Reconcile the current mismatch where `packages/shared` exports `Duel` with `humanWinRate/avgReadingTime` while the API response shapes differ; update contracts to the new `avgDecisionTime` naming and the finalized Verdict payload shape.
-  - [ ] Update `apps/web/lib/api.ts` response types to match the finalized backend payload (avoid unsafe `as Promise<T>` drift as much as possible).
-- [ ] Task: Remove `avgReadingTime` estimate from API + contracts
-  - [ ] Remove/rename fields returning word-count `avgReadingTime` from:
-    - [ ] `GET /api/v1/duels`
-    - [ ] `GET /api/v1/duels/:id/stats`
-  - [ ] Replace with behavioral `avgDecisionTime` (and `avgDecisionTimeMs`) sourced from aggregates.
-  - [ ] Define and implement semantics:
-    - [ ] In `GET /api/v1/duels`, `avgDecisionTime*` is topic-level average decision time (from `topic_statistics`) for each row's topic.
-    - [ ] In `GET /api/v1/duels/:id/stats`, Verdict UI should use `topicStats.avgDecisionTime*` and `globalStats.avgDecisionTime*`.
-  - [ ] Update `packages/shared` and any docs/tests that reference `avgReadingTime`.
-- [ ] Task: Tests (Red/Green) for Verdict payload shape
-  - [ ] Extend `apps/api/src/routes/duels.test.ts` to assert the new fields exist and are correct.
-  - [ ] Add edge-case tests:
-    - [ ] no aggregates row yet (endpoint still returns 200 with zeros/nulls)
-    - [ ] topic present and consistent (topicId is mandatory)
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Verdict API & Data Fetching' (Protocol in workflow.md)
+- [x] Task: Extend existing stats endpoint (Verdict payload) [782374e]
+  - [x] Update `GET /api/v1/duels/:id/stats` to include:
+    - [x] `globalStats` (recognition rate + avg decision time)
+    - [x] `topicStats` for the duel's topic (recognition rate + avg decision time)
+  - [x] Keep existing fields additive to avoid breaking the frontend while iterating.
+- [x] Task: Align shared contracts and frontend API typings [782374e]
+  - [x] Add shared types for aggregates in `packages/shared/src/index.ts` (or a dedicated file if the shared package is split later).
+  - [x] Reconcile the current mismatch where `packages/shared` exports `Duel` with `humanWinRate/avgReadingTime` while the API response shapes differ; update contracts to the new `avgDecisionTime` naming and the finalized Verdict payload shape.
+  - [x] Update `apps/web/lib/api.ts` response types to match the finalized backend payload (avoid unsafe `as Promise<T>` drift as much as possible).
+- [x] Task: Remove `avgReadingTime` estimate from API + contracts [782374e]
+  - [x] Remove/rename fields returning word-count `avgReadingTime` from:
+    - [x] `GET /api/v1/duels`
+    - [x] `GET /api/v1/duels/:id/stats`
+  - [x] Replace with behavioral `avgDecisionTime` (and `avgDecisionTimeMs`) sourced from aggregates.
+  - [x] Define and implement semantics:
+    - [x] In `GET /api/v1/duels`, `avgDecisionTime*` is topic-level average decision time (from `topic_statistics`) for each row's topic.
+    - [x] In `GET /api/v1/duels/:id/stats`, Verdict UI should use `topicStats.avgDecisionTime*` and `globalStats.avgDecisionTime*`.
+  - [x] Update `packages/shared` and any docs/tests that reference `avgReadingTime`.
+- [x] Task: Tests (Red/Green) for Verdict payload shape [782374e]
+  - [x] Extend `apps/api/src/routes/duels.test.ts` to assert the new fields exist and are correct.
+  - [x] Add edge-case tests:
+    - [x] no aggregates row yet (endpoint still returns 200 with zeros/nulls)
+    - [x] topic present and consistent (topicId is mandatory)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Verdict API & Data Fetching' (Protocol in workflow.md) [782374e]
+  - [x] Automation script: `scripts/verify-phase3-user-analytics.ts`.
+  - [x] Result: all checks passed (`phase3_user_analytics_2026-03-13T05_51_57_715Z`).
 
 ## Phase 4: Frontend Tracking & Verdict UI
 - [ ] Task: Implement client-side decision-time tracking in The Ring
