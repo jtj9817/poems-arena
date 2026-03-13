@@ -405,5 +405,5 @@ function computeAvgDecision(
   const totalSeconds = Math.round(avgMs / 1000);
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
-  return { avgDecisionTimeMs: avgMs, avgDecisionTime: `${m}m ${s}s` };
+  return { avgDecisionTimeMs: avgMs, avgDecisionTime: `${m}m ${String(s).padStart(2, '0')}s` };
 }

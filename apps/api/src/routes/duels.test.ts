@@ -873,6 +873,23 @@ describe('GET /duels/:id/stats — analytics fields', () => {
     expect(body.globalStats.avgDecisionTime).toBe('4m 12s');
   });
 
+  test('avgDecisionTime zero-pads seconds when average lands on an exact minute', async () => {
+    await db.insert(schema.globalStatistics).values({
+      id: 'global',
+      totalVotes: 4,
+      humanVotes: 2,
+      decisionTimeSumMs: 480000, // avg 120000ms => 2m 00s
+      decisionTimeCount: 4,
+    });
+
+    const res = await app.request('/duel-001/stats');
+    const body = (await res.json()) as {
+      globalStats: { avgDecisionTimeMs: number; avgDecisionTime: string };
+    };
+    expect(body.globalStats.avgDecisionTimeMs).toBe(120000);
+    expect(body.globalStats.avgDecisionTime).toBe('2m 00s');
+  });
+
   test('does not include avgReadingTime in the response', async () => {
     const res = await app.request('/duel-001/stats');
     const body = (await res.json()) as Record<string, unknown>;
