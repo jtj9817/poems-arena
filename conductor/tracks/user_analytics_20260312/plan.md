@@ -95,19 +95,21 @@
   - [x] Result: all checks passed (`phase3_user_analytics_2026-03-13T05_51_57_715Z`).
 
 ## Phase 4: Frontend Tracking & Verdict UI
-- [ ] Task: Implement client-side decision-time tracking in The Ring
-  - [ ] Record a start timestamp when the duel becomes visible/interactive (recommend: set when `duel.id` changes and UI is ready).
-  - [ ] On vote submit, compute `readingTimeMs = now - start` and send it via `api.vote(...)`.
-  - [ ] Ensure swipe/transition logic resets the timer per duel.
-- [ ] Task: Update Verdict UI to use aggregates
-  - [ ] Add UI for global recognition rate (Human vs AI bar)
-  - [ ] Add UI for topic recognition rate + delta vs global
-  - [ ] Display average decision time (global + topic) with clear label
-  - [ ] Replace any UI references to `avgReadingTime` with behavioral `avgDecisionTime` sourced from aggregates.
-- [ ] Task: Frontend testing updates
-  - [ ] Update any unit/integration tests that assert the Verdict layout.
-  - [ ] (Optional) Add an e2e test in `packages/e2e` to cover "vote -> verdict shows stats".
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Frontend Tracking & Verdict UI' (Protocol in workflow.md)
+- [x] Task: Implement client-side decision-time tracking in The Ring [54d0763]
+  - [x] Record a start timestamp when the duel becomes visible/interactive (recommend: set when `duel.id` changes and UI is ready).
+  - [x] On vote submit, compute `readingTimeMs = now - start` and send it via `api.vote(...)`.
+  - [x] Ensure swipe/transition logic resets the timer per duel.
+- [x] Task: Update Verdict UI to use aggregates [54d0763]
+  - [x] Add UI for global recognition rate (Human vs AI bar)
+  - [x] Add UI for topic recognition rate + delta vs global
+  - [x] Display average decision time (global + topic) with clear label
+  - [x] Replace any UI references to `avgReadingTime` with behavioral `avgDecisionTime` sourced from aggregates.
+- [x] Task: Frontend testing updates [54d0763]
+  - [x] Update any unit/integration tests that assert the Verdict layout.
+  - [x] (Optional) Add an e2e test in `packages/e2e` to cover "vote -> verdict shows stats".
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Frontend Tracking & Verdict UI' (Protocol in workflow.md)
+  - [x] Automation script: `scripts/verify-phase4-user-analytics.ts`.
+  - [x] Result: 23/23 checks passed (`phase4_user_analytics_2026-03-13T20_19_48_779Z`).
 
 ## Phase 5: Regression & Quality Gate
 - [ ] Task: Coverage and Regression Verification
