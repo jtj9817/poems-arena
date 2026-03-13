@@ -136,8 +136,10 @@ export const TheRing: React.FC<TheRingProps> = ({ duelId, onNavigate }) => {
     };
   }, [duelId]);
 
+  const canVote = fadeIn && swipePhase === 'idle' && !showPopup && !hasVoted;
+
   const handleVote = async (poemId: string) => {
-    if (!duel || hasVoted) return;
+    if (!duel || !canVote) return;
     setSelectedPoemId(poemId);
     setHasVoted(true);
     try {
@@ -274,7 +276,7 @@ export const TheRing: React.FC<TheRingProps> = ({ duelId, onNavigate }) => {
               revealed={showPopup}
               isSelected={selectedPoemId === duel.poemA.id}
               onSelect={() => handleVote(duel.poemA.id)}
-              disabled={hasVoted}
+              disabled={!canVote}
               isLeft={true}
             />
 
@@ -287,7 +289,7 @@ export const TheRing: React.FC<TheRingProps> = ({ duelId, onNavigate }) => {
               revealed={showPopup}
               isSelected={selectedPoemId === duel.poemB.id}
               onSelect={() => handleVote(duel.poemB.id)}
-              disabled={hasVoted}
+              disabled={!canVote}
             />
           </div>
         </div>
