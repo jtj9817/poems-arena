@@ -121,7 +121,7 @@
   - [x] Result: 23/23 checks passed (`phase4_user_analytics_2026-03-13T20_19_48_779Z`).
 
 ## Phase 5: Regression & Quality Gate
-- [ ] Task: Coverage and Regression Verification
+- [~] Task: Coverage and Regression Verification
   - [ ] Execute API regression suite: `pnpm --filter @sanctuary/api test src/routes/votes.test.ts src/routes/duels.test.ts`.
   - [ ] Execute web regression suite: `pnpm --filter @sanctuary/web test`.
   - [ ] Execute workspace lint: `pnpm run lint`.

@@ -74,6 +74,50 @@ describe('VerdictPopup', () => {
     expect(html).toContain('1m 00s');
   });
 
+  it('renders "—" fallback when avgDecisionTime is null', () => {
+    const statsWithNullTiming = {
+      ...mockStats,
+      globalStats: { ...mockStats.globalStats, avgDecisionTimeMs: null, avgDecisionTime: null },
+      topicStats: { ...mockStats.topicStats, avgDecisionTimeMs: null, avgDecisionTime: null },
+    };
+    const html = renderToStaticMarkup(
+      <VerdictPopup
+        isOpen={true}
+        selectedPoemId="poem-1"
+        stats={statsWithNullTiming}
+        onContinue={() => {}}
+        onReviewPoems={() => {}}
+      />,
+    );
+
+    // Recognition rate section should still render
+    expect(html).toContain('Recognition Rate');
+    // Decision time should fall back to "—"
+    expect(html).toContain('Avg. Decision Time');
+    expect(html).toContain('—');
+    expect(html).not.toContain('2m 00s');
+    expect(html).not.toContain('1m 00s');
+  });
+
+  it('renders downward delta when topic rate is lower than global', () => {
+    const statsWithLowerTopic = {
+      ...mockStats,
+      globalStats: { ...mockStats.globalStats, humanWinRate: 70 },
+      topicStats: { ...mockStats.topicStats, humanWinRate: 55 },
+    };
+    const html = renderToStaticMarkup(
+      <VerdictPopup
+        isOpen={true}
+        selectedPoemId="poem-1"
+        stats={statsWithLowerTopic}
+        onContinue={() => {}}
+        onReviewPoems={() => {}}
+      />,
+    );
+
+    expect(html).toContain('↓ 15% vs global');
+  });
+
   it('renders correctly when stats are null', () => {
     const html = renderToStaticMarkup(
       <VerdictPopup

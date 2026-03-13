@@ -290,6 +290,26 @@ describe('GET /duels', () => {
   // Note: topicId is now mandatory (NOT NULL) on duels. The null topicId fallback
   // in buildTopicMeta is kept as defensive code but cannot be triggered via normal inserts.
 
+  test('archive rows include avgDecisionTime fields and exclude avgReadingTime', async () => {
+    await db.insert(schema.topicStatistics).values({
+      topicId: 'topic-nature',
+      topicLabel: 'Nature',
+      totalVotes: 4,
+      humanVotes: 2,
+      decisionTimeSumMs: TWO_MINUTES_MS * 4,
+      decisionTimeCount: 4,
+    });
+
+    const res = await app.request('/?sort=recent');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Array<Record<string, unknown>>;
+    const row = body.find((r) => r.id === 'duel-001')!;
+    expect(row).toBeDefined();
+    expect(row).toHaveProperty('avgDecisionTimeMs');
+    expect(row).toHaveProperty('avgDecisionTime');
+    expect(row).not.toHaveProperty('avgReadingTime');
+  });
+
   test('returns 400 with INVALID_PAGE code for page=0', async () => {
     // Page validation runs before seed validation; seed=42 ensures we reach page check.
     const res = await app.request('/?page=0&seed=42');
@@ -878,6 +898,24 @@ describe('GET /duels/:id/stats — analytics fields', () => {
     };
     expect(body.globalStats.avgDecisionTimeMs).toBe(FOUR_MINUTES_TWELVE_SECONDS_MS);
     expect(body.globalStats.avgDecisionTime).toBe('4m 12s');
+  });
+
+  test('avgDecisionTime zero-pads single-digit seconds (e.g. "0m 08s")', async () => {
+    const EIGHT_SECONDS_MS = 8 * MS_PER_SECOND;
+    await db.insert(schema.globalStatistics).values({
+      id: 'global',
+      totalVotes: 3,
+      humanVotes: 2,
+      decisionTimeSumMs: EIGHT_SECONDS_MS * 3,
+      decisionTimeCount: 3,
+    });
+
+    const res = await app.request('/duel-001/stats');
+    const body = (await res.json()) as {
+      globalStats: { avgDecisionTimeMs: number; avgDecisionTime: string };
+    };
+    expect(body.globalStats.avgDecisionTimeMs).toBe(EIGHT_SECONDS_MS);
+    expect(body.globalStats.avgDecisionTime).toBe('0m 08s');
   });
 
   test('avgDecisionTime zero-pads seconds when average lands on an exact minute', async () => {
