@@ -121,30 +121,30 @@
   - [x] Result: 23/23 checks passed (`phase4_user_analytics_2026-03-13T20_19_48_779Z`).
 
 ## Phase 5: Regression & Quality Gate
-- [~] Task: Coverage and Regression Verification
-  - [ ] Execute API regression suite: `pnpm --filter @sanctuary/api test src/routes/votes.test.ts src/routes/duels.test.ts`.
-  - [ ] Execute web regression suite: `pnpm --filter @sanctuary/web test`.
-  - [ ] Execute workspace lint: `pnpm run lint`.
-  - [ ] Execute formatting gate: `pnpm format:check` (or `pnpm format` then re-run check).
-  - [ ] Record commands and pass/fail output in the phase verification artifact.
-- [ ] Task: Regression Checklist (Feature Behaviors)
-  - [ ] API assertions completed:
-    - [ ] `UA-API-001`, `UA-API-002`, `UA-API-003` (vote payload validation)
-    - [ ] `UA-API-004`, `UA-API-005`, `UA-API-006`, `UA-API-007`, `UA-API-008` (write-path + aggregates)
-    - [ ] `UA-API-009`, `UA-API-010`, `UA-API-011`, `UA-API-012` (stats payload + formatting + field removal)
-  - [ ] Frontend assertions completed:
-    - [ ] `UA-FE-001`, `UA-FE-002`, `UA-FE-003`, `UA-FE-004`, `UA-FE-005` (interaction + network behavior)
-    - [ ] `UA-FE-006`, `UA-FE-007`, `UA-FE-008`, `UA-FE-009`, `UA-FE-010`, `UA-FE-011` (Verdict rendering + fallbacks)
-  - [ ] Cross-layer assertions completed:
-    - [ ] `UA-FLOW-001`, `UA-FLOW-002`, `UA-FLOW-003`, `UA-FLOW-004`
-  - [ ] For each assertion ID above, link the concrete test file and test name (or manual evidence path).
-  - [ ] Confirm no remaining references to `avgReadingTime` in API responses, shared contracts, or Verdict UI code paths.
-- [ ] Task: Interaction Assertion Coverage Map
-  - [ ] Create/update a short mapping table in the verification artifact:
-    - [ ] columns: `Assertion ID`, `Coverage Type (Automated|Manual)`, `Test/Artifact`, `Status`
-  - [ ] If any assertion remains manual-only, document why automation is not practical and list mitigation.
-  - [ ] If any assertion fails, file a follow-up task before phase completion.
-- [ ] Task: Conductor - User Manual Verification 'Phase 5: Regression & Quality Gate' (Protocol in workflow.md)
+- [x] Task: Coverage and Regression Verification [f031041]
+  - [x] Execute API regression suite: `pnpm --filter @sanctuary/api test src/routes/votes.test.ts src/routes/duels.test.ts`.
+  - [x] Execute web regression suite: `pnpm --filter @sanctuary/web test`.
+  - [x] Execute workspace lint: `pnpm run lint`.
+  - [x] Execute formatting gate: `pnpm format:check` (or `pnpm format` then re-run check).
+  - [x] Record commands and pass/fail output in the phase verification artifact.
+- [x] Task: Regression Checklist (Feature Behaviors) [3229775]
+  - [x] API assertions completed:
+    - [x] `UA-API-001`, `UA-API-002`, `UA-API-003` (vote payload validation)
+    - [x] `UA-API-004`, `UA-API-005`, `UA-API-006`, `UA-API-007`, `UA-API-008` (write-path + aggregates)
+    - [x] `UA-API-009`, `UA-API-010`, `UA-API-011`, `UA-API-012` (stats payload + formatting + field removal)
+  - [x] Frontend assertions completed:
+    - [x] `UA-FE-001`, `UA-FE-002`, `UA-FE-003`, `UA-FE-004`, `UA-FE-005` (interaction + network behavior)
+    - [x] `UA-FE-006`, `UA-FE-007`, `UA-FE-008`, `UA-FE-009`, `UA-FE-010`, `UA-FE-011` (Verdict rendering + fallbacks)
+  - [x] Cross-layer assertions completed:
+    - [x] `UA-FLOW-001`, `UA-FLOW-002`, `UA-FLOW-003`, `UA-FLOW-004`
+  - [x] For each assertion ID above, link the concrete test file and test name (or manual evidence path).
+  - [x] Confirm no remaining references to `avgReadingTime` in API responses, shared contracts, or Verdict UI code paths.
+- [x] Task: Interaction Assertion Coverage Map [3229775]
+  - [x] Create/update a short mapping table in the verification artifact:
+    - [x] columns: `Assertion ID`, `Coverage Type (Automated|Manual)`, `Test/Artifact`, `Status`
+  - [x] If any assertion remains manual-only, document why automation is not practical and list mitigation.
+  - [x] If any assertion fails, file a follow-up task before phase completion.
+- [~] Task: Conductor - User Manual Verification 'Phase 5: Regression & Quality Gate' (Protocol in workflow.md)
 
 ## Phase 6: Documentation
 - [ ] Task: Documentation Update
