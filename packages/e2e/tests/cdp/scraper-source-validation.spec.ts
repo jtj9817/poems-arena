@@ -12,7 +12,8 @@ const testOrSkip = skipLive ? test.skip : test;
 
 test.describe('Scraper source page structural validation (CDP)', () => {
   testOrSkip('Gutenberg Emerson page has h2/h3 headings for poem titles', async ({ page }) => {
-    await page.goto(GUTENBERG_EMERSON_URL, { waitUntil: 'domcontentloaded' });
+    const res = await page.goto(GUTENBERG_EMERSON_URL, { waitUntil: 'domcontentloaded' });
+    test.skip(!res || !res.ok(), `Live source unavailable (${res?.status() ?? 'no response'})`);
 
     const session = await createCDPSession(page);
     const h2s = await querySelectorAllViaDOM(session, 'h2');
@@ -23,7 +24,8 @@ test.describe('Scraper source page structural validation (CDP)', () => {
   });
 
   testOrSkip('LOC Poetry 180 all-poems page has poem links', async ({ page }) => {
-    await page.goto(LOC_180_ALL_POEMS_URL, { waitUntil: 'domcontentloaded' });
+    const res = await page.goto(LOC_180_ALL_POEMS_URL, { waitUntil: 'domcontentloaded' });
+    test.skip(!res || !res.ok(), `Live source unavailable (${res?.status() ?? 'no response'})`);
 
     const session = await createCDPSession(page);
     const poemLinks = await querySelectorAllViaDOM(session, 'a[href*="poetry-180-"]');
@@ -32,7 +34,8 @@ test.describe('Scraper source page structural validation (CDP)', () => {
   });
 
   testOrSkip('Poets.org list page has a[href^="/poem/"] links', async ({ page }) => {
-    await page.goto(POETS_ORG_POEMS_URL, { waitUntil: 'domcontentloaded' });
+    const res = await page.goto(POETS_ORG_POEMS_URL, { waitUntil: 'domcontentloaded' });
+    test.skip(!res || !res.ok(), `Live source unavailable (${res?.status() ?? 'no response'})`);
 
     const session = await createCDPSession(page);
     const poemLinks = await querySelectorAllViaDOM(session, 'a[href^="/poem/"]');
@@ -42,7 +45,11 @@ test.describe('Scraper source page structural validation (CDP)', () => {
 
   testOrSkip('Poets.org detail page has at least one content body class', async ({ page }) => {
     // First get a poem URL from the list page
-    await page.goto(POETS_ORG_POEMS_URL, { waitUntil: 'domcontentloaded' });
+    const listRes = await page.goto(POETS_ORG_POEMS_URL, { waitUntil: 'domcontentloaded' });
+    test.skip(
+      !listRes || !listRes.ok(),
+      `Live source unavailable (${listRes?.status() ?? 'no response'})`,
+    );
 
     const poemHref = await page.evaluate(() => {
       const link = document.querySelector('a[href^="/poem/"]');

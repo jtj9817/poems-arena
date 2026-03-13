@@ -239,7 +239,9 @@ function buildRouterIntegrationScript(): string {
       });
 
       const votesAfterThird = await db.select().from(votes);
-      const latestVote = votesAfterThird[votesAfterThird.length - 1];
+      const oversizedVoteRow = votesAfterThird.find(
+        (row) => row.duelId === 'duel-002' && row.selectedPoemId === 'poem-ai-2',
+      );
       const globalAfterThird = await db.select().from(globalStatistics);
       const allTopicRows = await db.select().from(topicStatistics);
       const natureTopic = allTopicRows.find((row) => row.topicId === 'topic-nature');
@@ -292,7 +294,7 @@ function buildRouterIntegrationScript(): string {
 
         oversizedVoteSucceeds: oversizedVote.status === 200,
         totalValidVotesPersisted: votesAfterThird.length === 3,
-        oversizedVoteClampedInVoteRow: latestVote?.readingTimeMs === MAX_READING_TIME_MS,
+        oversizedVoteClampedInVoteRow: oversizedVoteRow?.readingTimeMs === MAX_READING_TIME_MS,
         globalAfterThirdCounts:
           globalAfterThird[0]?.totalVotes === 3 &&
           globalAfterThird[0]?.humanVotes === 1 &&
@@ -387,7 +389,9 @@ try {
     env: {
       CI: 'true',
       LIBSQL_URL: dbUrl,
-      LIBSQL_AUTH_TOKEN: process.env.LIBSQL_AUTH_TOKEN ?? '',
+      ...(process.env.LIBSQL_AUTH_TOKEN
+        ? { LIBSQL_AUTH_TOKEN: process.env.LIBSQL_AUTH_TOKEN }
+        : {}),
     },
   });
   TestLogger.info('db:push command completed', {
@@ -420,7 +424,9 @@ try {
     env: {
       CI: 'true',
       LIBSQL_URL: dbUrl,
-      LIBSQL_AUTH_TOKEN: process.env.LIBSQL_AUTH_TOKEN ?? '',
+      ...(process.env.LIBSQL_AUTH_TOKEN
+        ? { LIBSQL_AUTH_TOKEN: process.env.LIBSQL_AUTH_TOKEN }
+        : {}),
     },
   });
   TestLogger.info('Route integration command completed', {
