@@ -1,8 +1,8 @@
 /**
  * Route-level unit tests for the votes router.
  *
- * Uses an in-memory LibSQL database so tests run against real Drizzle queries
- * without hitting the remote Turso instance.
+ * Uses a per-test local LibSQL file so tests run against real Drizzle queries
+ * without hitting the remote Turso instance, while allowing explicit teardown.
  *
  * Coverage:
  * - POST /votes: request validation (readingTimeMs, duelId, selectedPoemId)
@@ -11,83 +11,44 @@
  * - Atomic aggregate updates: global_statistics and topic_statistics incremented correctly
  */
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { randomUUID } from 'node:crypto';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createClient } from '@libsql/client';
 import { drizzle } from 'drizzle-orm/libsql';
+import { migrate } from 'drizzle-orm/libsql/migrator';
 import { Hono } from 'hono';
 import * as schema from '../db/schema';
 import { createVotesRouter } from './votes';
 
-// ── in-memory DB setup ───────────────────────────────────────────────────────
+// ── test DB setup ────────────────────────────────────────────────────────────
 
 type TestDb = ReturnType<typeof drizzle<typeof schema>>;
+type TestDbContext = {
+  db: TestDb;
+  cleanup: () => Promise<void>;
+};
 
-async function createTestDb(): Promise<TestDb> {
-  // Use file::memory: for fast in-memory tests. Note: db.$client.close() is
-  // intentionally NOT called in afterEach because closing a file::memory:
-  // connection in @libsql/client corrupts the module-level SQLite state for
-  // subsequent connections (causes "no such table" inside db.transaction()).
-  // In-memory DBs are private to each connection and are GC'd automatically.
-  const client = createClient({ url: 'file::memory:' });
+const MIGRATIONS_FOLDER = fileURLToPath(new URL('../../drizzle', import.meta.url));
 
-  const ddl = [
-    `CREATE TABLE IF NOT EXISTS topics (
-      id TEXT PRIMARY KEY NOT NULL,
-      label TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-    )`,
-    `CREATE TABLE IF NOT EXISTS poems (
-      id TEXT PRIMARY KEY NOT NULL,
-      title TEXT NOT NULL,
-      content TEXT NOT NULL,
-      author TEXT NOT NULL,
-      type TEXT NOT NULL,
-      year TEXT,
-      source TEXT,
-      source_url TEXT,
-      form TEXT,
-      prompt TEXT,
-      parent_poem_id TEXT REFERENCES poems(id)
-    )`,
-    `CREATE TABLE IF NOT EXISTS duels (
-      id TEXT PRIMARY KEY NOT NULL,
-      topic TEXT NOT NULL,
-      topic_id TEXT NOT NULL REFERENCES topics(id),
-      poem_a_id TEXT NOT NULL REFERENCES poems(id),
-      poem_b_id TEXT NOT NULL REFERENCES poems(id),
-      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-    )`,
-    `CREATE TABLE IF NOT EXISTS votes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-      duel_id TEXT NOT NULL REFERENCES duels(id),
-      selected_poem_id TEXT NOT NULL REFERENCES poems(id),
-      is_human INTEGER NOT NULL,
-      reading_time_ms INTEGER NOT NULL,
-      voted_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-    )`,
-    `CREATE TABLE IF NOT EXISTS global_statistics (
-      id TEXT PRIMARY KEY NOT NULL DEFAULT 'global',
-      total_votes INTEGER NOT NULL DEFAULT 0,
-      human_votes INTEGER NOT NULL DEFAULT 0,
-      decision_time_sum_ms INTEGER NOT NULL DEFAULT 0,
-      decision_time_count INTEGER NOT NULL DEFAULT 0,
-      updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-    )`,
-    `CREATE TABLE IF NOT EXISTS topic_statistics (
-      topic_id TEXT PRIMARY KEY NOT NULL REFERENCES topics(id),
-      topic_label TEXT NOT NULL,
-      total_votes INTEGER NOT NULL DEFAULT 0,
-      human_votes INTEGER NOT NULL DEFAULT 0,
-      decision_time_sum_ms INTEGER NOT NULL DEFAULT 0,
-      decision_time_count INTEGER NOT NULL DEFAULT 0,
-      updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-    )`,
-  ];
+async function createTestDb(): Promise<TestDbContext> {
+  const tempDir = await mkdtemp(join(tmpdir(), 'votes-router-test-'));
+  const dbFilePath = join(tempDir, `${randomUUID()}.sqlite`);
+  const client = createClient({ url: `file:${dbFilePath}` });
+  const db = drizzle(client, { schema });
 
-  for (const stmt of ddl) {
-    await client.execute(stmt);
-  }
+  await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+  await client.execute('PRAGMA foreign_keys = ON;');
 
-  return drizzle(client, { schema });
+  return {
+    db,
+    cleanup: async () => {
+      await client.close();
+      await rm(tempDir, { recursive: true, force: true });
+    },
+  };
 }
 
 function createTestApp(db: TestDb) {
@@ -132,15 +93,21 @@ async function seedBase(db: TestDb) {
 describe('POST /votes — request validation', () => {
   let db: TestDb;
   let app: ReturnType<typeof createTestApp>;
+  let cleanupDb: (() => Promise<void>) | undefined;
 
   beforeEach(async () => {
-    db = await createTestDb();
+    const testDb = await createTestDb();
+    db = testDb.db;
+    cleanupDb = testDb.cleanup;
     app = createTestApp(db);
     await seedBase(db);
   });
 
-  afterEach(() => {
-    // Intentionally not closing db.$client — see createTestDb() comment.
+  afterEach(async () => {
+    if (cleanupDb) {
+      await cleanupDb();
+      cleanupDb = undefined;
+    }
   });
 
   test('returns 200 with isHuman=true when selecting human poem', async () => {
@@ -268,15 +235,21 @@ describe('POST /votes — readingTimeMs clamping', () => {
 
   let db: TestDb;
   let app: ReturnType<typeof createTestApp>;
+  let cleanupDb: (() => Promise<void>) | undefined;
 
   beforeEach(async () => {
-    db = await createTestDb();
+    const testDb = await createTestDb();
+    db = testDb.db;
+    cleanupDb = testDb.cleanup;
     app = createTestApp(db);
     await seedBase(db);
   });
 
-  afterEach(() => {
-    // Intentionally not closing db.$client — see createTestDb() comment.
+  afterEach(async () => {
+    if (cleanupDb) {
+      await cleanupDb();
+      cleanupDb = undefined;
+    }
   });
 
   test('accepts readingTimeMs exactly at 10 minutes without clamping', async () => {
@@ -310,8 +283,8 @@ describe('POST /votes — readingTimeMs clamping', () => {
   });
 
   test('clamped readingTimeMs contributes clamped value to decisionTimeSumMs in global_statistics', async () => {
-    const oversized = TEN_MINUTES_MS + 99999;
-    await app.request('/', {
+    const oversized = TEN_MINUTES_MS * 2;
+    const res = await app.request('/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -320,6 +293,7 @@ describe('POST /votes — readingTimeMs clamping', () => {
         readingTimeMs: oversized,
       }),
     });
+    expect(res.status).toBe(200);
     const globalRows = await db.select().from(schema.globalStatistics);
     expect(globalRows[0].decisionTimeSumMs).toBe(TEN_MINUTES_MS);
     expect(globalRows[0].decisionTimeCount).toBe(1);
@@ -331,15 +305,21 @@ describe('POST /votes — readingTimeMs clamping', () => {
 describe('POST /votes — aggregate updates', () => {
   let db: TestDb;
   let app: ReturnType<typeof createTestApp>;
+  let cleanupDb: (() => Promise<void>) | undefined;
 
   beforeEach(async () => {
-    db = await createTestDb();
+    const testDb = await createTestDb();
+    db = testDb.db;
+    cleanupDb = testDb.cleanup;
     app = createTestApp(db);
     await seedBase(db);
   });
 
-  afterEach(() => {
-    // Intentionally not closing db.$client — see createTestDb() comment.
+  afterEach(async () => {
+    if (cleanupDb) {
+      await cleanupDb();
+      cleanupDb = undefined;
+    }
   });
 
   test('first vote creates global_statistics row with correct counts', async () => {
@@ -459,7 +439,7 @@ describe('POST /votes — aggregate updates', () => {
   });
 
   test('invalid vote (readingTimeMs <= 0) does not update aggregates', async () => {
-    await app.request('/', {
+    const res = await app.request('/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -468,6 +448,7 @@ describe('POST /votes — aggregate updates', () => {
         readingTimeMs: 0,
       }),
     });
+    expect(res.status).toBe(400);
 
     const globalRows = await db.select().from(schema.globalStatistics);
     expect(globalRows).toHaveLength(0);
