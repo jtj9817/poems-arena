@@ -38,7 +38,9 @@
 - [x] Task: Backfill / initialization strategy [e90b39a]
   - [x] Decide whether to:
     - [x] Initialize aggregates at zero and let them build over time (chosen — old votes lack readingTimeMs so full backfill is not possible; aggregates build from new votes only)
-- [~] Task: Conductor - User Manual Verification 'Phase 1: Database & Data Model Updates' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Database & Data Model Updates' (Protocol in workflow.md) (d6ac81e)
+  - [x] Automation script: `scripts/verify-phase1-user-analytics.ts`.
+  - Result: 47/47 checks passed (`phase1_user_analytics_2026-03-13T04_24_18_322Z`).
 
 ## Phase 2: Core Voting & Aggregation Logic
 - [x] Task: Make votes router testable and extend payload [cb9dd04]
