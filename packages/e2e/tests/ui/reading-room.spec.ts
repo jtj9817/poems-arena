@@ -42,6 +42,11 @@ test.describe('Reading Room page', () => {
     const hasHumanVerdict = verdictText?.includes('You recognized the Human.');
     const hasMachineVerdict = verdictText?.includes('You chose the Machine.');
     expect(hasHumanVerdict || hasMachineVerdict).toBe(true);
+
+    // Verify new Phase 4 stats sections
+    await expect(page.getByText('Recognition Rate')).toBeVisible();
+    await expect(page.getByText('Avg. Decision Time')).toBeVisible();
+    await expect(page.getByText('Global Average')).toBeVisible();
   });
 
   test('verdict overlay has Review Poems and Next Duel buttons', async ({ page }) => {

@@ -121,8 +121,10 @@ export const TheRing: React.FC<TheRingProps> = ({ duelId, onNavigate }) => {
         const d = await api.getDuel(id);
         if (!isCurrent) return;
         setDuel(d);
-        readingStartedAtRef.current = Date.now();
-        setTimeout(() => setFadeIn(true), 100);
+        setTimeout(() => {
+          setFadeIn(true);
+          readingStartedAtRef.current = Date.now();
+        }, 100);
       } catch {
         if (!isCurrent) return;
         setError('Could not load the duel. Please try again.');
@@ -178,7 +180,6 @@ export const TheRing: React.FC<TheRingProps> = ({ duelId, onNavigate }) => {
 
     // Reset voting state for the new duel
     setDuel(nextDuel);
-    readingStartedAtRef.current = Date.now();
     setStats(null);
     setSelectedPoemId(null);
     setHasVoted(false);
@@ -190,6 +191,7 @@ export const TheRing: React.FC<TheRingProps> = ({ duelId, onNavigate }) => {
 
   const handleSwipeInComplete = () => {
     setSwipePhase('idle');
+    readingStartedAtRef.current = Date.now();
   };
 
   if (error) {
