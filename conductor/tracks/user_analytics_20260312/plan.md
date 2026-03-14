@@ -148,7 +148,7 @@
   - [x] Automation script: `scripts/verify-phase5-user-analytics.ts`.
   - [x] Result: 104/104 checks passed (`phase5_user_analytics_2026-03-14T03_27_43_349Z`).
 
-## Phase 6: Documentation
+## Phase 6: Documentation [checkpoint: fe9ccff]
 - [x] Task: Documentation Update [50897e5]
   - [x] Document new vote payload structure (`readingTimeMs`) and validation rules.
   - [x] Document the aggregates tables, update strategy, and topic-keying rules.
