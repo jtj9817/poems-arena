@@ -2,6 +2,8 @@
 
 **Type:** Tech Debt
 
+**Status:** Closed
+
 **Priority:** Low
 
 **Components:** `apps/api`, `scripts`
@@ -67,7 +69,17 @@ intent clearer and reduce copy/paste arithmetic mistakes.
 
 ## Acceptance Criteria
 
-- Phase 3 duels stats tests and verification harness do not rely on unexplained numeric
-  literals where a derived or named constant would make intent clearer.
-- No behavioral changes to production logic are required to complete this cleanup.
+- [x] Phase 3 duels stats tests and verification harness do not rely on unexplained numeric literals where a derived or named constant would make intent clearer.
+- [x] No behavioral changes to production logic are required to complete this cleanup.
+
+---
+
+## Resolution
+
+**Closed:** 2026-03-14
+
+All findings verified as resolved:
+
+1. **`duels.test.ts` magic ms values** — Named constants defined at the top of the test file: `MS_PER_SECOND`, `MS_PER_MINUTE`, `THIRTY_SECONDS_MS`, `TWO_MINUTES_MS`, `FOUR_MINUTES_TWELVE_SECONDS_MS`, `FIVE_MINUTES_MS`, `TWO_AND_HALF_MINUTES_MS`. Fixture inserts and expectations use derived values (e.g. `TWO_MINUTES_MS * 4`).
+2. **`verify-phase3-user-analytics.ts` hard-coded IDs/labels** — Named constants defined: `GLOBAL_STATS_ID`, `TOPIC_ID_NATURE`, `POEM_HUMAN_ID`, `POEM_AI_ID`, `DUEL_ID`, plus ms constants. Log truncation literals replaced with `STDERR_TAIL_CHARS`, `DB_PUSH_STDOUT_TAIL_CHARS`, `ROUTE_CHECK_STDOUT_TAIL_CHARS`, `TEST_STDOUT_TAIL_CHARS`.
 

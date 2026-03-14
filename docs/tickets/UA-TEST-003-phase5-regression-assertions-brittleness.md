@@ -2,6 +2,8 @@
 
 **Type:** Tech Debt
 
+**Status:** Closed
+
 **Priority:** Low
 
 **Components:** `apps/api`, `apps/web`, `scripts`
@@ -74,9 +76,19 @@ Risk:
 
 ## Acceptance Criteria
 
-- Phase 5 regression assertions do not rely on unexplained/duplicated literals where existing
-  shared fixtures or derived expectations provide the same coverage with less brittleness.
-- Manual verification script does not fail solely due to changes in test reporter output when the
-  command exit codes indicate success.
-- No production/runtime behavior changes are required.
+- [x] Phase 5 regression assertions do not rely on unexplained/duplicated literals where existing shared fixtures or derived expectations provide the same coverage with less brittleness.
+- [x] Manual verification script does not fail solely due to changes in test reporter output when the command exit codes indicate success.
+- [x] No production/runtime behavior changes are required.
+
+---
+
+## Resolution
+
+**Closed:** 2026-03-14
+
+All three findings verified as resolved:
+
+1. **Hard-coded `'duel-001'` literal** — `duels.test.ts` now uses `body.find((r) => r.id === DUEL_1.id)` rather than the string literal.
+2. **Exact UI copy/glyphs** — `VerdictPopup.test.tsx` computes the delta dynamically from fixture inputs (`Math.abs(topicStats.humanWinRate - globalStats.humanWinRate)`) rather than hard-coding `15`. The `—` fallback is now asserted via exact count (`expect(dashCount).toBe(2)`) rather than a loose `contains` check.
+3. **Reporter-dependent output parsing** — `verify-phase5-user-analytics.ts` gates on process exit codes (`requireEquals(0, result.exitCode, ...)`) rather than substring-matching human-readable test output.
 

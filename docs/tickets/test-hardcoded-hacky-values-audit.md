@@ -2,6 +2,8 @@
 
 **Type:** Tech Debt
 
+**Status:** Closed
+
 **Priority:** Medium
 
 **Components:** `packages/scraper`, `apps/api`, `packages/ai-gen`, `packages/etl`
@@ -78,3 +80,17 @@ Many tests include fixed `sourceUrl` and `scrapedAt` strings. This appears to be
 ## Notes
 
 This ticket is intentionally scoped to test hygiene and determinism. It does not propose behavioral changes to production logic beyond introducing optional dependency injection seams where they improve testability.
+
+---
+
+## Resolution
+
+**Closed:** 2026-03-14
+
+All acceptance criteria verified as resolved:
+
+1. **Wall-clock timing (rate-limiter)** — `rate-limiter.test.ts` now uses an injectable `sleep` dependency with deferred gate objects (`createDeferred<void>()`). Tests control timing deterministically without real `setTimeout` calls.
+2. **Wall-clock timing (ai-gen cli)** — `cli.test.ts` no longer contains `setTimeout` or `Date.now` timing assertions.
+3. **Never-resolving promise (readiness-manager)** — The pattern replaced with a `ping` function that resolves after 50ms with `waitTimeoutMs: 5`, ensuring the test will always terminate in bounded time regardless of timeout logic state.
+4. **Live integration tests (live-scrape)** — `live-scrape.test.ts` now uses `tmpdir() + randomUUID()` for a per-run isolated SQLite path and calls `cleanupDb()` in both success and failure paths.
+5. **OS-specific path fixtures (etl)** — `index.test.ts` uses `join('tmp', 'raw')` (relative, OS-portable via Node `path.join`) rather than hard-coded Unix absolute paths.

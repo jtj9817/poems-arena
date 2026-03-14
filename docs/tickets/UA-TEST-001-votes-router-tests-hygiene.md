@@ -2,6 +2,8 @@
 
 **Type:** Tech Debt
 
+**Status:** Closed
+
 **Priority:** Low
 
 **Components:** `apps/api`
@@ -59,8 +61,22 @@ Two cases are verifying the right side-effect behavior, but do not assert the ro
 
 ## Acceptance Criteria
 
-- `votes.test.ts` asserts both response status and intended DB side-effects for validation/clamping cases.
-- FK enforcement is enabled in the in-memory DB connection used by tests.
-- Oversized/clamping tests do not use arbitrary values that obscure intent.
-- Test DDL remains representative of production schema (either via updates or a safer pattern).
+- [x] `votes.test.ts` asserts both response status and intended DB side-effects for validation/clamping cases.
+- [x] FK enforcement is enabled in the in-memory DB connection used by tests.
+- [x] Oversized/clamping tests do not use arbitrary values that obscure intent.
+- [x] Test DDL remains representative of production schema (either via updates or a safer pattern).
+
+---
+
+## Resolution
+
+**Closed:** 2026-03-14
+
+All findings verified as resolved in `apps/api/src/routes/votes.test.ts`:
+
+1. **Teardown** — replaced `file::memory:` with per-test temp SQLite files via `mkdtemp`; client closed and directory removed in `afterEach`.
+2. **DDL drift** — replaced raw DDL with `migrate()` from `drizzle-orm/libsql/migrator`; schema is always in sync with real migrations.
+3. **FK enforcement** — `PRAGMA foreign_keys = ON;` added in `createTestDb()` immediately after migration.
+4. **Magic constant** — `TEN_MINUTES_MS + 99999` replaced with `TEN_MINUTES_MS * 2`.
+5. **Status assertions** — `expect(res.status).toBe(400)` added to the invalid-vote case; `expect(res.status).toBe(200)` added to the clamped-value case.
 
