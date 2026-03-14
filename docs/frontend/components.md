@@ -74,9 +74,9 @@ A centered modal overlay revealed after the user votes in The Ring. Displays the
 interface VerdictPopupProps {
   isOpen: boolean;
   selectedPoemId: string | null;
-  stats: DuelStats | null;       // From GET /duels/:id/stats
-  onContinue: () => void;        // Triggers swipe-out → next duel
-  onReviewPoems: () => void;     // Closes popup to review poems
+  stats: DuelStatsResponse | null;  // From GET /duels/:id/stats
+  onContinue: () => void;           // Triggers swipe-out → next duel
+  onReviewPoems: () => void;        // Closes popup to review poems
 }
 ```
 
@@ -86,10 +86,15 @@ interface VerdictPopupProps {
   - `AuthorType.HUMAN` → "You recognized the Human."
   - `AuthorType.AI` → "You chose the Machine."
 - Renders `<SourceInfo>` for both `poemA` and `poemB` side by side in a 2-column grid.
-- Displays `humanWinRate` and `avgReadingTime` from the stats payload.
+- Displays aggregate statistics from `globalStats` and `topicStats`:
+  - **Global recognition bar**: horizontal bar whose width is `stats.globalStats.humanWinRate`%; labeled with the percentage.
+  - **Topic recognition bar**: same layout using `stats.topicStats.humanWinRate`%; includes a directional delta indicator (`↑`/`↓`) showing how the topic differs from the global rate (e.g. `"↑ 5% vs global"`).
+  - **Average decision time**: displays `stats.globalStats.avgDecisionTime` and `stats.topicStats.avgDecisionTime` with a `—` fallback when either value is `null` (no timing samples yet).
+- `avgReadingTime` (word-count estimate) has been **removed** from this component; all time data uses behavioral `avgDecisionTime` from aggregates.
 - Entrance animation: `verdictIn` keyframe (scale + fade, 0.4s ease-out) defined in `apps/web/index.html`.
 - Backdrop: `rgba(44, 41, 37, 0.6)` — matches the Ink palette at 60% opacity.
 - Exposes `data-animation-state="open"` on the backdrop `<div>` for E2E test targeting.
+- If the stats fetch fails after vote submission, the popup still opens with `stats = null`. Aggregate sections are hidden but the verdict and source reveal remain accessible.
 
 **Actions:**
 - "Review Poems" (`Button variant="ghost"`) — calls `onReviewPoems`, closes the popup.
@@ -295,20 +300,28 @@ Entry (direct link or from Past Bouts)
        └─ set currentIndex to match (or prepend duelId if not found)
 
 Duel Display (via SwipeContainer, phase = 'idle')
-  └─ user reads Exhibit A and Exhibit B (authors hidden)
+  ├─ user reads Exhibit A and Exhibit B (authors hidden)
+  └─ readingStartedAtRef is set when fade-in completes (after initial load setTimeout)
+       or when swipe-in completes (onSwipeInComplete) — whichever applies
 
-Vote
-  └─ POST /votes → VoteResponse { isHuman }
-  └─ GET /duels/:id/stats → DuelStats
+Vote (only when canVote = fadeIn && swipePhase === 'idle' && !showPopup && !hasVoted)
+  ├─ readingTimeMs = Math.max(1, Math.floor(Date.now() - readingStartedAtRef.current))
+  ├─ POST /votes { duelId, selectedPoemId, readingTimeMs } → VoteResponse { isHuman }
+  └─ GET /duels/:id/stats → DuelStatsResponse { humanWinRate, globalStats, topicStats, duel }
   └─ VerdictPopup opens (data-animation-state="open")
 
 Verdict Popup
+  ├─ Shows global + topic recognition rate bars from globalStats / topicStats
+  ├─ Shows avgDecisionTime labels (falls back to "—" when null)
   ├─ "Review Poems" → closes popup, stays on current duel
   └─ "Next Duel":
         └─ setSwipePhase('swipe-out')
              └─ animation ends → content swap → setSwipePhase('swipe-in')
-                  └─ animation ends → setSwipePhase('idle') → ready for next vote
+                  └─ animation ends → setSwipePhase('idle')
+                       └─ readingStartedAtRef reset here → ready for next vote
 ```
+
+**Decision-time guard (`canVote`):** The `canVote` boolean prevents votes from being cast during non-idle UI states (fade-in transition, swipe-in transition, popup open, or already voted). This ensures `readingTimeMs` is always computed against the start of the current duel's interactive window, not a previous duel's timer.
 
 ---
 
@@ -371,8 +384,8 @@ const api = {
     sort?: 'recent'
   ): Promise<DuelListItem[]>                                  // GET /duels
   getDuel(id: string): Promise<AnonymousDuel>                // GET /duels/:id
-  getDuelStats(id: string): Promise<DuelStats>               // GET /duels/:id/stats
-  vote(duelId, selectedPoemId): Promise<VoteResponse>        // POST /votes
+  getDuelStats(id: string): Promise<DuelStatsResponse>       // GET /duels/:id/stats
+  vote(payload: VoteRequest): Promise<VoteResponse>          // POST /votes
 }
 ```
 
@@ -381,5 +394,16 @@ const api = {
 - Home and The Ring pass a required session `seed`.
 - Past Bouts passes `sort: 'recent'` instead of a seed.
 - `topicId` remains optional in both modes.
+- Returned `DuelListItem` rows include `avgDecisionTimeMs` and `avgDecisionTime` (topic-level behavioral averages; both `null` until votes with timing data exist for the topic). The old `avgReadingTime` field has been removed.
 
-`DuelListItem` includes `topicMeta: TopicMeta` for Anthology card display. `DuelStats.duel` is a full `Duel` with per-poem `author`, `type`, `year`, and `sourceInfo`.
+`vote` contract (updated):
+
+- `VoteRequest` = `{ duelId: string; selectedPoemId: string; readingTimeMs: number }` — `readingTimeMs` is now required.
+- The frontend computes `readingTimeMs` as `Math.max(1, Math.floor(Date.now() - readingStartedAt))`.
+- `VoteResponse` = `{ success: boolean; isHuman: boolean }` — unchanged.
+
+`getDuelStats` contract:
+
+- Returns `DuelStatsResponse` with `humanWinRate`, `globalStats`, `topicStats`, and `duel`.
+- `globalStats` and `topicStats` are always present (zeroed when no votes exist yet).
+- `DuelStatsResponse.duel` is a full `Duel` with per-poem `author`, `type`, `year`, and `sourceInfo`.

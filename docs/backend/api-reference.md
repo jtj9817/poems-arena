@@ -1,6 +1,6 @@
 # API Reference
 
-This document outlines the canonical API endpoints and the standardized error handling introduced in Phase 5. The `GET /topics` endpoint and the `topic_id` filter on `GET /duels` were added in Phase 6 (Frontend Integration). Seeded duel ordering (`seed`, `sort`) and DB readiness infrastructure (`/ready`, `SERVICE_UNAVAILABLE`) were added in the Randomized Duel Ordering track (shipped 2026-03-11).
+This document outlines the canonical API endpoints and the standardized error handling introduced in Phase 5. The `GET /topics` endpoint and the `topic_id` filter on `GET /duels` were added in Phase 6 (Frontend Integration). Seeded duel ordering (`seed`, `sort`) and DB readiness infrastructure (`/ready`, `SERVICE_UNAVAILABLE`) were added in the Randomized Duel Ordering track (shipped 2026-03-11). The User Analytics & Global Statistics track (shipped 2026-03-13) replaced the word-count `avgReadingTime` estimate with behavioral `avgDecisionTime` analytics, added `readingTimeMs` to the vote payload, and introduced `globalStats` / `topicStats` on the stats endpoint.
 
 ## Base URL
 
@@ -28,6 +28,8 @@ All error responses follow a standardized JSON envelope:
 | `ENDPOINT_NOT_FOUND`   | 404  | The requested endpoint is unknown or has been deprecated/removed.             |
 | `SERVICE_UNAVAILABLE`  | 503  | The API is alive but the database warm-up has not completed yet.              |
 
+> **Note:** `POST /votes` validation errors (missing or invalid `readingTimeMs`, invalid `duelId`, etc.) return HTTP `400` with a Zod validation error envelope rather than the `{ error, code }` ApiError format, because vote payload validation is handled by `zValidator` middleware before the route handler executes.
+
 ---
 
 ## Endpoints
@@ -49,7 +51,34 @@ DB-backed readiness check. Returns `503` until the database warm-up succeeds.
 
 ---
 
-### 1. `GET /api/v1/topics`
+### 1. `POST /api/v1/votes`
+
+Casts a vote for the selected poem in a duel. Atomically inserts the vote row and updates the `global_statistics` and `topic_statistics` aggregate tables in a single batch transaction.
+
+- **Request Body (JSON):**
+
+```typescript
+{
+  duelId: string;          // The duel being voted on
+  selectedPoemId: string;  // The poem the user chose
+  readingTimeMs: number;   // Milliseconds from duel-visible to vote submit (required; must be a positive integer)
+}
+```
+
+- **Validation rules for `readingTimeMs`:**
+  - `readingTimeMs <= 0`: rejected with HTTP `400` (vote not recorded, aggregates not mutated).
+  - `readingTimeMs > 600000` (10 minutes): clamped to `600000` before being persisted and counted in aggregates.
+  - Non-integer or absent: rejected with HTTP `400`.
+
+- **Response `200 OK`:**
+  - `{ "success": true, "isHuman": boolean }` — `isHuman` indicates whether the selected poem was human-authored.
+
+- **Response `400 Bad Request`:** Invalid request payload (see validation rules above).
+- **Response `404 Not Found`:** `duelId` does not exist or `selectedPoemId` does not belong to the duel.
+
+---
+
+### 2. `GET /api/v1/topics`
 
 Returns all canonical topics, ordered alphabetically by label. Used to populate the Past Bouts topic filter bar.
 
@@ -67,7 +96,7 @@ Returns all canonical topics, ordered alphabetically by label. Used to populate 
 
 ---
 
-### 2. `GET /api/v1/duels`
+### 3. `GET /api/v1/duels`
 
 Returns a paginated list of duel cards. This endpoint serves two ordering modes:
 
@@ -94,7 +123,7 @@ Returns a paginated list of duel cards. This endpoint serves two ordering modes:
 
 **Pagination:** 12 duels per page. When `topic_id` is supplied and no matches exist, returns `[]` with `200 OK`.
 
-#### `DuelCard` Object
+#### `DuelListItem` Object
 ```typescript
 {
   id: string;
@@ -104,10 +133,13 @@ Returns a paginated list of duel cards. This endpoint serves two ordering modes:
     label: string;            // Falls back to raw topic string when id is null
   };
   humanWinRate: number;       // Integer percentage 0–100 (0 when no votes cast)
-  avgReadingTime: string;     // Dynamically computed from combined poem word count at ~200 wpm
+  avgDecisionTimeMs: number | null;  // Topic-level average decision time in ms; null when no timing samples exist for this topic
+  avgDecisionTime: string | null;    // Formatted topic-level average decision time (e.g. "4m 12s"); null when no timing samples exist
   createdAt: string;          // ISO 8601
 }
 ```
+
+> `avgDecisionTimeMs` / `avgDecisionTime` reflect the **topic-level** average (sourced from `topic_statistics` for the duel's `topicId`), not per-duel stats. Both are `null` until at least one vote with a valid `readingTimeMs` has been cast for a duel in this topic.
 
 **Usage by client:**
 
@@ -115,7 +147,7 @@ Returns a paginated list of duel cards. This endpoint serves two ordering modes:
 - `TheRing.tsx` calls `GET /duels?page=N&seed=<session-seed>` for queue bootstrap and later page fetches.
 - `PastBouts.tsx` calls `GET /duels?page=1&sort=recent[&topic_id=...]` to preserve archive chronology.
 
-### 3. `GET /api/v1/duels/:id`
+### 4. `GET /api/v1/duels/:id`
 
 **Canonical endpoint for duel retrieval.** Used when entering The Ring.
 Calling this endpoint logs a "featured" event in the `featured_duels` table for analytics.
@@ -127,20 +159,48 @@ Calling this endpoint logs a "featured" event in the `featured_duels` table for 
 - **Response `404 Not Found`:**
   - `{ "error": "Duel not found", "code": "DUEL_NOT_FOUND" }`
 
-### 4. `GET /api/v1/duels/:id/stats`
+### 5. `GET /api/v1/duels/:id/stats`
 
-Returns reveal metadata, statistics, and source provenance for a completed duel. Consumed by `VerdictPopup` after the user votes.
+Returns reveal metadata, aggregate statistics, and source provenance for a completed duel. Consumed by `VerdictPopup` after the user votes.
 
 - **URL Parameters:**
   - `id`: The unique ID of the duel.
 - **Response `200 OK`:**
-  - `{ humanWinRate, avgReadingTime, duel }` where `duel` includes full poem reveal and `sourceInfo`.
-  - `humanWinRate`: integer percentage 0–100.
-  - `avgReadingTime`: dynamically computed from combined word count at ~200 wpm (e.g. `"3m 30s"`).
-  - `duel.topicMeta`: same shape as in `DuelCard` — includes `id` and `label`.
-  - `duel.poemA / poemB`: full `Poem` including `author`, `type`, `year`, and `sourceInfo`.
+
+```typescript
+{
+  humanWinRate: number;         // Per-duel win rate: integer percentage 0–100
+  globalStats: {
+    totalVotes: number;         // All-time vote count across all duels
+    humanWinRate: number;       // Global human recognition rate: integer 0–100
+    avgDecisionTimeMs: number | null;  // Global average decision time in ms; null if no samples yet
+    avgDecisionTime: string | null;    // Formatted (e.g. "2m 00s"); null if no samples yet
+  };
+  topicStats: {
+    topicMeta: { id: string | null; label: string };
+    totalVotes: number;         // Vote count for this topic
+    humanWinRate: number;       // Topic human recognition rate: integer 0–100
+    avgDecisionTimeMs: number | null;
+    avgDecisionTime: string | null;
+  };
+  duel: {
+    id: string;
+    topic: string;
+    topicMeta: { id: string | null; label: string };
+    poemA: RevealedPoem;        // Full reveal including author, type, year, sourceInfo
+    poemB: RevealedPoem;
+  };
+}
+```
+
+  - `globalStats` and `topicStats` are always present, even when no votes exist yet (`totalVotes = 0`, `humanWinRate = 0`, `avgDecisionTime* = null`).
+  - `avgDecisionTime` formatting: minutes and zero-padded seconds (e.g. `"0m 08s"`, `"2m 00s"`, `"4m 12s"`).
+  - `duel.poemA / poemB`: full `RevealedPoem` including `author`, `type`, `year`, and `sourceInfo`.
   - `sourceInfo.primary`: `{ source: string | null, sourceUrl: string | null }` — from `poems.source` / `poems.source_url`.
   - `sourceInfo.provenances`: array of `scrape_sources` rows sorted by `scrapedAt` descending.
+
+> **Removed field:** `avgReadingTime` (word-count estimate at ~200 wpm) is no longer returned. All time data now derives from behavioral `avgDecisionTime*` fields backed by the `global_statistics` / `topic_statistics` aggregate tables.
+
 - **Response `404 Not Found`:**
   - `{ "error": "Duel not found", "code": "DUEL_NOT_FOUND" }`
 

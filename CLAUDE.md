@@ -403,10 +403,13 @@ Omitting both returns `400 MISSING_SEED`. An invalid seed value returns `400 INV
     "topicMeta": { "id": "nature", "label": "Nature" },
     "createdAt": "2024-01-15T10:30:00.000Z",
     "humanWinRate": 67,
-    "avgReadingTime": "3m 30s"
+    "avgDecisionTimeMs": 120000,
+    "avgDecisionTime": "2m 00s"
   }
 ]
 ```
+
+> `avgDecisionTimeMs`/`avgDecisionTime` are topic-level behavioral averages from `topic_statistics`. Both are `null` until at least one timed vote exists for the topic. The old `avgReadingTime` word-count estimate has been removed.
 
 **GET /duels/:id** (anonymous, no author info):
 
@@ -423,18 +426,32 @@ Omitting both returns `400 MISSING_SEED`. An invalid seed value returns `400 INV
 
 ```json
 // Request
-{ "duelId": "duel-123", "selectedPoemId": "p1" }
+{ "duelId": "duel-123", "selectedPoemId": "p1", "readingTimeMs": 45000 }
 
 // Response
 { "success": true, "isHuman": true }
 ```
+
+> `readingTimeMs` is required. Values ≤ 0 are rejected (400). Values > 600000 are clamped to 600000 (10 minutes).
 
 **GET /duels/:id/stats** (after voting, full reveal):
 
 ```json
 {
   "humanWinRate": 67,
-  "avgReadingTime": "3m 30s",
+  "globalStats": {
+    "totalVotes": 1240,
+    "humanWinRate": 72,
+    "avgDecisionTimeMs": 120000,
+    "avgDecisionTime": "2m 00s"
+  },
+  "topicStats": {
+    "topicMeta": { "id": "nature", "label": "Nature" },
+    "totalVotes": 84,
+    "humanWinRate": 75,
+    "avgDecisionTimeMs": 95000,
+    "avgDecisionTime": "1m 35s"
+  },
   "duel": {
     "id": "duel-123",
     "topic": "The Moon",
@@ -515,14 +532,47 @@ export interface Poem {
   sourceInfo?: SourceInfo;  // Populated in GET /duels/:id/stats only
 }
 
-export interface Duel {
+export interface DuelListItem {
   id: string;
   topic: string;
-  topicId?: string;
-  poemA: Poem;
-  poemB: Poem;
-  humanWinRate: number;    // Integer percentage 0–100
-  avgReadingTime: string;  // e.g., "3m 30s"
+  topicMeta: TopicMeta;
+  createdAt: string;
+  humanWinRate: number;          // Integer percentage 0–100
+  avgDecisionTimeMs: number | null; // Topic-level behavioral avg; null if no timing samples
+  avgDecisionTime: string | null;   // e.g., "2m 00s"; null if no timing samples
+}
+
+export interface GlobalStats {
+  totalVotes: number;
+  humanWinRate: number;          // Integer percentage 0–100
+  avgDecisionTimeMs: number | null;
+  avgDecisionTime: string | null;
+}
+
+export interface TopicStats {
+  topicMeta: TopicMeta;
+  totalVotes: number;
+  humanWinRate: number;          // Integer percentage 0–100
+  avgDecisionTimeMs: number | null;
+  avgDecisionTime: string | null;
+}
+
+export interface DuelStatsResponse {
+  humanWinRate: number;          // Per-duel win rate: integer 0–100
+  globalStats: GlobalStats;
+  topicStats: TopicStats;
+  duel: Duel;                    // Full reveal with author, type, year, sourceInfo
+}
+
+export interface VoteRequest {
+  duelId: string;
+  selectedPoemId: string;
+  readingTimeMs: number;         // Required; positive integer ms; >600000 clamped server-side
+}
+
+export interface VoteResponse {
+  success: boolean;
+  isHuman: boolean;
 }
 
 export enum ViewState {

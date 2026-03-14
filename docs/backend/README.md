@@ -4,12 +4,80 @@ This directory contains documentation related to the API, database schema, and b
 
 ## API Documentation
 
-- [**API Reference**](./api-reference.md): Canonical endpoints for duels and error contracts.
+- [**API Reference**](./api-reference.md): Canonical endpoints for duels, votes, and error contracts.
 - [**AI Generation Prompts (DeepSeek)**](./ai-gen-prompts.md): Prompts used for poem generation and verification.
 
 ## Database Schema
 
 - [**Featured Duels Schema**](./featured-duels-schema.md): Schema contract for global duel exposure tracking.
+
+---
+
+## Analytics Aggregates
+
+The User Analytics & Global Statistics track (shipped 2026-03-13) introduced two pre-computed aggregate tables. These replace the old word-count `avgReadingTime` estimate with behavioral data derived from real user votes.
+
+### `global_statistics`
+
+Single-row table keyed by `id = 'global'`. Stores all-time vote totals and decision-time sums across every duel in the system.
+
+| Column               | Type      | Description                                                    |
+| -------------------- | --------- | -------------------------------------------------------------- |
+| `id`                 | `text`    | Always `'global'` — single-row sentinel key                    |
+| `totalVotes`         | `integer` | Total votes cast across all duels                              |
+| `humanVotes`         | `integer` | Votes where the human poem was selected                        |
+| `decisionTimeSumMs`  | `integer` | Cumulative sum of all clamped `readingTimeMs` values (ms)      |
+| `decisionTimeCount`  | `integer` | Number of votes that contributed a timing sample               |
+| `updatedAt`          | `text`    | ISO 8601 timestamp of last update                              |
+
+**Derived fields (computed at query time):**
+- `humanWinRate = round(humanVotes / totalVotes * 100)` (0 when `totalVotes = 0`)
+- `avgDecisionTimeMs = round(decisionTimeSumMs / decisionTimeCount)` (null when `decisionTimeCount = 0`)
+- `avgDecisionTime` = formatted as `"Xm YYs"` (e.g. `"2m 00s"`)
+
+### `topic_statistics`
+
+One row per canonical topic (`topicId` is the primary key, foreign-keyed to `topics.id`). Stores per-topic vote totals and decision-time sums. The `topicLabel` column is denormalized for display stability.
+
+| Column               | Type      | Description                                                     |
+| -------------------- | --------- | --------------------------------------------------------------- |
+| `topicId`            | `text`    | Primary key; references `topics.id`                             |
+| `topicLabel`         | `text`    | Denormalized topic display name (snapshot at last write time)   |
+| `totalVotes`         | `integer` | Total votes cast for duels with this topic                      |
+| `humanVotes`         | `integer` | Votes where the human poem was selected for this topic          |
+| `decisionTimeSumMs`  | `integer` | Cumulative sum of clamped `readingTimeMs` for this topic (ms)   |
+| `decisionTimeCount`  | `integer` | Number of timed votes for this topic                            |
+| `updatedAt`          | `text`    | ISO 8601 timestamp of last update                               |
+
+### Update Strategy
+
+Aggregates are updated **atomically** on every valid vote write using `db.batch([...])`, which sends three statements in a single `BEGIN/COMMIT` on the same connection:
+
+1. `INSERT INTO votes` — the vote row (with clamped `readingTimeMs`).
+2. `INSERT OR REPLACE INTO global_statistics` (upsert) — increments all global counters.
+3. `INSERT OR REPLACE INTO topic_statistics` (upsert) — increments topic-scoped counters.
+
+This keeps Verdict reads constant-time (no table scans) and ensures aggregate counts are always consistent with the `votes` table.
+
+### Topic-Keying Rules
+
+- `topic_statistics` is keyed by `duels.topicId` only.
+- `duels.topicId` is **non-nullable** (enforced at the schema level); every duel must belong to a canonical `topics` row.
+- A vote for a duel with an unknown or null `topicId` will be rejected at the database layer before aggregates are touched.
+
+### `readingTimeMs` Validation and Clamping
+
+The `readingTimeMs` field is required in every `POST /votes` request:
+
+| Value                   | Behavior                                                                      |
+| ----------------------- | ----------------------------------------------------------------------------- |
+| `> 0` and `<= 600000`  | Accepted and stored as-is; used verbatim in aggregate `decisionTimeSumMs`.   |
+| `> 600000`              | Clamped to `600000` (10 minutes) before insert — prevents outlier skew from stale/backgrounded tabs. |
+| `<= 0` or non-integer  | Rejected with HTTP `400`; vote row is not inserted, aggregates are not mutated. |
+
+### Initialization
+
+Aggregate rows are initialized at zero and build from new votes only. Old votes cast before this track shipped do not have `readingTimeMs` values, so aggregate counts start from zero rather than being backfilled.
 
 ---
 
