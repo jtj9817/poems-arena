@@ -149,8 +149,8 @@
   - [x] Result: 104/104 checks passed (`phase5_user_analytics_2026-03-14T03_27_43_349Z`).
 
 ## Phase 6: Documentation
-- [ ] Task: Documentation Update
-  - [ ] Document new vote payload structure (`readingTimeMs`) and validation rules.
-  - [ ] Document the aggregates tables, update strategy, and topic-keying rules.
-  - [ ] Document removal of word-count `avgReadingTime` and replacement with `avgDecisionTime`.
-  - [ ] Update relevant files in `docs/` and READMEs.
+- [x] Task: Documentation Update [50897e5]
+  - [x] Document new vote payload structure (`readingTimeMs`) and validation rules.
+  - [x] Document the aggregates tables, update strategy, and topic-keying rules.
+  - [x] Document removal of word-count `avgReadingTime` and replacement with `avgDecisionTime`.
+  - [x] Update relevant files in `docs/` and READMEs.
