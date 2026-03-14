@@ -1,7 +1,7 @@
 # CRUN-DEPLOY-002 — Cloud Run Deployment Hardening Follow-up
 
 **Ticket Type:** Reliability / Deployment Hardening
-**Status:** In Progress
+**Status:** Closed
 **Priority:** High
 **Assignee:** Unassigned
 **Labels:** `cloud-run`, `deployment`, `docker`, `reliability`, `ops`
@@ -148,3 +148,11 @@ This issue has been started with the following first-pass focus:
 
 - The environment-tag warning from `gcloud` is informational and not currently a blocker.
 - `:latest` is still pushed as an operator convenience alias, but deploy resolution now uses digests.
+
+---
+
+## Resolution
+
+**Closed:** 2026-03-14
+
+All 7 acceptance criteria verified as checked. The two items listed under "Remaining" (web image install size and transient npm ETIMEDOUT retries) are aspirational improvements not covered by the formal acceptance criteria and do not block closure. The core hardening work — smoke checks, ingress proxy, pnpm pinning, `.dockerignore`, immutable image refs, and sidecar startup normalization — is complete.

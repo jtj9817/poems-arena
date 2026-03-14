@@ -1,7 +1,7 @@
 # [BUG] Cloud Run Multi-Container Deployment Blocked by Build Context Limitations
 
 **Date:** 2026-03-08
-**Status:** Open
+**Status:** Closed
 **Priority:** High
 **Assignee:** Unassigned
 **Labels:** `devops`, `cloud-run`, `deployment`, `docker`
@@ -74,3 +74,11 @@ Build images locally to bypass fragile Cloud Build workspace resolution, push to
 
 **Status:** Resolved
 **Resolution Date:** 2026-03-08
+
+---
+
+## Closure Note
+
+**Closed:** 2026-03-14
+
+Header status corrected to match the resolution already documented above. The ticket was resolved on 2026-03-08 via local builds + sidecar deployment to `us-west1`. Header had been left as "Open" in error.

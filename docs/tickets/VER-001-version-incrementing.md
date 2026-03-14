@@ -1,7 +1,7 @@
 # VER-001 — Application Version Incrementing System
 
 **Ticket Type:** Infrastructure / Developer Experience
-**Status:** Open
+**Status:** Closed
 **Priority:** Medium
 **Assignee:** Unassigned
 **Labels:** versioning, ci-cd, cloud-build, scripts, api, web, frontend
@@ -255,12 +255,27 @@ These give a consistent entry point regardless of how the caller invokes Bun dir
 
 ## Acceptance Criteria
 
-- [ ] `scripts/bump-version.ts` correctly increments `x.y` for both `--minor` and `--major` flags.
-- [ ] `y` auto-rolls to the next major when it would exceed `10`.
-- [ ] A successful Cloud Build run on `main` is required before any version is written (bypassed only by explicit `--skip-ci-check`).
-- [ ] Root `package.json` is the single source of truth; `apps/web/metadata.json` and the API health response derive from it.
-- [ ] Each bump produces an annotated git tag `vX.Y` and a commit `chore(release): vX.Y`.
-- [ ] `GET /health` returns `"version"` alongside `"status"`.
-- [ ] The homepage displays a muted `v{x.y}` badge sourced from `apps/web/metadata.json`; it renders nothing if the version is absent or malformed.
-- [ ] The version badge does not appear on any page other than the homepage.
-- [ ] `pnpm version:minor` and `pnpm version:major` invoke the script from the repo root.
+- [x] `scripts/bump-version.ts` correctly increments `x.y` for both `--minor` and `--major` flags.
+- [x] `y` auto-rolls to the next major when it would exceed `10`.
+- [x] A successful Cloud Build run on `main` is required before any version is written (bypassed only by explicit `--skip-ci-check`).
+- [x] Root `package.json` is the single source of truth; `apps/web/metadata.json` and the API health response derive from it.
+- [x] Each bump produces an annotated git tag `vX.Y` and a commit `chore(release): vX.Y`.
+- [x] `GET /health` returns `"version"` alongside `"status"`.
+- [x] The homepage displays a muted `v{x.y}` badge sourced from `apps/web/metadata.json`; it renders nothing if the version is absent or malformed.
+- [x] The version badge does not appear on any page other than the homepage.
+- [x] `pnpm version:minor` and `pnpm version:major` invoke the script from the repo root.
+
+---
+
+## Resolution
+
+**Closed:** 2026-03-14
+
+All acceptance criteria verified against the codebase:
+- `scripts/bump-version.ts` exists with `--minor`, `--major`, `--skip-ci-check`, and `--deploy-mode` flags.
+- `package.json` carries `"version": "1.4"` with `version:minor` and `version:major` scripts.
+- `apps/web/metadata.json` carries `"version": "1.4"`.
+- `apps/api/src/index.ts` line 57 returns `{ status: 'ok', version: appVersion }` from `GET /health`.
+- `apps/web/pages/Home.tsx` renders `v{appVersion}` at `id="home-version-indicator"` sourced from `metadata.json`.
+- `cloudbuild.yaml` contains the precondition documentation comment block.
+- Git history confirms the bump script has been exercised: commits `chore(release): v1.2`, `v1.3`, `v1.4`.
