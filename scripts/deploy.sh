@@ -81,6 +81,7 @@ require_command curl
 require_command awk
 require_command grep
 require_command bun
+require_command git
 
 EXPLICIT_IMAGE_TAG="${IMAGE_TAG:-}"
 
@@ -89,6 +90,10 @@ if [[ -n "$(git status --porcelain)" ]]; then
   echo "❌ Working tree has uncommitted changes. Commit or stash before deploying." >&2
   exit 1
 fi
+
+# 1. Authenticate Docker with Google Artifact Registry
+echo "🔐 Authenticating Docker for ${REGION}..."
+gcloud auth configure-docker us-west1-docker.pkg.dev --quiet
 
 # ── Auto-increment version ────────────────────────────────────────────────────
 # Skip version bump when IMAGE_TAG is explicitly set (rollback path).
@@ -104,10 +109,15 @@ else
 fi
 
 # ── Derive image tag ─────────────────────────────────────────────────────────
-if command -v git >/dev/null 2>&1; then
-  GIT_SHA="$(git rev-parse --short=12 HEAD 2>/dev/null || true)"
-else
-  GIT_SHA=""
+GIT_SHA="$(git rev-parse --short=12 HEAD 2>/dev/null || true)"
+
+if [[ -n "$EXPLICIT_IMAGE_TAG" && "$EXPLICIT_IMAGE_TAG" =~ ^[a-f0-9]{7,40}$ ]]; then
+  HEAD_SHA="$(git rev-parse HEAD 2>/dev/null || true)"
+  if [[ -n "$HEAD_SHA" && "$HEAD_SHA" != "$EXPLICIT_IMAGE_TAG"* ]]; then
+    echo "❌ IMAGE_TAG looks like a git SHA (${EXPLICIT_IMAGE_TAG}), but HEAD is ${GIT_SHA}." >&2
+    echo "   Checkout the commit you intend to deploy (git checkout ${EXPLICIT_IMAGE_TAG}) and re-run deploy." >&2
+    exit 1
+  fi
 fi
 
 if [[ -z "$EXPLICIT_IMAGE_TAG" ]]; then
@@ -122,10 +132,6 @@ API_IMAGE_LATEST="${API_IMAGE_REPO}:latest"
 WEB_IMAGE_LATEST="${WEB_IMAGE_REPO}:latest"
 
 echo "🏷️ Using image tag: ${IMAGE_TAG}"
-
-# 1. Authenticate Docker with Google Artifact Registry
-echo "🔐 Authenticating Docker for ${REGION}..."
-gcloud auth configure-docker us-west1-docker.pkg.dev --quiet
 
 # 2. Build API Image Locally
 echo "🏗️ Building API Image locally..."

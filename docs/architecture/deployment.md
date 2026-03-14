@@ -40,22 +40,22 @@ bash scripts/deploy.sh
 **What it does:**
 
 1. Guards against uncommitted changes (clean tree required).
-2. Auto-increments the minor version via `bump-version.ts --deploy-mode` (creates a `chore(release): vX.Y` commit and tag).
-3. Authenticates Docker with the Artifact Registry.
+2. Authenticates Docker with the Artifact Registry.
+3. Auto-increments the minor version via `bump-version.ts --deploy-mode` (creates a `chore(release): vX.Y` commit and tag), unless `IMAGE_TAG` is explicitly set.
 4. Builds the API image from `apps/api/Dockerfile` with `--build-arg BUILD_VERSION=<version>`.
 5. Builds the web image from `apps/web/Dockerfile` with `--build-arg VITE_API_URL=/api/v1`.
-6. Tags both images with the short git SHA (post-bump commit) and also as `:latest`.
+6. Tags both images with the short git SHA (after any bump commit) and also as `:latest`.
 7. Pushes all tags to Artifact Registry.
 8. Resolves the immutable `sha256` digest of each pushed image.
 9. Substitutes placeholders in `service.yaml` → `service.deployed.yaml` (including `${APP_VERSION}` revision label) and runs `gcloud run services replace`.
 10. Polls `GET /health` and `GET /ready` until both return HTTP 200, or fails after configurable retries.
-11. Pushes the version commit and tag to the remote after successful verification.
+11. Pushes the version commit and tag to the remote after successful verification (only when a bump occurred).
 
 **Override options (env vars):**
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `IMAGE_TAG` | short git SHA | Override the image tag; **skips auto version bump** (rollback path) |
+| `IMAGE_TAG` | short git SHA | Override the image tag; **skips auto version bump**. If set to a git SHA, you must be checked out on that commit. |
 | `DOCKER_BUILD_PROGRESS` | `plain` | Docker build progress format (`plain` or `auto`) |
 | `DEPLOY_VERIFY_ATTEMPTS` | `20` | Health/readiness polling attempts |
 | `DEPLOY_VERIFY_SLEEP_SECONDS` | `3` | Seconds between polling attempts |
@@ -113,13 +113,21 @@ The standalone `--minor` / `--major` flags are gated on a successful Cloud Build
 
 ## Rollback
 
-To roll back to a previous version, redeploy using the previous image digest. Setting `IMAGE_TAG` explicitly skips the automatic version bump:
+To roll back to a previous version, redeploy the known-good code. The simplest safe approach is to check out the desired commit (or tag) and run the deploy script (this rebuilds, pushes, and deploys images for that exact code).
 
 ```bash
+git checkout <previous-git-sha-or-tag>
+bash scripts/deploy.sh
+```
+
+If you want to keep the image tag pinned to a specific commit SHA and skip the auto-bump, you can set `IMAGE_TAG` to that SHA (the script will fail fast if it does not match `HEAD`):
+
+```bash
+git checkout <previous-git-sha>
 IMAGE_TAG=<previous-git-sha> bash scripts/deploy.sh
 ```
 
-Or update `service.yaml` directly with the known good digest refs and run:
+To redeploy an existing known-good image digest without rebuilding, update `service.yaml` directly with the known-good digest refs and run:
 
 ```bash
 gcloud run services replace service.yaml --region us-west1
