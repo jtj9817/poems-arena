@@ -1,9 +1,16 @@
 #!/usr/bin/env bun
 /**
- * Manual Test Script for Phase 5: Regression & Quality Gate
+ * Conductor Manual Verification Script — Phase 5: Regression & Quality Gate
+ * Track: user_analytics_20260312
  * Generated: 2026-03-13
- * Purpose: Execute regression suites, verify assertion coverage map,
- *          and confirm no avgReadingTime references remain in production code.
+ *
+ * Purpose: Execute the Phase Completion Verification protocol (conductor/workflow.md):
+ *   1. Determine phase scope (files changed since Phase 4 checkpoint fb0e1f3)
+ *   2. Verify test coverage exists for all changed code files
+ *   3. Execute API + web regression suites, lint, and format gates
+ *   4. Confirm avgReadingTime has been fully removed from production code
+ *   5. Verify all 27 spec assertion IDs (UA-API / UA-FE / UA-FLOW) are covered
+ *   6. Output a structured verification report with manual verification steps
  *
  * Run with: bun scripts/verify-phase5-user-analytics.ts
  */
@@ -22,8 +29,10 @@ interface CommandResult {
 const testRunId = `phase5_user_analytics_${new Date().toISOString().replace(/[:.]/g, '_')}`;
 const repoRoot = path.resolve(import.meta.dir, '..');
 const logFile = TestLogger.init(testRunId, path.join(repoRoot, 'logs', 'manual_tests'));
+
 const STDERR_TAIL_CHARS = 500;
 const TEST_STDOUT_TAIL_CHARS = 1200;
+const PHASE_4_CHECKPOINT = 'fb0e1f3';
 
 TestEnvironment.guardProduction();
 TestEnvironment.displayInfo();
@@ -54,7 +63,30 @@ async function runCommand(
   return { exitCode, stdout, stderr };
 }
 
-// ── Assertion Coverage Map ────────────────────────────────────────────────────
+// ── Test coverage map: code file → expected test file(s) ──────────────────────
+
+const CODE_FILE_TO_TEST_MAP: Record<string, string[]> = {
+  'apps/api/src/routes/duels.ts': ['apps/api/src/routes/duels.test.ts'],
+  'apps/api/src/routes/votes.ts': ['apps/api/src/routes/votes.test.ts'],
+  'apps/web/components/VerdictPopup.tsx': ['apps/web/components/VerdictPopup.test.tsx'],
+  'apps/web/pages/TheRing.tsx': [],
+  'apps/web/lib/api.ts': ['apps/web/lib/api.test.ts'],
+  'packages/shared/src/index.ts': [],
+};
+
+const NON_CODE_EXTENSIONS = new Set(['.md', '.json', '.yaml', '.yml', '.sh', '.lock', '.toml']);
+
+function isCodeFile(filePath: string): boolean {
+  const ext = path.extname(filePath);
+  if (NON_CODE_EXTENSIONS.has(ext)) return false;
+  if (filePath.includes('.test.') || filePath.includes('.spec.')) return false;
+  if (filePath.startsWith('scripts/')) return false;
+  if (filePath.startsWith('conductor/')) return false;
+  if (filePath.startsWith('docs/')) return false;
+  return ext === '.ts' || ext === '.tsx';
+}
+
+// ── Assertion Coverage Map (all 27 spec assertion IDs) ────────────────────────
 
 interface AssertionEntry {
   id: string;
@@ -65,7 +97,7 @@ interface AssertionEntry {
 }
 
 const ASSERTION_MAP: AssertionEntry[] = [
-  // API Assertions
+  // ── API Assertions (12) ──────────────────────────────────────────────────
   {
     id: 'UA-API-001',
     coverageType: 'Automated',
@@ -157,7 +189,7 @@ const ASSERTION_MAP: AssertionEntry[] = [
     status: 'Covered',
   },
 
-  // Frontend Assertions
+  // ── Frontend Assertions (11) ─────────────────────────────────────────────
   {
     id: 'UA-FE-001',
     coverageType: 'Manual (code inspection)',
@@ -216,7 +248,7 @@ const ASSERTION_MAP: AssertionEntry[] = [
     coverageType: 'Automated',
     testFile: 'apps/web/components/VerdictPopup.test.tsx',
     testName:
-      'renders the detailed stats section when stats are provided (↑ 5% vs global) | renders downward delta when topic rate is lower than global (↓ 15%)',
+      'renders the detailed stats section when stats are provided (↑ vs global) | renders downward delta when topic rate is lower than global (↓)',
     status: 'Covered',
   },
   {
@@ -242,7 +274,7 @@ const ASSERTION_MAP: AssertionEntry[] = [
     status: 'Covered',
   },
 
-  // Cross-Layer Flow Assertions
+  // ── Cross-Layer Flow Assertions (4) ──────────────────────────────────────
   {
     id: 'UA-FLOW-001',
     coverageType: 'Manual (code inspection)',
@@ -257,7 +289,7 @@ const ASSERTION_MAP: AssertionEntry[] = [
     coverageType: 'Manual (code inspection)',
     testFile: 'apps/web/pages/TheRing.tsx',
     testName:
-      'Timer resets in handleSwipeInComplete (line 196) ensuring independent readingTimeMs per duel; both values satisfy API positive-integer constraint via Math.max(1, ...) at line 146',
+      'Timer resets in handleSwipeInComplete ensuring independent readingTimeMs per duel; both values satisfy API positive-integer constraint via Math.max(1, ...) at line 146',
     status: 'Covered',
   },
   {
@@ -265,7 +297,7 @@ const ASSERTION_MAP: AssertionEntry[] = [
     coverageType: 'Automated',
     testFile: 'apps/web/components/VerdictPopup.test.tsx',
     testName:
-      'renders the detailed stats section when stats are provided (topicDelta = 65 - 60 = 5, renders ↑ 5%) | renders downward delta (55 - 70 = -15, renders ↓ 15%)',
+      'renders the detailed stats section when stats are provided (topicDelta derived from fixtures) | renders downward delta (derived from fixtures)',
     status: 'Covered',
   },
   {
@@ -278,10 +310,107 @@ const ASSERTION_MAP: AssertionEntry[] = [
   },
 ];
 
+// ── Spec assertion IDs (canonical source: spec.md) ────────────────────────────
+
+const SPEC_ASSERTION_IDS = [
+  'UA-API-001',
+  'UA-API-002',
+  'UA-API-003',
+  'UA-API-004',
+  'UA-API-005',
+  'UA-API-006',
+  'UA-API-007',
+  'UA-API-008',
+  'UA-API-009',
+  'UA-API-010',
+  'UA-API-011',
+  'UA-API-012',
+  'UA-FE-001',
+  'UA-FE-002',
+  'UA-FE-003',
+  'UA-FE-004',
+  'UA-FE-005',
+  'UA-FE-006',
+  'UA-FE-007',
+  'UA-FE-008',
+  'UA-FE-009',
+  'UA-FE-010',
+  'UA-FE-011',
+  'UA-FLOW-001',
+  'UA-FLOW-002',
+  'UA-FLOW-003',
+  'UA-FLOW-004',
+];
+
 // ── Main Verification ─────────────────────────────────────────────────────────
 
 try {
-  // ── Section 1: API Regression Suite ─────────────────────────────────────────
+  TestLogger.info('=== Starting Conductor Manual Verification: Phase 5 ===', {
+    testRunId,
+    logFile,
+    phase4Checkpoint: PHASE_4_CHECKPOINT,
+  });
+
+  // ── Section 1: Phase Scope Analysis ───────────────────────────────────────
+  TestLogger.startPhase('Phase Scope Analysis');
+  {
+    const diffResult = await runCommand([
+      'git',
+      'diff',
+      '--name-only',
+      `${PHASE_4_CHECKPOINT}..HEAD`,
+    ]);
+    requireTrue(diffResult.exitCode === 0, 'git diff --name-only exits with code 0');
+
+    const changedFiles = diffResult.stdout
+      .trim()
+      .split('\n')
+      .filter((f) => f.length > 0);
+    requireTrue(changedFiles.length > 0, 'Phase 5 has at least one changed file');
+
+    TestLogger.info('Files changed in Phase 5', {
+      count: changedFiles.length,
+      files: changedFiles,
+    });
+
+    // Identify code files that need test coverage
+    const codeFiles = changedFiles.filter(isCodeFile);
+    const nonCodeFiles = changedFiles.filter((f) => !isCodeFile(f));
+
+    TestLogger.info('Phase scope breakdown', {
+      codeFiles,
+      nonCodeFiles,
+      codeCount: codeFiles.length,
+      nonCodeCount: nonCodeFiles.length,
+    });
+
+    // Verify test coverage for each changed code file
+    for (const codeFile of codeFiles) {
+      const expectedTests = CODE_FILE_TO_TEST_MAP[codeFile];
+      if (expectedTests === undefined) {
+        // File not in the explicit map — check if a co-located test file exists
+        const ext = path.extname(codeFile);
+        const base = codeFile.slice(0, -ext.length);
+        const colocatedTest = `${base}.test${ext}`;
+        const colocatedTestX = `${base}.test.tsx`;
+        const hasTest =
+          existsSync(path.join(repoRoot, colocatedTest)) ||
+          existsSync(path.join(repoRoot, colocatedTestX));
+        requireTrue(hasTest, `Changed code file has test coverage: ${codeFile}`);
+      } else if (expectedTests.length > 0) {
+        for (const testFile of expectedTests) {
+          requireTrue(
+            existsSync(path.join(repoRoot, testFile)),
+            `Test file exists for ${codeFile}: ${testFile}`,
+          );
+        }
+      }
+      // expectedTests.length === 0 means test coverage is handled via integration/manual
+    }
+  }
+  TestLogger.endPhase('Phase Scope Analysis');
+
+  // ── Section 2: API Regression Suite ───────────────────────────────────────
   TestLogger.startPhase('API Regression Suite');
   {
     const result = await runCommand(
@@ -303,7 +432,7 @@ try {
   }
   TestLogger.endPhase('API Regression Suite');
 
-  // ── Section 2: Web Regression Suite ─────────────────────────────────────────
+  // ── Section 3: Web Regression Suite ───────────────────────────────────────
   TestLogger.startPhase('Web Regression Suite');
   {
     const result = await runCommand(['pnpm', '--filter', '@sanctuary/web', 'test'], {
@@ -317,23 +446,31 @@ try {
   }
   TestLogger.endPhase('Web Regression Suite');
 
-  // ── Section 3: Lint Gate ────────────────────────────────────────────────────
+  // ── Section 4: Lint Gate ──────────────────────────────────────────────────
   TestLogger.startPhase('Lint Gate');
   {
     const result = await runCommand(['pnpm', 'run', 'lint']);
+    TestLogger.info('Lint output (tail)', {
+      stdout: result.stdout.slice(-TEST_STDOUT_TAIL_CHARS),
+      stderr: result.stderr.slice(-STDERR_TAIL_CHARS),
+    });
     requireTrue(result.exitCode === 0, 'pnpm run lint exits with code 0');
   }
   TestLogger.endPhase('Lint Gate');
 
-  // ── Section 4: Format Gate ──────────────────────────────────────────────────
+  // ── Section 5: Format Gate ────────────────────────────────────────────────
   TestLogger.startPhase('Format Gate');
   {
     const result = await runCommand(['pnpm', 'format:check']);
+    TestLogger.info('Format check output (tail)', {
+      stdout: result.stdout.slice(-TEST_STDOUT_TAIL_CHARS),
+      stderr: result.stderr.slice(-STDERR_TAIL_CHARS),
+    });
     requireTrue(result.exitCode === 0, 'pnpm format:check exits with code 0');
   }
   TestLogger.endPhase('Format Gate');
 
-  // ── Section 5: avgReadingTime Absence ───────────────────────────────────────
+  // ── Section 6: avgReadingTime Absence ─────────────────────────────────────
   TestLogger.startPhase('avgReadingTime Absence Check');
   {
     const productionFiles = [
@@ -354,7 +491,35 @@ try {
   }
   TestLogger.endPhase('avgReadingTime Absence Check');
 
-  // ── Section 6: Assertion Coverage Map Verification ──────────────────────────
+  // ── Section 7: Spec Assertion Contract Completeness ───────────────────────
+  TestLogger.startPhase('Spec Assertion Contract Completeness');
+  {
+    // Verify spec.md exists and contains all expected assertion IDs
+    const specPath = path.join(repoRoot, 'conductor/tracks/user_analytics_20260312/spec.md');
+    requireTrue(existsSync(specPath), 'spec.md exists in track directory');
+
+    const specSource = readFileSync(specPath, 'utf-8');
+    for (const assertionId of SPEC_ASSERTION_IDS) {
+      requireTrue(specSource.includes(assertionId), `Spec contains assertion ID: ${assertionId}`);
+    }
+
+    // Verify every spec assertion ID has a corresponding entry in ASSERTION_MAP
+    const mappedIds = new Set(ASSERTION_MAP.map((a) => a.id));
+    for (const specId of SPEC_ASSERTION_IDS) {
+      requireTrue(mappedIds.has(specId), `Assertion map covers spec ID: ${specId}`);
+    }
+
+    // Verify no assertion map entries reference IDs outside the spec
+    for (const entry of ASSERTION_MAP) {
+      requireTrue(
+        SPEC_ASSERTION_IDS.includes(entry.id),
+        `Assertion map entry ${entry.id} exists in spec`,
+      );
+    }
+  }
+  TestLogger.endPhase('Spec Assertion Contract Completeness');
+
+  // ── Section 8: Assertion Coverage Map Verification ────────────────────────
   TestLogger.startPhase('Assertion Coverage Map');
   {
     const uncovered = ASSERTION_MAP.filter((a) => a.status !== 'Covered');
@@ -401,9 +566,52 @@ try {
   }
   TestLogger.endPhase('Assertion Coverage Map');
 
+  // ── Section 9: Manual Verification Steps ──────────────────────────────────
+  TestLogger.startPhase('Manual Verification Steps');
+  {
+    console.log('\n══════════════════════════════════════════════════════════════');
+    console.log('  MANUAL VERIFICATION STEPS');
+    console.log('══════════════════════════════════════════════════════════════');
+    console.log('');
+    console.log('The automated gates have passed. For manual verification,');
+    console.log('please follow these steps:');
+    console.log('');
+    console.log('  1. Start both dev servers:');
+    console.log('     $ pnpm dev');
+    console.log('');
+    console.log('  2. Open the Reading Room (The Ring):');
+    console.log('     http://localhost:3000');
+    console.log('     Click "Enter The Ring" to start a duel session.');
+    console.log('');
+    console.log('  3. Vote on a duel and confirm the Verdict popup shows:');
+    console.log('     - Global recognition rate bar with a % label');
+    console.log('     - Topic recognition rate bar with a % label');
+    console.log('     - Topic-vs-global delta indicator (↑ X% or ↓ X%)');
+    console.log('     - Global avg. decision time (e.g., "2m 00s")');
+    console.log('     - Topic avg. decision time (e.g., "1m 00s")');
+    console.log('     - No references to "Avg. Read Time" or "avgReadingTime"');
+    console.log('');
+    console.log('  4. Swipe to the next duel and vote again. Confirm:');
+    console.log('     - The decision time resets between duels');
+    console.log('     - The Verdict popup shows updated aggregate stats');
+    console.log('');
+    console.log('  5. Navigate to Past Bouts (/past-bouts) and confirm:');
+    console.log('     - Duel cards show "Avg. Decision Time" (not "Avg. Read Time")');
+    console.log('     - Values are formatted as "Xm XXs" or show "—" if no data');
+    console.log('');
+    console.log('  6. Execute the following curl command against the API:');
+    console.log("     $ curl -s http://localhost:4000/api/v1/duels?sort=recent | jq '.[0]'");
+    console.log('     Confirm the response includes avgDecisionTime/avgDecisionTimeMs');
+    console.log('     and does NOT include avgReadingTime.');
+    console.log('');
+    console.log('══════════════════════════════════════════════════════════════');
+    console.log('');
+  }
+  TestLogger.endPhase('Manual Verification Steps');
+
   allPassed = TestAssertion.summary();
 } catch (err) {
-  TestLogger.error('Phase 5 verification failed', {
+  TestLogger.error('Phase 5 conductor verification failed', {
     error: err instanceof Error ? err.message : String(err),
   });
 } finally {
@@ -412,7 +620,7 @@ try {
 
 const { passed, failed } = TestAssertion.counts();
 console.log(`\n${'='.repeat(60)}`);
-console.log(`Phase 5 Regression & Quality Gate: ${passed}/${passed + failed} checks passed`);
+console.log(`Phase 5 Conductor Verification: ${passed}/${passed + failed} checks passed`);
 console.log(`Log file: ${logFile}`);
 console.log(`${'='.repeat(60)}`);
 
