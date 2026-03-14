@@ -64,7 +64,7 @@ bash scripts/deploy.sh
 
 Triggered automatically by Cloud Build on the `main` branch (CI path). Cloud Build handles auth, image push, and `gcloud run services replace` without local tooling.
 
-**Note on `service.yaml` placeholders:** Cloud Build uses `sed` to substitute `${SERVICE_ACCOUNT_EMAIL}`. `scripts/deploy.sh` uses `awk` to substitute `${SERVICE_ACCOUNT_EMAIL}`, `${API_IMAGE_REF}`, `${WEB_IMAGE_REF}`, and `${APP_VERSION}`. The deploy script deploys using immutable digest refs; Cloud Build deploys using the `:latest` tag. Cloud Build does not auto-increment versions.
+**Note on `service.yaml` placeholders:** `scripts/deploy.sh` uses `awk` to substitute `${SERVICE_ACCOUNT_EMAIL}`, `${API_IMAGE_REF}`, `${WEB_IMAGE_REF}`, `${APP_VERSION}`, and `${APP_VERSION_LABEL}`. Cloud Build also substitutes these placeholders, but deploys using the `:latest` tags (not immutable digests). Cloud Build does not auto-increment versions.
 
 ---
 
@@ -87,13 +87,17 @@ Placeholders in `service.yaml` are replaced at deploy time:
 | `${SERVICE_ACCOUNT_EMAIL}` | Compute service account email |
 | `${API_IMAGE_REF}` | Immutable digest ref for the API image |
 | `${WEB_IMAGE_REF}` | Immutable digest ref for the web image |
-| `${APP_VERSION}` | Semantic version (e.g., `1.1`) — set as a Cloud Run revision label |
+| `${APP_VERSION}` | Semantic version (e.g., `1.1`) — set as a Cloud Run revision annotation |
+| `${APP_VERSION_LABEL}` | Label-safe version for Cloud Run (e.g., `1-1`) |
 
 ---
 
 ## Version Bumping
 
-The version string (`x.y` format) appears in `package.json`, `apps/web/metadata.json`, the `GET /health` response, and the Cloud Run revision label `app-version`.
+The version string (`x.y` format) appears in `package.json`, `apps/web/metadata.json`, and the `GET /health` response. Cloud Run revisions also expose the version via:
+
+- Label `app-version`: label-safe form (dots replaced with dashes, e.g. `1-1`) due to GCP label constraints
+- Annotation `app-version`: raw semantic version (e.g. `1.1`)
 
 **Automatic (on deploy):** Each `scripts/deploy.sh` invocation auto-increments the minor version before building images. The version is baked into the API Docker image via the `BUILD_VERSION` build arg and exposed as the `APP_VERSION` environment variable at runtime. The version commit and tag are pushed only after the deploy is verified healthy.
 

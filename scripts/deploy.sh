@@ -102,10 +102,25 @@ if [[ -z "$EXPLICIT_IMAGE_TAG" ]]; then
   bun scripts/bump-version.ts --deploy-mode
 
   NEXT_VERSION="$(grep -o '"version": "[0-9]\+\.[0-9]\+"' package.json | grep -o '[0-9]\+\.[0-9]\+')"
+  if [[ -z "$NEXT_VERSION" ]]; then
+    echo "❌ Could not parse version from package.json after bump." >&2
+    exit 1
+  fi
   echo "📦 Version: ${NEXT_VERSION}"
 else
   NEXT_VERSION="$(grep -o '"version": "[0-9]\+\.[0-9]\+"' package.json | grep -o '[0-9]\+\.[0-9]\+')"
+  if [[ -z "$NEXT_VERSION" ]]; then
+    echo "❌ Could not parse version from package.json." >&2
+    exit 1
+  fi
   echo "⏭️  Skipping version bump (explicit IMAGE_TAG override)"
+fi
+
+NEXT_VERSION_LABEL="${NEXT_VERSION//./-}"
+if [[ ! "$NEXT_VERSION_LABEL" =~ ^[a-z0-9_-]{1,63}$ ]]; then
+  echo "❌ Derived label-safe version is invalid: ${NEXT_VERSION_LABEL}" >&2
+  echo "   Expected ^[a-z0-9_-]{1,63}$ after mapping dots to dashes." >&2
+  exit 1
 fi
 
 # ── Derive image tag ─────────────────────────────────────────────────────────
@@ -176,11 +191,13 @@ awk \
   -v api_image_ref="$API_IMAGE_REF" \
   -v web_image_ref="$WEB_IMAGE_REF" \
   -v app_version="$NEXT_VERSION" \
+  -v app_version_label="$NEXT_VERSION_LABEL" \
   '{
     gsub(/\$\{SERVICE_ACCOUNT_EMAIL\}/, service_account);
     gsub(/\$\{API_IMAGE_REF\}/, api_image_ref);
     gsub(/\$\{WEB_IMAGE_REF\}/, web_image_ref);
     gsub(/\$\{APP_VERSION\}/, app_version);
+    gsub(/\$\{APP_VERSION_LABEL\}/, app_version_label);
     print;
   }' \
   service.yaml > service.deployed.yaml

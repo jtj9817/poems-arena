@@ -11,8 +11,9 @@ spec:
     metadata:
       annotations:
         run.googleapis.com/execution-environment: gen2
-      labels:
         app-version: '${APP_VERSION}'
+      labels:
+        app-version: '${APP_VERSION_LABEL}'
     spec:
       containerConcurrency: 80
       containers:

@@ -50,7 +50,35 @@ steps:
     args:
       - '-c'
       - |
-        sed "s/\${SERVICE_ACCOUNT_EMAIL}/237062568374-compute@developer.gserviceaccount.com/g" service.yaml > service.deployed.yaml
+        set -euo pipefail
+
+        APP_VERSION="$(grep -o '\"version\": \"[0-9]\\+\\.[0-9]\\+\"' package.json | grep -o '[0-9]\\+\\.[0-9]\\+')"
+        if [[ -z "$APP_VERSION" ]]; then
+          echo "Error: could not parse version from package.json" >&2
+          exit 1
+        fi
+        APP_VERSION_LABEL="${APP_VERSION//./-}"
+
+        SERVICE_ACCOUNT_EMAIL="237062568374-compute@developer.gserviceaccount.com"
+        API_IMAGE_REF="us-west1-docker.pkg.dev/solheim-project/sanctuary/api:latest"
+        WEB_IMAGE_REF="us-west1-docker.pkg.dev/solheim-project/sanctuary/web:latest"
+
+        awk \
+          -v service_account="$SERVICE_ACCOUNT_EMAIL" \
+          -v api_image_ref="$API_IMAGE_REF" \
+          -v web_image_ref="$WEB_IMAGE_REF" \
+          -v app_version="$APP_VERSION" \
+          -v app_version_label="$APP_VERSION_LABEL" \
+          '{
+            gsub(/\\$\\{SERVICE_ACCOUNT_EMAIL\\}/, service_account);
+            gsub(/\\$\\{API_IMAGE_REF\\}/, api_image_ref);
+            gsub(/\\$\\{WEB_IMAGE_REF\\}/, web_image_ref);
+            gsub(/\\$\\{APP_VERSION\\}/, app_version);
+            gsub(/\\$\\{APP_VERSION_LABEL\\}/, app_version_label);
+            print;
+          }' \
+          service.yaml > service.deployed.yaml
+
         gcloud run services replace service.deployed.yaml --region us-west1
 images:
   - 'us-west1-docker.pkg.dev/solheim-project/sanctuary/api:latest'
