@@ -10,12 +10,14 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ## Archived Tracks
 
+- [x] **Track: User Analytics & Global Statistics (The Verdict)**
+      _Link: [./archive/user_analytics_20260312/](./archive/user_analytics_20260312/)_
+
 - [x] **Track: Phase 7 - Randomized Duel Ordering**
       _Link: [./archive/randomized_duel_ordering_20260310/](./archive/randomized_duel_ordering_20260310/)_
 
 - [x] **Track: Phase 6 - Frontend Integration**
       _Link: [./archive/frontend_integration_20260226/](./archive/frontend_integration_20260226/)_
-
 
 - [x] **Track: Phase 5 - Duel Assembly & API Updates**
       _Link: [./archive/duel_assembly_api_updates_20260224/](./archive/duel_assembly_api_updates_20260224/)_
@@ -25,8 +27,3 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 - [x] **Track: Implement the Extract, Transform, Load (ETL) pipeline for processing scraped poems.**
       _Link: [./archive/etl_pipeline_20260220/](./archive/etl_pipeline_20260220/)_
-
----
-
-- [~] **Track: User Analytics & Global Statistics (The Verdict)**
-*Link: [./tracks/user_analytics_20260312/](./tracks/user_analytics_20260312/)*
