@@ -20,7 +20,7 @@
     "@sanctuary/db": "workspace:*",
     "@sanctuary/shared": "workspace:*",
     "drizzle-orm": "^0.38.4",
-    "hono": "^4.12.0",
+    "hono": "^4.12.7",
     "zod": "^3.25.76"
   },
   "devDependencies": {
