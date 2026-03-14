@@ -80,15 +80,40 @@ require_command docker
 require_command curl
 require_command awk
 require_command grep
+require_command bun
 
+EXPLICIT_IMAGE_TAG="${IMAGE_TAG:-}"
+
+# ── Clean tree guard ──────────────────────────────────────────────────────────
+if [[ -n "$(git status --porcelain)" ]]; then
+  echo "❌ Working tree has uncommitted changes. Commit or stash before deploying." >&2
+  exit 1
+fi
+
+# ── Auto-increment version ────────────────────────────────────────────────────
+# Skip version bump when IMAGE_TAG is explicitly set (rollback path).
+if [[ -z "$EXPLICIT_IMAGE_TAG" ]]; then
+  echo "📦 Bumping version..."
+  bun scripts/bump-version.ts --deploy-mode
+
+  NEXT_VERSION="$(grep -o '"version": "[0-9]\+\.[0-9]\+"' package.json | grep -o '[0-9]\+\.[0-9]\+')"
+  echo "📦 Version: ${NEXT_VERSION}"
+else
+  NEXT_VERSION="$(grep -o '"version": "[0-9]\+\.[0-9]\+"' package.json | grep -o '[0-9]\+\.[0-9]\+')"
+  echo "⏭️  Skipping version bump (explicit IMAGE_TAG override)"
+fi
+
+# ── Derive image tag ─────────────────────────────────────────────────────────
 if command -v git >/dev/null 2>&1; then
   GIT_SHA="$(git rev-parse --short=12 HEAD 2>/dev/null || true)"
 else
   GIT_SHA=""
 fi
 
-if [[ -z "${IMAGE_TAG:-}" ]]; then
+if [[ -z "$EXPLICIT_IMAGE_TAG" ]]; then
   IMAGE_TAG="${GIT_SHA:-$(date +%Y%m%d%H%M%S)}"
+else
+  IMAGE_TAG="$EXPLICIT_IMAGE_TAG"
 fi
 
 API_IMAGE_TAGGED="${API_IMAGE_REPO}:${IMAGE_TAG}"
@@ -107,6 +132,7 @@ echo "🏗️ Building API Image locally..."
 docker build \
   --progress "$DOCKER_BUILD_PROGRESS" \
   --platform linux/amd64 \
+  --build-arg BUILD_VERSION="$NEXT_VERSION" \
   -t "$API_IMAGE_TAGGED" \
   -f apps/api/Dockerfile .
 
@@ -143,10 +169,12 @@ awk \
   -v service_account="$SERVICE_ACCOUNT" \
   -v api_image_ref="$API_IMAGE_REF" \
   -v web_image_ref="$WEB_IMAGE_REF" \
+  -v app_version="$NEXT_VERSION" \
   '{
     gsub(/\$\{SERVICE_ACCOUNT_EMAIL\}/, service_account);
     gsub(/\$\{API_IMAGE_REF\}/, api_image_ref);
     gsub(/\$\{WEB_IMAGE_REF\}/, web_image_ref);
+    gsub(/\$\{APP_VERSION\}/, app_version);
     print;
   }' \
   service.yaml > service.deployed.yaml
@@ -175,5 +203,13 @@ wait_for_http_200 \
   "$DEPLOY_VERIFY_ATTEMPTS" \
   "$DEPLOY_VERIFY_SLEEP_SECONDS"
 
+# 7. Push version commit and tag after successful verification
+if [[ -z "$EXPLICIT_IMAGE_TAG" ]]; then
+  echo "📤 Pushing version commit and tag..."
+  git push
+  git push --tags
+fi
+
 echo "✅ Deployment SUCCESSFUL!"
 echo "🌐 Service URL: ${SERVICE_URL}"
+echo "📦 Version: ${NEXT_VERSION}"

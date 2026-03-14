@@ -5,6 +5,7 @@
  * Usage:
  *   bun scripts/bump-version.ts --minor [--skip-ci-check]
  *   bun scripts/bump-version.ts --major [--skip-ci-check]
+ *   bun scripts/bump-version.ts --deploy-mode   # implies --minor --skip-ci-check
  *
  * Version format: x.y (no patch component)
  * Roll-over rule: y >= 10 on a --minor bump auto-promotes to (x+1).0
@@ -20,17 +21,18 @@ const METADATA_PATH = join(ROOT, 'apps', 'web', 'metadata.json');
 // ── CLI flags ─────────────────────────────────────────────────────────────────
 
 const args = process.argv.slice(2);
-const isMinor = args.includes('--minor');
+const deployMode = args.includes('--deploy-mode');
+const isMinor = deployMode || args.includes('--minor');
 const isMajor = args.includes('--major');
-const skipCiCheck = args.includes('--skip-ci-check');
+const skipCiCheck = deployMode || args.includes('--skip-ci-check');
 
 function die(msg: string): never {
   console.error(`Error: ${msg}`);
   process.exit(1);
 }
 
-if (!isMinor && !isMajor) die('specify --minor or --major');
-if (isMinor && isMajor) die('--minor and --major are mutually exclusive');
+if (!isMinor && !isMajor) die('specify --minor, --major, or --deploy-mode');
+if (isMinor && isMajor) die('--minor/--deploy-mode and --major are mutually exclusive');
 
 // ── Read and validate current version ────────────────────────────────────────
 
