@@ -327,6 +327,7 @@ See `packages/ai-gen/README.md` for full runtime behavior and prompt documentati
 | `DB_READY_MAX_ATTEMPTS`  | api (optional) | Max DB warm-up ping attempts before marking `failed` (default: 4)              |
 | `DB_READY_RETRY_DELAY_MS`| api (optional) | Delay between warm-up ping retries in milliseconds (default: 300)              |
 | `DB_READY_WAIT_TIMEOUT_MS`| api (optional)| Total budget for `ensureDbReady()` to wait for warm-up (default: 2500)        |
+| `APP_VERSION`            | api (Docker)   | Set via `BUILD_VERSION` Docker build arg; used by `/health`. Falls back to `package.json` in dev. |
 
 The ETL package reads its own `packages/etl/.env` file (loaded via `dotenv` only when the `load` stage runs). Copy `packages/etl/.env.example` to get started.
 

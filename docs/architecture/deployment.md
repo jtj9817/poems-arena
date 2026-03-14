@@ -39,20 +39,23 @@ bash scripts/deploy.sh
 
 **What it does:**
 
-1. Authenticates Docker with the Artifact Registry.
-2. Builds the API image from `apps/api/Dockerfile` (context: repo root).
-3. Builds the web image from `apps/web/Dockerfile` with `--build-arg VITE_API_URL=/api/v1`.
-4. Tags both images with the short git SHA (or a datestamp if git is unavailable) and also as `:latest`.
-5. Pushes all tags to Artifact Registry.
-6. Resolves the immutable `sha256` digest of each pushed image.
-7. Substitutes placeholders in `service.yaml` → `service.deployed.yaml` and runs `gcloud run services replace`.
-8. Polls `GET /health` and `GET /ready` until both return HTTP 200, or fails after configurable retries.
+1. Guards against uncommitted changes (clean tree required).
+2. Auto-increments the minor version via `bump-version.ts --deploy-mode` (creates a `chore(release): vX.Y` commit and tag).
+3. Authenticates Docker with the Artifact Registry.
+4. Builds the API image from `apps/api/Dockerfile` with `--build-arg BUILD_VERSION=<version>`.
+5. Builds the web image from `apps/web/Dockerfile` with `--build-arg VITE_API_URL=/api/v1`.
+6. Tags both images with the short git SHA (post-bump commit) and also as `:latest`.
+7. Pushes all tags to Artifact Registry.
+8. Resolves the immutable `sha256` digest of each pushed image.
+9. Substitutes placeholders in `service.yaml` → `service.deployed.yaml` (including `${APP_VERSION}` revision label) and runs `gcloud run services replace`.
+10. Polls `GET /health` and `GET /ready` until both return HTTP 200, or fails after configurable retries.
+11. Pushes the version commit and tag to the remote after successful verification.
 
 **Override options (env vars):**
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `IMAGE_TAG` | short git SHA | Override the image tag |
+| `IMAGE_TAG` | short git SHA | Override the image tag; **skips auto version bump** (rollback path) |
 | `DOCKER_BUILD_PROGRESS` | `plain` | Docker build progress format (`plain` or `auto`) |
 | `DEPLOY_VERIFY_ATTEMPTS` | `20` | Health/readiness polling attempts |
 | `DEPLOY_VERIFY_SLEEP_SECONDS` | `3` | Seconds between polling attempts |
@@ -61,7 +64,7 @@ bash scripts/deploy.sh
 
 Triggered automatically by Cloud Build on the `main` branch (CI path). Cloud Build handles auth, image push, and `gcloud run services replace` without local tooling.
 
-**Note on `service.yaml` placeholders:** Cloud Build uses `sed` to substitute `${SERVICE_ACCOUNT_EMAIL}`. `scripts/deploy.sh` uses `awk` to substitute `${SERVICE_ACCOUNT_EMAIL}`, `${API_IMAGE_REF}`, and `${WEB_IMAGE_REF}`. The deploy script deploys using immutable digest refs; Cloud Build deploys using the `:latest` tag.
+**Note on `service.yaml` placeholders:** Cloud Build uses `sed` to substitute `${SERVICE_ACCOUNT_EMAIL}`. `scripts/deploy.sh` uses `awk` to substitute `${SERVICE_ACCOUNT_EMAIL}`, `${API_IMAGE_REF}`, `${WEB_IMAGE_REF}`, and `${APP_VERSION}`. The deploy script deploys using immutable digest refs; Cloud Build deploys using the `:latest` tag. Cloud Build does not auto-increment versions.
 
 ---
 
@@ -84,14 +87,17 @@ Placeholders in `service.yaml` are replaced at deploy time:
 | `${SERVICE_ACCOUNT_EMAIL}` | Compute service account email |
 | `${API_IMAGE_REF}` | Immutable digest ref for the API image |
 | `${WEB_IMAGE_REF}` | Immutable digest ref for the web image |
+| `${APP_VERSION}` | Semantic version (e.g., `1.1`) — set as a Cloud Run revision label |
 
 ---
 
 ## Version Bumping
 
-The version string appears in three places: `package.json` (`version`), `apps/web/metadata.json` (`version`), and is displayed in the Home page footer and the `GET /health` response.
+The version string (`x.y` format) appears in `package.json`, `apps/web/metadata.json`, the `GET /health` response, and the Cloud Run revision label `app-version`.
 
-Version bumps are gated on a successful Cloud Build run on `main`:
+**Automatic (on deploy):** Each `scripts/deploy.sh` invocation auto-increments the minor version before building images. The version is baked into the API Docker image via the `BUILD_VERSION` build arg and exposed as the `APP_VERSION` environment variable at runtime. The version commit and tag are pushed only after the deploy is verified healthy.
+
+**Manual (standalone):** For explicit major bumps or out-of-band version control:
 
 ```bash
 # Increment minor version (x.y → x.(y+1))
@@ -101,13 +107,13 @@ pnpm version:minor
 pnpm version:major
 ```
 
-`scripts/bump-version.ts` queries the last successful Cloud Build run via `gcloud builds list` before modifying any files. It will exit non-zero if no successful build is found.
+The standalone `--minor` / `--major` flags are gated on a successful Cloud Build run on `main` via `gcloud builds list`. Use `--skip-ci-check` in environments without gcloud. When `y >= 10`, a minor bump auto-rolls to the next major version.
 
 ---
 
 ## Rollback
 
-To roll back to a previous version, redeploy using the previous image digest:
+To roll back to a previous version, redeploy using the previous image digest. Setting `IMAGE_TAG` explicitly skips the automatic version bump:
 
 ```bash
 IMAGE_TAG=<previous-git-sha> bash scripts/deploy.sh
