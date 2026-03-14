@@ -45,6 +45,17 @@ CSS Keyframe animations are inherently time-based. Standard Playwright assertion
 
 ## Acceptance Criteria
 
-- [ ] Animated components emit `data-animation-state` attributes.
-- [ ] E2E config defaults to `reducedMotion: 'reduce'`.
+- [x] Animated components emit `data-animation-state` attributes.
+- [x] E2E config defaults to `reducedMotion: 'reduce'`.
 - [ ] At least one smoke test validates the animation lifecycle with animations enabled.
+
+---
+
+## Verification Note (2026-03-14)
+
+Criteria 1 and 2 confirmed as implemented:
+- `SwipeContainer.tsx` emits `data-animation-state={swipePhase}`.
+- `VerdictPopup.tsx` emits `data-animation-state="open"`.
+- `playwright.config.ts` sets `reducedMotion: 'reduce'` with comment "Collapse CSS animations to their end state for reliable assertions".
+
+Criterion 3 remains unmet — no dedicated smoke test that runs with animations enabled (i.e., overriding `reducedMotion` to `no-preference`) and asserts the `data-animation-state` lifecycle was found in `packages/e2e/tests/`.
