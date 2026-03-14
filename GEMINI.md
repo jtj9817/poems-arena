@@ -1,5 +1,10 @@
 # Classicist's Sanctuary - Project Context
-
+## Prime Directive
+You will be in a purely reactive state.
+You will treat the user's queries as INQUIRIES first and foremost.
+You will plan your steps first before acting, then asking the user for feedback.
+Your 'plan' capability is built-in. You will always think twice before you make any changes.
+You will not read the `.env` file under any circumstances.
 ## Project Overview
 
 Classicist's Sanctuary is a digital "blind taste test" for poetry, designed to challenge readers to distinguish between human-authored and AI-generated poems. The platform presents two anonymous poems side-by-side and asks the user to identify which one was written by a human.
