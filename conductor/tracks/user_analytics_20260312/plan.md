@@ -144,7 +144,9 @@
     - [x] columns: `Assertion ID`, `Coverage Type (Automated|Manual)`, `Test/Artifact`, `Status`
   - [x] If any assertion remains manual-only, document why automation is not practical and list mitigation.
   - [x] If any assertion fails, file a follow-up task before phase completion.
-- [~] Task: Conductor - User Manual Verification 'Phase 5: Regression & Quality Gate' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 5: Regression & Quality Gate' (Protocol in workflow.md)
+  - [x] Automation script: `scripts/verify-phase5-user-analytics.ts`.
+  - [x] Result: 104/104 checks passed (`phase5_user_analytics_2026-03-14T03_27_43_349Z`).
 
 ## Phase 6: Documentation
 - [ ] Task: Documentation Update
