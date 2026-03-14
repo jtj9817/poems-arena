@@ -9,16 +9,22 @@ import { createDuelsRouter } from './routes/duels';
 import { createTopicsRouter } from './routes/topics';
 import { createVotesRouter } from './routes/votes';
 
-// Read version from root package.json at startup; degrades gracefully to "unknown".
+// Read version: prefer APP_VERSION env var (set by Docker build arg),
+// fall back to root package.json for local dev, degrade to "unknown".
 let appVersion = 'unknown';
-try {
-  const pkgText = await Bun.file(new URL('../../../package.json', import.meta.url)).text();
-  const pkg = JSON.parse(pkgText) as { version?: unknown };
-  if (typeof pkg.version === 'string' && /^\d+\.\d+$/.test(pkg.version)) {
-    appVersion = pkg.version;
+const envVersion = process.env.APP_VERSION;
+if (typeof envVersion === 'string' && /^\d+\.\d+$/.test(envVersion)) {
+  appVersion = envVersion;
+} else {
+  try {
+    const pkgText = await Bun.file(new URL('../../../package.json', import.meta.url)).text();
+    const pkg = JSON.parse(pkgText) as { version?: unknown };
+    if (typeof pkg.version === 'string' && /^\d+\.\d+$/.test(pkg.version)) {
+      appVersion = pkg.version;
+    }
+  } catch {
+    // version stays 'unknown' — root package.json not available in this environment
   }
-} catch {
-  // version stays 'unknown' — root package.json not available in this environment
 }
 
 const app = new Hono();

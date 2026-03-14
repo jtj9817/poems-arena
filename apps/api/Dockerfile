@@ -22,6 +22,9 @@ COPY apps/api ./apps/api
 # ── Stage 2: runner ───────────────────────────────────────────────────────────
 FROM oven/bun:1-alpine AS runner
 
+ARG BUILD_VERSION=unknown
+ENV APP_VERSION=${BUILD_VERSION}
+
 WORKDIR /app
 
 COPY --from=builder /app/node_modules ./node_modules
