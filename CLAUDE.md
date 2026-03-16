@@ -18,6 +18,7 @@ classicist-sanctuary-proto/
 │   │   │   │   ├── votes.ts    # /votes endpoint
 │   │   │   │   └── seed-pivot.ts # buildSeedPivot() — SHA-256 duel rotation pivot
 │   │   │   └── db/
+│   │   │       ├── backfill.ts # One-time backfill script for safe schema transitions (topic_id backfill)
 │   │   │       ├── client.ts   # Initializes singleton DB: calls createDb + resolveDbConfig from @sanctuary/db
 │   │   │       ├── config.ts   # Re-export shim: re-exports resolveDbConfig from @sanctuary/db
 │   │   │       ├── schema.ts   # Re-export shim for drizzle.config.ts (source of truth: @sanctuary/db)
@@ -56,7 +57,7 @@ classicist-sanctuary-proto/
 │       ├── App.tsx             # Router + view state
 │       ├── index.tsx           # React entry point
 │       ├── index.html          # HTML template (Tailwind CDN, fonts, CSS keyframes)
-│       ├── metadata.json       # Build metadata (version: "0.2", name: "Poems Arena")
+│       ├── metadata.json       # Build metadata (version: "1.4", name: "Poems Arena")
 │       ├── vite.config.ts      # Vite + proxy config
 │       ├── Dockerfile          # Multi-stage nginx build
 │       ├── package.json
@@ -65,10 +66,15 @@ classicist-sanctuary-proto/
 ├── packages/
 │   ├── shared/                 @sanctuary/shared — TypeScript types
 │   │   └── src/
-│   │       └── index.ts        # Shared types (Poem, Duel, Vote, AuthorType, ViewState, DuelResult, TopicMeta, SourceInfo, SourceProvenance)
+│   │       └── index.ts        # Shared types (AuthorType, TopicMeta, Topic, SourceProvenance, SourceInfo,
+│   │                           #   Poem, AnonymousPoem, AnonymousDuel, RevealedPoem, Duel,
+│   │                           #   DuelListItem, GlobalStats, TopicStats, DuelStatsResponse,
+│   │                           #   VoteRequest, VoteResponse, ViewState, DuelResult,
+│   │                           #   sanitizeExternalHttpUrl)
 │   ├── db/                     @sanctuary/db — Drizzle schema + LibSQL client (shared)
 │   │   └── src/
-│   │       ├── schema.ts       # All DB tables: poems, duels, votes, topics, poem_topics, scrape_sources, featured_duels
+│   │       ├── schema.ts       # All DB tables: poems, duels, votes, topics, poem_topics,
+│   │       │                   #   scrape_sources, featured_duels, global_statistics, topic_statistics
 │   │       ├── client.ts       # createDb() factory using @libsql/client
 │   │       ├── config.ts       # resolveDbConfig() — reads env vars, handles test overrides
 │   │       └── index.ts        # Re-exports schema types
@@ -138,16 +144,20 @@ classicist-sanctuary-proto/
 │   ├── verify-phase*.ts        # Per-track phase verification scripts (Bun)
 │   ├── run-manual-verification-phase-*.sh  # Shell wrappers for phase verification
 │   └── ...                     # Phase audit and analysis scripts (see scripts/README.md)
-├── package.json                # Root: workspace scripts, devDependencies
+├── package.json                # Root: workspace scripts, devDependencies, pnpm overrides (security patches)
 ├── pnpm-workspace.yaml         # PNPM workspace configuration
 ├── pnpm-lock.yaml              # Lockfile
-├── docker-compose.yml          # Local container orchestration
+├── docker-compose.yml          # Local container orchestration (pre-built registry images)
+├── service.yaml                # Cloud Run Knative service spec (deployed via gcloud run services replace)
+├── cloudbuild.yaml             # Cloud Build CI pipeline config
 ├── eslint.config.js            # ESLint v9 flat config
 ├── .prettierrc                 # Prettier formatting rules
 ├── .prettierignore             # Prettier ignore patterns
 ├── .gitignore                  # Git ignore patterns
 ├── .env                        # Turso credentials (never commit)
-└── CLAUDE.md                   # This file
+├── CLAUDE.md                   # This file (instructions for Claude Code)
+├── GEMINI.md                   # Instructions for Gemini AI agents
+└── AGENTS.md                   # General AI agent prime directive / context
 ```
 
 ## Running Locally
@@ -225,13 +235,15 @@ Output is written to `packages/scraper/data/raw/` as one NDJSON file per source.
 Schema lives at `packages/db/src/schema.ts` (`@sanctuary/db`). Tables:
 
 ```typescript
-// poems:         id, title, content, author, type ('HUMAN'|'AI'), year, source, source_url, form, prompt, parent_poem_id
-// duels:         id, topic, topic_id, poem_a_id, poem_b_id, created_at
-// votes:         id, duel_id, selected_poem_id, is_human, voted_at
-// topics:        id, label, created_at
-// poem_topics:   poem_id, topic_id  (composite PK — many-to-many)
-// scrape_sources: id, poem_id, source, source_url, scraped_at, raw_html, is_public_domain
-// featured_duels: id, duel_id, featured_on, created_at
+// poems:              id, title, content, author, type ('HUMAN'|'AI'), year, source, source_url, form, prompt, parent_poem_id
+// duels:              id, topic, topic_id (NOT NULL, FK → topics), poem_a_id, poem_b_id, created_at
+// votes:              id, duel_id, selected_poem_id, is_human, reading_time_ms, voted_at
+// topics:             id, label, created_at
+// poem_topics:        poem_id, topic_id  (composite PK — many-to-many)
+// scrape_sources:     id, poem_id, source, source_url, scraped_at, raw_html, is_public_domain
+// featured_duels:     id, duel_id, featured_on, created_at
+// global_statistics:  id ('global'), total_votes, human_votes, decision_time_sum_ms, decision_time_count, updated_at
+// topic_statistics:   topic_id (PK, FK → topics), topic_label, total_votes, human_votes, decision_time_sum_ms, decision_time_count, updated_at
 ```
 
 The `@sanctuary/db` package is imported by both `apps/api` and `packages/etl`. The API package retains its own `drizzle.config.ts` for schema push/migrate operations.
@@ -370,7 +382,7 @@ See `docs/architecture/deployment.md` for full deployment workflow documentation
 | GET    | `/api/v1/topics`          | All canonical topics ordered by label                             |
 | GET    | `/api/v1/duels`           | Paginated archive. Requires `?seed=N` or `?sort=recent`. Supports `?page=N&topic_id=<id>`. |
 | GET    | `/api/v1/duels/:id`       | Single duel (anonymous — no author info). Logs to `featured_duels`. |
-| POST   | `/api/v1/votes`           | Cast a vote `{ duelId, selectedPoemId }`                          |
+| POST   | `/api/v1/votes`           | Cast a vote `{ duelId, selectedPoemId, readingTimeMs }`           |
 | GET    | `/api/v1/duels/:id/stats` | Full stats + author reveal after voting                           |
 
 > `GET /duels/today` was removed in Phase 5. Returns `404 ENDPOINT_NOT_FOUND`.
@@ -533,6 +545,41 @@ export interface Poem {
   sourceInfo?: SourceInfo;  // Populated in GET /duels/:id/stats only
 }
 
+/** Anonymous poem shape returned by GET /duels/:id (no author/type revealed). */
+export interface AnonymousPoem {
+  id: string;
+  title: string;
+  content: string;
+}
+
+/** Anonymous duel shape returned by GET /duels/:id (no author/type revealed). */
+export interface AnonymousDuel {
+  id: string;
+  topic: string;
+  poemA: AnonymousPoem;
+  poemB: AnonymousPoem;
+}
+
+/** Full-reveal poem shape used in GET /duels/:id/stats after voting. */
+export interface RevealedPoem {
+  id: string;
+  title: string;
+  content: string;
+  author: string;
+  type: AuthorType;
+  year?: string | null;
+  sourceInfo?: SourceInfo;
+}
+
+/** Full-reveal duel used inside DuelStatsResponse. */
+export interface Duel {
+  id: string;
+  topic: string;
+  topicMeta: TopicMeta;
+  poemA: RevealedPoem;
+  poemB: RevealedPoem;
+}
+
 export interface DuelListItem {
   id: string;
   topic: string;
@@ -562,7 +609,7 @@ export interface DuelStatsResponse {
   humanWinRate: number;          // Per-duel win rate: integer 0–100
   globalStats: GlobalStats;
   topicStats: TopicStats;
-  duel: Duel;                    // Full reveal with author, type, year, sourceInfo
+  duel: Duel;                    // Full reveal (RevealedPoem) with author, type, year, sourceInfo
 }
 
 export interface VoteRequest {
@@ -615,6 +662,9 @@ automatically on staged `.ts`/`.tsx` files.
 
 ## Cloud Run Deployment Notes
 
+- The service runs as a **multi-container Cloud Run service** in `us-west1` using `gen2` execution:
+  - `sanctuary-web` is the **ingress container** (nginx, port 80). It proxies `/api/v1` to `localhost:4000`.
+  - `sanctuary-api` is a **sidecar container** (Bun + Hono, port 4000). Not directly exposed to the internet.
 - API container: stateless — reads env vars injected by Cloud Run secrets.
   `GET /health` returns `{ status: "ok", version }` without touching the DB (Cloud Run liveness probe).
   `GET /ready` reports DB warm-up state and returns `503` until the database is reachable.
@@ -622,6 +672,8 @@ automatically on staged `.ts`/`.tsx` files.
   behind `ensureDbReady()`. Requests that arrive before the DB is ready receive `503 SERVICE_UNAVAILABLE`.
 - The Home page handles `503` responses from the API with a bounded client-side retry loop
   (up to 4 attempts with increasing delays) and displays an animated loading state to the user.
-- Web container: pure static nginx. `VITE_API_URL` must be set as a Docker build
-  arg pointing to the deployed API URL.
+- Web container: static nginx with `/api/v1` proxy to `localhost:4000`. `VITE_API_URL` must be set
+  as a Docker build arg for the static bundle (default: `/api/v1`).
 - Both containers use `CMD` (not `ENTRYPOINT`) for Cloud Run compatibility.
+- The version string is baked into the API image via `BUILD_VERSION` Docker build arg and exposed
+  as `APP_VERSION` at runtime. The current production version is `1.4`.
