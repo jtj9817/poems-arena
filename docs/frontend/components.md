@@ -364,15 +364,77 @@ interface SourceInfo {
   };
   provenances: SourceProvenance[];  // scrape_sources rows, sorted by scrapedAt desc
 }
+
+// Anonymous shapes — used in GET /duels/:id (no author/type reveal)
+interface AnonymousPoem {
+  id: string;
+  title: string;
+  content: string;
+}
+
+interface AnonymousDuel {
+  id: string;
+  topic: string;
+  poemA: AnonymousPoem;
+  poemB: AnonymousPoem;
+}
+
+// Revealed shapes — used in GET /duels/:id/stats after voting
+interface RevealedPoem {
+  id: string;
+  title: string;
+  content: string;
+  author: string;
+  type: AuthorType;
+  year?: string | null;
+  sourceInfo?: SourceInfo;
+}
+
+interface Duel {
+  id: string;
+  topic: string;
+  topicMeta: TopicMeta;
+  poemA: RevealedPoem;
+  poemB: RevealedPoem;
+}
+
+// Minimal topic record (id is always non-null here, unlike TopicMeta)
+interface Topic {
+  id: string;
+  label: string;
+}
+
+// Stored client-side to record a user's duel choice
+interface DuelResult {
+  duelId: string;
+  selectedPoemId: string;
+  isHuman: boolean;
+}
 ```
 
-`SourceInfo` is an optional field on `Poem` — populated in the `GET /duels/:id/stats` response only. It is absent from `GET /duels/:id` (anonymous view).
+`SourceInfo` is an optional field on `RevealedPoem` — populated in the `GET /duels/:id/stats` response only. It is absent from `GET /duels/:id` (anonymous view).
 
 ---
 
 ## API Client (`apps/web/lib/api.ts`)
 
 Updated to support seeded duel discovery, archive chronology, topic filtering, and stats retrieval:
+
+### `ApiRequestError`
+
+All failed HTTP responses throw an `ApiRequestError` (exported from `api.ts`):
+
+```typescript
+class ApiRequestError extends Error {
+  status: number;   // HTTP status code
+  code?: string;    // Stable error code from the API envelope (e.g. "SERVICE_UNAVAILABLE")
+  body?: string;    // Raw response body text
+}
+```
+
+Callers can check `err.status === 503` to detect cold-start unavailability, or `err.code` to match against API error code constants.
+
+### `api` object
 
 ```typescript
 const api = {

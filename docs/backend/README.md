@@ -54,8 +54,8 @@ One row per canonical topic (`topicId` is the primary key, foreign-keyed to `top
 Aggregates are updated **atomically** on every valid vote write using `db.batch([...])`, which sends three statements in a single `BEGIN/COMMIT` on the same connection:
 
 1. `INSERT INTO votes` — the vote row (with clamped `readingTimeMs`).
-2. `INSERT OR REPLACE INTO global_statistics` (upsert) — increments all global counters.
-3. `INSERT OR REPLACE INTO topic_statistics` (upsert) — increments topic-scoped counters.
+2. `INSERT INTO global_statistics ... ON CONFLICT DO UPDATE` — upsert increments all global counters.
+3. `INSERT INTO topic_statistics ... ON CONFLICT DO UPDATE` — upsert increments topic-scoped counters.
 
 This keeps Verdict reads constant-time (no table scans) and ensures aggregate counts are always consistent with the `votes` table.
 

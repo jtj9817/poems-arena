@@ -1,8 +1,14 @@
 # AVG-READ-001 — `avgReadingTime` Hard-Coded in `GET /duels` Archive Endpoint
 
 **Component:** `apps/api/src/routes/duels.ts`
+**Status:** Superseded
 **Severity:** Low
 **Type:** Bug / Data Integrity
+
+> **Note (2026-03-16):** This bug and the entire `avgReadingTime` field have been superseded by the
+> User Analytics track (shipped 2026-03-13), which replaced word-count reading-time estimates with
+> behavioral `avgDecisionTime` analytics backed by the `topic_statistics` aggregate table.
+> `avgReadingTime` no longer exists in the API response. This ticket is retained for historical context.
 
 ---
 

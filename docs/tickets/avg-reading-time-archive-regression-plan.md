@@ -1,10 +1,19 @@
 # AVG-READ-002 — Archive `avgReadingTime` Regression Test Plan
 
 **Ticket Type:** Test Coverage / Regression Hardening
-**Status:** Planned
+**Status:** Superseded
 **Priority:** Medium
 **Assignee:** Unassigned
 **Labels:** api, routes, testing, regression, avg-reading-time
+
+> **Note (2026-03-16):** This plan is superseded. The `avgReadingTime` field was fully removed from
+> the API as part of the User Analytics track (shipped 2026-03-13). The `GET /duels` archive
+> response now returns `avgDecisionTimeMs` / `avgDecisionTime` from the `topic_statistics` aggregate
+> table instead. Regression coverage for those fields exists in `apps/api/src/routes/duels.test.ts`
+> (see UA-TEST-003 for test hygiene improvements). AVG-READ-003 was completed against the old field
+> but its regression value is also superseded. See `docs/backend/README.md` for the current
+> analytics architecture.
+
 **Related Ticket:** `avg-reading-time-hardcoded-archive.md`
 
 ## Context

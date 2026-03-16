@@ -1,11 +1,16 @@
 # AVG-READ-003 — Archive `avgReadingTime` Regression Test Execution
 
 **Ticket Type:** Test Implementation / Execution Record
-**Status:** Completed
+**Status:** Superseded
 **Priority:** Medium
 **Assignee:** Unassigned
 **Labels:** api, routes, testing, regression, avg-reading-time
 **Related Tickets:** `avg-reading-time-hardcoded-archive.md`, `avg-reading-time-archive-regression-plan.md`
+
+> **Note (2026-03-16):** The tests implemented here targeted `avgReadingTime`, which has since been
+> removed from the API as part of the User Analytics track (shipped 2026-03-13). The archive route
+> now returns `avgDecisionTimeMs` / `avgDecisionTime` instead. The `duels.test.ts` test suite
+> covers those fields. This ticket is retained for historical context.
 
 ## Context
 

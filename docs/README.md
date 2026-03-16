@@ -26,8 +26,8 @@ This directory contains all project documentation for Poems Arena (formerly Clas
 
 | Document | Description |
 | --- | --- |
-| [`backend/api-reference.md`](./backend/api-reference.md) | Full API route reference including `/topics`, `/duels`, `/duels/:id`, and `/duels/:id/stats` |
-| [`backend/README.md`](./backend/README.md) | Backend overview including DB readiness and cold-start infrastructure |
+| [`backend/api-reference.md`](./backend/api-reference.md) | Full API route reference including `/topics`, `/duels`, `/duels/:id`, `/votes`, and `/duels/:id/stats` |
+| [`backend/README.md`](./backend/README.md) | Backend overview: DB readiness, cold-start infrastructure, and User Analytics aggregate tables (`global_statistics`, `topic_statistics`) |
 | [`frontend/components.md`](./frontend/components.md) | Frontend component API and interaction patterns (Phase 6) |
 | [`domain/duel-assembly.md`](./domain/duel-assembly.md) | Duel pairing logic and topic resolution rules |
 | [`architecture/deployment.md`](./architecture/deployment.md) | Cloud Run deployment workflow, `service.yaml`, version bumping, and rollback |

@@ -73,8 +73,8 @@ Casts a vote for the selected poem in a duel. Atomically inserts the vote row an
 - **Response `200 OK`:**
   - `{ "success": true, "isHuman": boolean }` — `isHuman` indicates whether the selected poem was human-authored.
 
-- **Response `400 Bad Request`:** Invalid request payload (see validation rules above).
-- **Response `404 Not Found`:** `duelId` does not exist or `selectedPoemId` does not belong to the duel.
+- **Response `400 Bad Request`:** Invalid request payload (see validation rules above), or `selectedPoemId` does not belong to the specified duel.
+- **Response `404 Not Found`:** `duelId` does not exist.
 
 ---
 
@@ -154,8 +154,19 @@ Calling this endpoint logs a "featured" event in the `featured_duels` table for 
 
 - **URL Parameters:**
   - `id`: The unique ID of the duel.
-- **Response `200 OK`:**
-  - Anonymous duel payload (poem authors and types are hidden).
+- **Response `200 OK`:** Anonymous duel payload — poem authors and types are hidden. Shape matches `AnonymousDuel` from `@sanctuary/shared`:
+
+```typescript
+{
+  id: string;
+  topic: string;
+  poemA: { id: string; title: string; content: string };
+  poemB: { id: string; title: string; content: string };
+}
+```
+
+Note: `topicMeta` is **not** included in this anonymous response. It is present on `DuelListItem` (from `GET /duels`) and on the full reveal in `GET /duels/:id/stats`.
+
 - **Response `404 Not Found`:**
   - `{ "error": "Duel not found", "code": "DUEL_NOT_FOUND" }`
 
