@@ -1,7 +1,7 @@
 # [TASK] LOC 180 Scraper WAF Bypass — Revised Plan
 
 **Date:** 2026-03-02
-**Status:** Partially Complete
+**Status:** Implementation Complete — Re-scrape Run Pending
 **Priority:** High
 **Assignee:** —
 **Labels:** `scraper`, `etl`, `loc-180`, `waf`, `playwright`
@@ -245,4 +245,8 @@ Verified against the current scraper implementation:
 - `playwright` is installed and used as a fallback transport.
 - The implementation diverged from this ticket's "Playwright as the primary transport" plan. Current code prefers `fetch`, then falls back to Playwright request/page paths when needed.
 
-Result: this ticket is partially complete, but parts of the plan are stale and should not be treated as the exact current design.
+## Implementation Update (2026-03-14)
+
+The WAF bypass was fully shipped across five commits (`6f905f6`, `8054aec`, `ae0b119`, `2b98429`, `1e3a230`). The final design uses `fetch` as the primary transport for the LOC JSON API, with Playwright as a fallback when WAF/challenge responses are detected. Macro-pauses were removed in favour of wider per-request jitter (10–31 s).
+
+All implementation acceptance criteria are met. The two remaining open criteria ("LOC scrape retrieves ≥ 170 of 180 poems" and "ETL re-run after re-scrape") require actually running the re-scrape — they are **operational**, not implementation gaps.

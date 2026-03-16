@@ -196,7 +196,7 @@ pnpm --filter @sanctuary/e2e test --project=cdp
 | Project | Directory | What it tests |
 | --- | --- | --- |
 | `api` | `tests/api/` | Live API contract tests (health, topics, duels, votes endpoints) |
-| `ui` | `tests/ui/` | Browser UI flows (foyer, anthology, reading room, navigation) |
+| `ui` | `tests/ui/` | Browser UI flows (Home, Past Bouts, The Ring, navigation; test files retain pre-rename names: foyer.spec.ts, anthology.spec.ts, reading-room.spec.ts) |
 | `cdp` | `tests/cdp/` | Live scraper source validation via Chrome DevTools Protocol |
 
 In CI, set `CI=true`; Playwright will not reuse existing servers and will use the `list` reporter. The config reads `API_PORT` (default 4000) and `WEB_PORT` (default 3000) from the environment to allow port overrides.

@@ -317,4 +317,9 @@ SELECT count(*) FROM duels;
 12. ~~Re-run generation for the ~25 new part-poems~~ — ✅ Done (25/25 stored, 431 new duels, 382 total AI poems with parent; 8th previously-failed poem also succeeded on retry)
 
 **Remaining work:**
-- LOC re-scrape (⏸ blocked by IP ban — retry after 24h+ from last attempt on 2026-03-02): `bun scripts/run-scrape.ts --sources loc-180`, then ETL re-run, then `bun scripts/run-generate.ts` for the ~115 new poems
+- LOC re-scrape: the IP-ban blocker from 2026-03-02 was resolved by the WAF bypass implementation (Playwright + JSON API, shipped 2026-03-02 through 2026-03-14 — see `loc-scraper-waf-bypass.md`). The actual re-scrape run, ETL reload, and AI gen for ~115 new poems has not been confirmed as executed.
+  ```bash
+  bun scripts/run-scrape.ts --sources loc-180
+  pnpm --filter @sanctuary/etl run pipeline --include-non-pd
+  bun scripts/run-generate.ts --concurrency 3
+  ```
