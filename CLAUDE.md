@@ -1,9 +1,9 @@
-# Classicist's Sanctuary — CLAUDE.md
+# Poems Arena — CLAUDE.md
 
 ## Monorepo Layout
 
 ```
-classicist-sanctuary-proto/
+poems-arena/
 ├── apps/
 │   ├── api/                    @sanctuary/api — Bun + Hono REST API (port 4000)
 │   │   ├── src/

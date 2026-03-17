@@ -2,7 +2,7 @@
 
 ## Overview
 
-This track focuses on building the initial data acquisition layer for Classicist's Sanctuary. It involves creating a dedicated `packages/scraper` package and implementing parsers for three key sources: Project Gutenberg (Emerson), LOC Poetry 180, and Poets.org.
+This track focuses on building the initial data acquisition layer for Poems Arena. It involves creating a dedicated `packages/scraper` package and implementing parsers for three key sources: Project Gutenberg (Emerson), LOC Poetry 180, and Poets.org.
 
 ## Objectives
 

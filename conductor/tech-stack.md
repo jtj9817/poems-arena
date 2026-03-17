@@ -1,8 +1,8 @@
-# Classicist's Sanctuary - Tech Stack
+# Poems Arena - Tech Stack
 
 ## Overview
 
-Classicist's Sanctuary is built as a TypeScript-first monorepo using pnpm workspaces to manage its frontend and backend services.
+Poems Arena is built as a TypeScript-first monorepo using pnpm workspaces to manage its frontend and backend services.
 
 ## Frontend (@sanctuary/web)
 

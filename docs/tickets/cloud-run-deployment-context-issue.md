@@ -8,7 +8,7 @@
 
 ## Background
 
-The goal was to deploy the Classicist's Sanctuary monorepo (composed of `apps/api` and `apps/web`) to Google Cloud Run using a multi-container (sidecar) architecture, defined via a `docker-compose.yml` file. Cloud Run requires exactly one container to act as the ingress (with published ports), while the other containers in the pod communicate over `localhost`.
+The goal was to deploy the Poems Arena monorepo (composed of `apps/api` and `apps/web`) to Google Cloud Run using a multi-container (sidecar) architecture, defined via a `docker-compose.yml` file. Cloud Run requires exactly one container to act as the ingress (with published ports), while the other containers in the pod communicate over `localhost`.
 
 We successfully updated the `docker-compose.yml` to satisfy Cloud Run's networking constraints:
 - Removed `ports: ['4000:4000']` from the `sanctuary-api` service.

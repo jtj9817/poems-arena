@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * bump-version.ts — version incrementing script for classicist-sanctuary-proto
+ * bump-version.ts — version incrementing script for poems-arena
  *
  * Usage:
  *   bun scripts/bump-version.ts --minor [--skip-ci-check]

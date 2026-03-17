@@ -233,7 +233,7 @@ async function main(): Promise<void> {
 
     tempDbPath = path.join(
       tmpdir(),
-      `classicist-sanctuary-ai-gen-phase4-${Date.now()}-${process.pid}.sqlite`,
+      `poems-arena-ai-gen-phase4-${Date.now()}-${process.pid}.sqlite`,
     );
     database = new Database(tempDbPath, { create: true });
 

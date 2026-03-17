@@ -1,4 +1,4 @@
-# Classicist's Sanctuary - Product Guidelines
+# Poems Arena - Product Guidelines
 
 ## Brand Voice
 

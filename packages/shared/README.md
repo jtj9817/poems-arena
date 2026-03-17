@@ -1,6 +1,6 @@
 # @sanctuary/shared
 
-Shared TypeScript types, constants, and utilities for the Classicist's Sanctuary monorepo.
+Shared TypeScript types, constants, and utilities for the Poems Arena monorepo.
 
 ## Installation
 

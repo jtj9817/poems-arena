@@ -12,7 +12,7 @@ import { ScrapedPoem } from '../types';
 const shouldRunLiveScrapes = process.env.SCRAPER_LIVE_TESTS === 'true';
 const dbPath =
   process.env.SCRAPER_TEST_DB_PATH ??
-  join(tmpdir(), `classicist-sanctuary-scraper-live-test-${randomUUID()}.sqlite`);
+  join(tmpdir(), `poems-arena-scraper-live-test-${randomUUID()}.sqlite`);
 const keepTestDb = process.env.SCRAPER_TEST_DB_KEEP === 'true';
 
 const suite = shouldRunLiveScrapes ? describe : describe.skip;

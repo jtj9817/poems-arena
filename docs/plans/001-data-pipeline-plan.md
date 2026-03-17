@@ -8,7 +8,7 @@
 
 ## 1. Overview
 
-The Classicist's Sanctuary needs a rich corpus of human poems and AI-generated counterparts to power its "blind taste test" duels. This plan covers:
+Poems Arena needs a rich corpus of human poems and AI-generated counterparts to power its "blind taste test" duels. This plan covers:
 
 1. **Schema evolution** — Extend the database to support scraping metadata, topic tagging, and provenance tracking
 2. **Poem scraper** — Harvest human poems from four public sources

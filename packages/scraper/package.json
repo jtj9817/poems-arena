@@ -7,7 +7,7 @@
     "dev": "bun run --watch src/index.ts",
     "start": "bun run src/index.ts",
     "test": "bun test",
-    "test:live": "SCRAPER_LIVE_TESTS=true SCRAPER_VERBOSE=true SCRAPER_TEST_DB_PATH=/tmp/classicist-sanctuary-scraper-live-test.sqlite bun test src/scrapers/live-scrape.test.ts"
+    "test:live": "SCRAPER_LIVE_TESTS=true SCRAPER_VERBOSE=true SCRAPER_TEST_DB_PATH=/tmp/poems-arena-scraper-live-test.sqlite bun test src/scrapers/live-scrape.test.ts"
   },
   "dependencies": {
     "@sanctuary/shared": "workspace:*",

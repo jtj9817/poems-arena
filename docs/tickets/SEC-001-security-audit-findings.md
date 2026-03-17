@@ -1,7 +1,7 @@
 # [SEC-001] Security and Privacy Audit Findings - March 2026
 
 ## Summary
-A security and privacy audit of the Classicist's Sanctuary codebase identified two vulnerabilities: a high-severity Cross-Site Scripting (XSS) vulnerability in the frontend and a medium-severity information disclosure risk in backend logging.
+A security and privacy audit of the Poems Arena codebase identified two vulnerabilities: a high-severity Cross-Site Scripting (XSS) vulnerability in the frontend and a medium-severity information disclosure risk in backend logging.
 
 ## Status: CLOSED
 **Severity:** High  
@@ -12,7 +12,7 @@ A security and privacy audit of the Classicist's Sanctuary codebase identified t
 ---
 
 ## Description
-During a routine security audit of the `classicist-sanctuary-proto` repository, the following vulnerabilities were discovered. These findings represent potential risks to user security and infrastructure privacy.
+During a routine security audit of the `poems-arena` repository, the following vulnerabilities were discovered. These findings represent potential risks to user security and infrastructure privacy.
 
 ### Finding 1: Cross-Site Scripting (XSS) via `sourceUrl`
 

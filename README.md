@@ -1,4 +1,4 @@
-# Classicist's Sanctuary
+# Poems Arena
 
 > "Can you distinguish the soul from the synthesis?"
 
@@ -50,7 +50,7 @@ A blind taste test for the literary mind. Two anonymous poems on a shared topic 
 ## Repository Structure
 
 ```
-classicist-sanctuary-proto/
+poems-arena/
 ├── apps/
 │   ├── web/          @sanctuary/web    — React 19 + Vite SPA
 │   └── api/          @sanctuary/api    — Bun + Hono REST API

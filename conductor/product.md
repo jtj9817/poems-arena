@@ -2,7 +2,7 @@
 
 A digital "blind taste test" for poetry designed to challenge readers to distinguish between human-authored and AI-generated works.
 
-# Classicist's Sanctuary - Product Definition
+# Poems Arena - Product Definition
 
 ## Vision
 

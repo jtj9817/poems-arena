@@ -49,7 +49,7 @@ if ! grep -q '"sourceUrl":"https://www.loc.gov/.*poetry-180-001.*"' <<<"$verbose
 fi
 
 echo "[phase2] Step 6/6: verify isolated scraper test DB path and non-LIBSQL_URL usage"
-test_db_path="/tmp/classicist-sanctuary-scraper-phase2-manual-$$.sqlite"
+test_db_path="/tmp/poems-arena-scraper-phase2-manual-$$.sqlite"
 rm -f "$test_db_path"
 
 CI=true \
