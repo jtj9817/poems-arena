@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
+import { secureHeaders } from 'hono/secure-headers';
 import { db } from './db/client';
 import { ensureDbReady, getDbReadinessSnapshot, startDbWarmup } from './db/readiness';
 import { ApiError, ServiceUnavailableError } from './errors';
@@ -31,6 +32,7 @@ const app = new Hono();
 const PERMISSIONS_POLICY = 'camera=(), microphone=(), geolocation=(), payment=(), usb=()';
 
 app.use('*', logger());
+app.use('*', secureHeaders());
 app.use('*', async (c, next) => {
   // Keep this policy limited to broadly supported directives.
   c.header('Permissions-Policy', PERMISSIONS_POLICY);
